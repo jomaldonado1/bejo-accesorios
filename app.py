@@ -163,19 +163,7 @@ div[data-testid="stFileUploader"] button { color:#ff6b35 !important; border-colo
 hr { border-color:rgba(255,107,53,0.2) !important; }
 iframe { border-radius:14px; border:2px solid rgba(255,107,53,0.4); }
 
-/* ── OCULTAR PANEL ADMIN HASTA HOVER ── */
-div[data-testid="stExpander"] {
-    opacity: 0.0 !important;
-    transition: opacity 0.3s ease-in-out !important;
-}
-div[data-testid="stExpander"]:hover,
-div[data-testid="stExpander"]:focus-within {
-    opacity: 1.0 !important;
-}
-/* Evitar que los expanders anidados dentro del panel se oculten */
-div[data-testid="stExpander"] div[data-testid="stExpander"] {
-    opacity: 1.0 !important;
-}
+
 
 /* ── RESPONSIVE ── */
 @media (max-width:600px) {
@@ -189,7 +177,12 @@ div[data-testid="stExpander"] div[data-testid="stExpander"] {
 def get_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     # ── Streamlit Cloud: usa st.secrets ──────────────────────────────────────
-    if "gcp_service_account" in st.secrets:
+    has_secrets = False
+    try:
+        has_secrets = "gcp_service_account" in st.secrets
+    except Exception:
+        pass
+    if has_secrets:
         import json
         creds_dict = {k: v for k, v in st.secrets["gcp_service_account"].items()}
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
@@ -201,7 +194,12 @@ def get_sheet():
 
 def get_pedidos_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    if "gcp_service_account" in st.secrets:
+    has_secrets = False
+    try:
+        has_secrets = "gcp_service_account" in st.secrets
+    except Exception:
+        pass
+    if has_secrets:
         creds_dict = {k: v for k, v in st.secrets["gcp_service_account"].items()}
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     else:
@@ -398,6 +396,32 @@ for k, v in {
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
+
+# ── CONDITIONAL CSS FOR ADMIN PANEL HOVER ──
+if not st.session_state.admin_autenticado:
+    st.markdown("""
+    <style>
+    div[data-testid="stExpander"] {
+        opacity: 0.0 !important;
+        transition: opacity 0.3s ease-in-out !important;
+    }
+    div[data-testid="stExpander"]:hover,
+    div[data-testid="stExpander"]:focus-within {
+        opacity: 1.0 !important;
+    }
+    div[data-testid="stExpander"] div[data-testid="stExpander"] {
+        opacity: 1.0 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown("""
+    <style>
+    div[data-testid="stExpander"] {
+        opacity: 1.0 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 # ── HEADER (Logo y Nombre) ───────────────────────────────────────────────────
 logo_col1, logo_col2, logo_col3 = st.columns([1.3, 1, 1.3])
