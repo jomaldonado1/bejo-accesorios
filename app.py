@@ -446,16 +446,23 @@ if st.session_state.vista == "carrito":
 
                 st.balloons()
                 if ok_stock:
-                    st.success(f"✅ ¡Pedido **{id_pedido}** generado! Stock actualizado automáticamente.")
+                    st.success(f"✅ ¡Pedido **{id_pedido}** generado con éxito!")
                 else:
                     st.success(f"✅ ¡Pedido **{id_pedido}** generado! Revisá el stock manualmente.")
 
-                st.markdown(f"""<a href="{ws_url}" target="_blank" style="display:block;text-align:center;
-                    background:linear-gradient(135deg,#25D366,#128C7E);color:white;font-size:1.4rem;
-                    font-weight:800;padding:1.1rem 2rem;border-radius:14px;text-decoration:none;
-                    margin-top:1rem;box-shadow:0 4px 20px #25D36655;letter-spacing:1px;">
-                    📲 ENVIAR PEDIDO POR WHATSAPP → {id_pedido}</a>
-                    <script>window.open("{ws_url}","_blank");</script>""", unsafe_allow_html=True)
+                # Redirección automática a WhatsApp sin botones redundantes
+                st.markdown(f"""
+                    <div style="background: rgba(37, 211, 102, 0.15); border: 1px solid #25D366; border-radius: 12px; padding: 15px; text-align: center; margin-top: 1.5rem;">
+                        <h3 style="color: #a8ffdb; margin: 0 0 10px 0;">📲 Redirigiendo a WhatsApp...</h3>
+                        <p style="color: #fff; margin: 0; font-size: 1rem;">Estamos abriendo tu chat para enviar los detalles del pedido <b>{id_pedido}</b>.</p>
+                        <p style="color: #a89cff; font-size: 0.85rem; margin: 10px 0 0 0;">Si la aplicación no se abre automáticamente, <a href="{ws_url}" target="_self" style="color: #ffd200; font-weight: 700; text-decoration: underline;">hacé clic acá para enviar</a>.</p>
+                    </div>
+                    <script>
+                        setTimeout(function() {{
+                            window.location.href = "{ws_url}";
+                        }}, 2000);
+                    </script>
+                """, unsafe_allow_html=True)
     st.stop()
 
 # ── VISTA CATÁLOGO (Default) ──────────────────────────────────────────────────
