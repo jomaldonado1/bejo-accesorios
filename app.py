@@ -164,13 +164,13 @@ hr { border-color:rgba(255,107,53,0.2) !important; }
 iframe { border-radius:14px; border:2px solid rgba(255,107,53,0.4); }
 
 /* ── OCULTAR PANEL ADMIN HASTA HOVER ── */
-div.element-container:has(div.admin-trigger) + div.element-container {
-    opacity: 0.0;
-    transition: opacity 0.4s ease-in-out;
-    margin-top: 3rem;
+div.element-container:has(div.admin-trigger) ~ div.element-container {
+    opacity: 0.0 !important;
+    transition: opacity 0.4s ease-in-out !important;
 }
-div.element-container:has(div.admin-trigger) + div.element-container:hover {
-    opacity: 1.0;
+div.element-container:has(div.admin-trigger) ~ div.element-container:hover,
+div.element-container:has(div.admin-trigger) ~ div.element-container:focus-within {
+    opacity: 1.0 !important;
 }
 
 /* ── RESPONSIVE ── */
@@ -324,6 +324,21 @@ with logo_col2:
 
 st.markdown('<div class="bejo-header">⚡ BEJO ⚡</div>', unsafe_allow_html=True)
 st.markdown('<div class="bejo-subtitle">ACCESORIOS PARA CELULARES · CALIDAD PREMIUM</div>', unsafe_allow_html=True)
+
+# ── MENÚ DE NAVEGACIÓN PRINCIPAL ──────────────────────────────────────────────
+nav_c1, nav_c2 = st.columns(2)
+with nav_c1:
+    btn_cat_type = "primary" if st.session_state.vista == "catalogo" else "secondary"
+    if st.button("🏠 INICIO / CATÁLOGO", use_container_width=True, key="nav_home", type=btn_cat_type):
+        st.session_state.vista = "catalogo"
+        st.rerun()
+with nav_c2:
+    num_items = sum(st.session_state.carrito.values())
+    btn_car_type = "primary" if st.session_state.vista == "carrito" else "secondary"
+    if st.button(f"🛒 MI CARRITO ({num_items} items)", use_container_width=True, key="nav_cart", type=btn_car_type):
+        st.session_state.vista = "carrito"
+        st.rerun()
+st.markdown("---")
 
 # ── VISTA DEL CARRITO Y CHECKOUT ──────────────────────────────────────────────
 if st.session_state.vista == "carrito":
