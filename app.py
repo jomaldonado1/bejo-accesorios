@@ -825,6 +825,14 @@ with st.expander("⚙️ Panel de Control – Solo Administrador"):
         # ── cabecera admin ────────────────────────────────────────────────
         col_tit, col_out = st.columns([4, 1])
         col_tit.markdown("### 🛠️ Panel BEJO · Administración")
+        
+        # Diagnóstico de Mercado Pago
+        has_mp = obtener_access_token_mp() is not None
+        if has_mp:
+            st.success("🟢 **Mercado Pago:** Configurado correctamente y listo para recibir cobros.")
+        else:
+            st.error("🔴 **Mercado Pago:** No se detectó tu Access Token. Asegurá que agregaste `MERCADOPAGO_ACCESS_TOKEN` en los Secretos de Streamlit Cloud y presionaste el botón **Save**.")
+
         if col_out.button("Salir 🔒"):
             st.session_state.admin_autenticado = False
             st.session_state.admin_modo = None
