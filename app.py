@@ -299,6 +299,7 @@ for k, v in {
     "admin_autenticado": False,
     "admin_modo": None,          # "editar" | "nuevo"
     "admin_idx_sel": None,       # índice del df del producto seleccionado
+    "vista": "catalogo",         # "catalogo" | "carrito"
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -314,6 +315,150 @@ with logo_col2:
 st.markdown('<div class="bejo-header">⚡ BEJO ⚡</div>', unsafe_allow_html=True)
 st.markdown('<div class="bejo-subtitle">ACCESORIOS PARA CELULARES · CALIDAD PREMIUM</div>', unsafe_allow_html=True)
 
+# ── VISTA DEL CARRITO Y CHECKOUT ──────────────────────────────────────────────
+if st.session_state.vista == "carrito":
+    st.markdown('<div class="carrito-titulo">🛒 Tu Carrito de Compras</div>', unsafe_allow_html=True)
+    if st.button("⬅️ Volver a ver el catálogo", use_container_width=True, key="btn_volver_cat"):
+        st.session_state.vista = "catalogo"
+        st.rerun()
+    st.markdown("")
+
+    if not st.session_state.carrito:
+        st.info("Tu carrito está vacío. ¡Volvé al catálogo para elegir productos!")
+    else:
+        total_pedido      = 0
+        resumen_productos = []
+
+        for idx, cantidad in list(st.session_state.carrito.items()):
+            row          = df_stock.loc[idx]
+            nombre_prod  = f"{row['Nombre del Artículo']} {row['Modelo Exacto']} ({row['Color / Diseño (Variación)']})"
+            precio_unit  = row["Precio Mercado"]
+            stock_actual = row["Cantidad"]
+            c1, c2, c3, c4 = st.columns([3, 1.2, 1.5, 0.8])
+            c1.markdown(f"🔹 **{nombre_prod}**")
+            nueva_cant = c2.number_input("", min_value=1, max_value=min(stock_actual,10),
+                                         value=int(cantidad), step=1,
+                                         key=f"cqty_{idx}", label_visibility="collapsed")
+            if nueva_cant != cantidad:
+                st.session_state.carrito[idx] = nueva_cant
+                st.rerun()
+            subtotal = precio_unit * nueva_cant
+            total_pedido += subtotal
+            resumen_productos.append(f"- {nombre_prod} x{nueva_cant} (${subtotal:,.0f})")
+            c3.markdown(f"**${subtotal:,.0f}**")
+            if c4.button("🗑️", key=f"del_{idx}"):
+                del st.session_state.carrito[idx]; st.rerun()
+
+        st.markdown(f'<div class="total-box">💰 Total a Pagar: ${total_pedido:,.0f}</div>', unsafe_allow_html=True)
+
+        # ── ENTREGA ──────────────────────────────────────────────────────────
+        st.markdown('<div class="seccion-titulo">📦 ¿Cómo querés recibirlo?</div>', unsafe_allow_html=True)
+        metodo_entrega = st.radio("entrega_r", ["🏪  Retiro en punto de venta","🏠  Envío a domicilio"],
+                                  index=None, label_visibility="collapsed")
+        direccion = observacion = horario = ""
+
+        if metodo_entrega == "🏪  Retiro en punto de venta":
+            st.markdown("""<div class="info-ws">📍 <b>Retiro en local BEJO</b><br>
+            Una vez confirmado el pedido, coordiná el retiro directamente con el vendedor por WhatsApp. 😊</div>""",
+            unsafe_allow_html=True)
+
+        elif metodo_entrega == "🏠  Envío a domicilio":
+            st.markdown("#### 📍 Tu dirección de entrega")
+            direccion = st.text_input("🏠 Dirección completa (calle, número, barrio):",
+                                      placeholder="Ej: San Martín 456, Yerba Buena, Tucumán", key="inp_dir")
+            query_mapa = urllib.parse.quote(f"{direccion}, Tucumán, Argentina") if direccion.strip() else "Tucuman,Argentina"
+            st.components.v1.iframe(f"https://maps.google.com/maps?q={query_mapa}&output=embed&z=15",
+                                    height=280, scrolling=False)
+            if not direccion.strip():
+                st.caption("💡 Escribí tu dirección arriba para verla marcada en el mapa.")
+            observacion = st.text_input("📝 Observaciones:", placeholder="Ej: Portón blanco, timbre 2")
+            horario = st.selectbox("🕐 Horario preferible:", [
+                "Sin preferencia (cualquier hora)", "Mañana (8:00 a 12:00)",
+                "Mediodía (12:00 a 15:00)", "Tarde (15:00 a 18:00)", "Noche (18:00 a 21:00)"
+            ])
+
+        # ── PAGO ─────────────────────────────────────────────────────────────
+        st.markdown('<div class="seccion-titulo">💳 Método de Pago</div>', unsafe_allow_html=True)
+        metodo_pago = st.radio("pago_r", ["💵  Efectivo","🏦  Transferencia Bancaria"],
+                               index=None, label_visibility="collapsed")
+        mitad = total_pedido // 2
+        resto = total_pedido - mitad
+        if metodo_pago == "🏦  Transferencia Bancaria":
+            st.markdown(f"""<div class="info-transfer">🏦 <b>PAGO POR TRANSFERENCIA</b><br><br>
+            ✅ Transferí <b>la mitad ahora: ${mitad:,.0f}</b><br>
+            📦 El resto (<b>${resto:,.0f}</b>) lo abonás al recibir el producto.<br><br>
+            💬 Los datos bancarios te los mandamos por WhatsApp. 🤝</div>""", unsafe_allow_html=True)
+
+        st.markdown("")
+        if st.button("🚀 CONFIRMAR PEDIDO Y ENVIAR A WHATSAPP", type="primary", use_container_width=True):
+            errores = []
+            if metodo_entrega is None: errores.append("⚠️ Seleccioná cómo querés recibir tu pedido.")
+            if metodo_pago    is None: errores.append("⚠️ Seleccioná el método de pago.")
+            if metodo_entrega == "🏠  Envío a domicilio" and not direccion.strip():
+                errores.append("⚠️ Ingresá tu dirección de envío.")
+            if errores:
+                for e in errores: st.markdown(f'<div class="error-validacion">{e}</div>', unsafe_allow_html=True)
+            else:
+                ahora     = datetime.now()
+                id_pedido = f"PED-{ahora.strftime('%d%m-%H%M')}-{random.randint(100,999)}"
+                le = metodo_entrega.replace("🏪  ","").replace("🏠  ","")
+                lp = metodo_pago.replace("💵  ","").replace("🏦  ","")
+                msg = (f"⚡ ¡Hola BEJO! Nuevo pedido 🔥\n\n🆔 *ID Pedido:* {id_pedido}\n"
+                       f"📦 *Productos:*\n" + "\n".join(resumen_productos) +
+                       f"\n\n💰 *Total:* ${total_pedido:,.0f}\n💳 *Pago:* {lp}\n")
+                if metodo_pago == "🏦  Transferencia Bancaria":
+                    msg += f"   ↳ Seña (50%): ${mitad:,.0f} | Resto al recibir: ${resto:,.0f}\n"
+                msg += f"📍 *Entrega:* {le}\n"
+                if metodo_entrega == "🏠  Envío a domicilio":
+                    msg += f"🏠 *Dirección:* {direccion}\n"
+                    if observacion.strip(): msg += f"📝 *Observación:* {observacion}\n"
+                    msg += f"🕐 *Horario preferible:* {horario}\n"
+                if metodo_entrega == "🏪  Retiro en punto de venta":
+                    msg += "\n🤝 ¡Coordino el retiro con ustedes por WhatsApp!\n"
+                msg += "\n✨ ¡Gracias por elegir BEJO! 🙌"
+                ws_url = f"https://wa.me/{NUMERO_WS}?text={urllib.parse.quote(msg)}"
+
+                # ── Guardar pedido en el Excel (solapa Pedidos) ─────────────
+                try:
+                    p_sheet = get_pedidos_sheet()
+                    cliente_info = f"Pago: {lp} | Entrega: {le}"
+                    if metodo_entrega == "🏠  Envío a domicilio":
+                        cliente_info += f" | Dir: {direccion}"
+                    p_sheet.append_row([
+                        ahora.strftime('%Y-%m-%d %H:%M:%S'),
+                        id_pedido,
+                        cliente_info,
+                        msg,
+                        str(total_pedido),
+                        "Pendiente"
+                    ])
+                except Exception as e:
+                    st.warning(f"⚠️ No se pudo guardar el pedido en el historial de Sheets: {e}")
+
+                # ── Descontar stock del Excel ──────────────────────────────
+                with st.spinner("Actualizando stock en el catálogo..."):
+                    ok_stock = descontar_stock(st.session_state.carrito, df_stock)
+                st.cache_data.clear()   # fuerza recarga del catálogo
+
+                # ── Vaciar carrito y regresar a la vista catálogo ─────────────
+                st.session_state.carrito = {}
+                st.session_state.vista = "catalogo"
+
+                st.balloons()
+                if ok_stock:
+                    st.success(f"✅ ¡Pedido **{id_pedido}** generado! Stock actualizado automáticamente.")
+                else:
+                    st.success(f"✅ ¡Pedido **{id_pedido}** generado! Revisá el stock manualmente.")
+
+                st.markdown(f"""<a href="{ws_url}" target="_blank" style="display:block;text-align:center;
+                    background:linear-gradient(135deg,#25D366,#128C7E);color:white;font-size:1.4rem;
+                    font-weight:800;padding:1.1rem 2rem;border-radius:14px;text-decoration:none;
+                    margin-top:1rem;box-shadow:0 4px 20px #25D36655;letter-spacing:1px;">
+                    📲 ENVIAR PEDIDO POR WHATSAPP → {id_pedido}</a>
+                    <script>window.open("{ws_url}","_blank");</script>""", unsafe_allow_html=True)
+    st.stop()
+
+# ── VISTA CATÁLOGO (Default) ──────────────────────────────────────────────────
 # ── GRILLA DE INICIO (3 elementos) ───────────────────────────────────────────
 imgs_grilla = [
     "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&q=80",
@@ -324,10 +469,32 @@ grid_html = '<div class="welcome-grid">' + "".join(f'<img src="{u}" alt="acc" lo
 st.markdown(grid_html, unsafe_allow_html=True)
 st.markdown("---")
 
+# ── Consulta por WhatsApp ─────────────────────────────────────────────────────
+st.markdown(
+    f"""
+    <div style="background: rgba(37, 211, 102, 0.12); border: 1px solid rgba(37,211,102,0.4); border-radius: 12px; padding: 12px; text-align: center; margin-bottom: 1.5rem;">
+        <span style="color: #a8ffdb; font-weight: 600; font-size: 0.95rem;">💬 ¿Tenés alguna duda o consulta antes de elegir tus productos?</span><br>
+        <a href="https://wa.me/{NUMERO_WS}?text=Hola%20BEJO!%20Tengo%20una%20consulta%20antes%20de%20comprar..." target="_blank" 
+           style="display: inline-block; background: #25D366; color: white; font-weight: 800; padding: 8px 16px; border-radius: 8px; text-decoration: none; margin-top: 8px; font-size: 0.9rem; box-shadow: 0 4px 10px rgba(37,211,102,0.3);">
+           Consultar por WhatsApp 📲
+        </a>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
 # ── Banner carrito ────────────────────────────────────────────────────────────
 if st.session_state.get("mostrar_banner_carrito"):
     st.markdown('<div class="carrito-banner">🛒 ¡PRODUCTO AGREGADO AL CARRITO EXITOSAMENTE! ✅</div>', unsafe_allow_html=True)
     st.session_state.mostrar_banner_carrito = False
+
+# ── Botón de acceso directo al carrito (arriba) ───────────────────────────────
+if st.session_state.carrito:
+    num_items = sum(st.session_state.carrito.values())
+    if st.button(f"🛒 VER CARRITO DE COMPRAS ({num_items} items) ➔", type="primary", use_container_width=True, key="btn_go_cart_top"):
+        st.session_state.vista = "carrito"
+        st.rerun()
+    st.markdown("")
 
 # ════════════════════════════════════════════════════════════════════════════
 # CATÁLOGO
@@ -445,138 +612,13 @@ else:
                     st.session_state.catalog_page += 1
                     st.rerun()
 
-    # ── CARRITO ──────────────────────────────────────────────────────────────
+    # ── BOTÓN DE CHECKOUT AL FINAL DEL CATÁLOGO ───────────────────────────────
     if st.session_state.carrito:
-        st.markdown('<div class="carrito-titulo">🛒 Tu Carrito de Compras</div>', unsafe_allow_html=True)
-        total_pedido      = 0
-        resumen_productos = []
-
-        for idx, cantidad in list(st.session_state.carrito.items()):
-            row          = df_stock.loc[idx]
-            nombre_prod  = f"{row['Nombre del Artículo']} {row['Modelo Exacto']} ({row['Color / Diseño (Variación)']})"
-            precio_unit  = row["Precio Mercado"]
-            stock_actual = row["Cantidad"]
-            c1, c2, c3, c4 = st.columns([3, 1.2, 1.5, 0.8])
-            c1.markdown(f"🔹 **{nombre_prod}**")
-            nueva_cant = c2.number_input("", min_value=1, max_value=min(stock_actual,10),
-                                         value=int(cantidad), step=1,
-                                         key=f"cqty_{idx}", label_visibility="collapsed")
-            if nueva_cant != cantidad:
-                st.session_state.carrito[idx] = nueva_cant
-                st.rerun()
-            subtotal = precio_unit * nueva_cant
-            total_pedido += subtotal
-            resumen_productos.append(f"- {nombre_prod} x{nueva_cant} (${subtotal:,.0f})")
-            c3.markdown(f"**${subtotal:,.0f}**")
-            if c4.button("🗑️", key=f"del_{idx}"):
-                del st.session_state.carrito[idx]; st.rerun()
-
-        st.markdown(f'<div class="total-box">💰 Total a Pagar: ${total_pedido:,.0f}</div>', unsafe_allow_html=True)
-
-        # ── ENTREGA ──────────────────────────────────────────────────────────
-        st.markdown('<div class="seccion-titulo">📦 ¿Cómo querés recibirlo?</div>', unsafe_allow_html=True)
-        metodo_entrega = st.radio("entrega_r", ["🏪  Retiro en punto de venta","🏠  Envío a domicilio"],
-                                  index=None, label_visibility="collapsed")
-        direccion = observacion = horario = ""
-
-        if metodo_entrega == "🏪  Retiro en punto de venta":
-            st.markdown("""<div class="info-ws">📍 <b>Retiro en local BEJO</b><br>
-            Una vez confirmado el pedido, coordiná el retiro directamente con el vendedor por WhatsApp. 😊</div>""",
-            unsafe_allow_html=True)
-
-        elif metodo_entrega == "🏠  Envío a domicilio":
-            st.markdown("#### 📍 Tu dirección de entrega")
-            direccion = st.text_input("🏠 Dirección completa (calle, número, barrio):",
-                                      placeholder="Ej: San Martín 456, Yerba Buena, Tucumán", key="inp_dir")
-            query_mapa = urllib.parse.quote(f"{direccion}, Tucumán, Argentina") if direccion.strip() else "Tucuman,Argentina"
-            st.components.v1.iframe(f"https://maps.google.com/maps?q={query_mapa}&output=embed&z=15",
-                                    height=280, scrolling=False)
-            if not direccion.strip():
-                st.caption("💡 Escribí tu dirección arriba para verla marcada en el mapa.")
-            observacion = st.text_input("📝 Observaciones:", placeholder="Ej: Portón blanco, timbre 2")
-            horario = st.selectbox("🕐 Horario preferible:", [
-                "Sin preferencia (cualquier hora)", "Mañana (8:00 a 12:00)",
-                "Mediodía (12:00 a 15:00)", "Tarde (15:00 a 18:00)", "Noche (18:00 a 21:00)"
-            ])
-
-        # ── PAGO ─────────────────────────────────────────────────────────────
-        st.markdown('<div class="seccion-titulo">💳 Método de Pago</div>', unsafe_allow_html=True)
-        metodo_pago = st.radio("pago_r", ["💵  Efectivo","🏦  Transferencia Bancaria"],
-                               index=None, label_visibility="collapsed")
-        mitad = total_pedido // 2
-        resto = total_pedido - mitad
-        if metodo_pago == "🏦  Transferencia Bancaria":
-            st.markdown(f"""<div class="info-transfer">🏦 <b>PAGO POR TRANSFERENCIA</b><br><br>
-            ✅ Transferí <b>la mitad ahora: ${mitad:,.0f}</b><br>
-            📦 El resto (<b>${resto:,.0f}</b>) lo abonás al recibir el producto.<br><br>
-            💬 Los datos bancarios te los mandamos por WhatsApp. 🤝</div>""", unsafe_allow_html=True)
-
-        st.markdown("")
-        if st.button("🚀 CONFIRMAR PEDIDO Y ENVIAR A WHATSAPP", type="primary", use_container_width=True):
-            errores = []
-            if metodo_entrega is None: errores.append("⚠️ Seleccioná cómo querés recibir tu pedido.")
-            if metodo_pago    is None: errores.append("⚠️ Seleccioná el método de pago.")
-            if metodo_entrega == "🏠  Envío a domicilio" and not direccion.strip():
-                errores.append("⚠️ Ingresá tu dirección de envío.")
-            if errores:
-                for e in errores: st.markdown(f'<div class="error-validacion">{e}</div>', unsafe_allow_html=True)
-            else:
-                ahora     = datetime.now()
-                id_pedido = f"PED-{ahora.strftime('%d%m-%H%M')}-{random.randint(100,999)}"
-                le = metodo_entrega.replace("🏪  ","").replace("🏠  ","")
-                lp = metodo_pago.replace("💵  ","").replace("🏦  ","")
-                msg = (f"⚡ ¡Hola BEJO! Nuevo pedido 🔥\n\n🆔 *ID Pedido:* {id_pedido}\n"
-                       f"📦 *Productos:*\n" + "\n".join(resumen_productos) +
-                       f"\n\n💰 *Total:* ${total_pedido:,.0f}\n💳 *Pago:* {lp}\n")
-                if metodo_pago == "🏦  Transferencia Bancaria":
-                    msg += f"   ↳ Seña (50%): ${mitad:,.0f} | Resto al recibir: ${resto:,.0f}\n"
-                msg += f"📍 *Entrega:* {le}\n"
-                if metodo_entrega == "🏠  Envío a domicilio":
-                    msg += f"🏠 *Dirección:* {direccion}\n"
-                    if observacion.strip(): msg += f"📝 *Observación:* {observacion}\n"
-                    msg += f"🕐 *Horario preferible:* {horario}\n"
-                if metodo_entrega == "🏪  Retiro en punto de venta":
-                    msg += "\n🤝 ¡Coordino el retiro con ustedes por WhatsApp!\n"
-                msg += "\n✨ ¡Gracias por elegir BEJO! 🙌"
-                ws_url = f"https://wa.me/{NUMERO_WS}?text={urllib.parse.quote(msg)}"
-
-                # ── Guardar pedido en el Excel (solapa Pedidos) ─────────────
-                try:
-                    p_sheet = get_pedidos_sheet()
-                    cliente_info = f"Pago: {lp} | Entrega: {le}"
-                    if metodo_entrega == "🏠  Envío a domicilio":
-                        cliente_info += f" | Dir: {direccion}"
-                    p_sheet.append_row([
-                        ahora.strftime('%Y-%m-%d %H:%M:%S'),
-                        id_pedido,
-                        cliente_info,
-                        msg,
-                        str(total_pedido),
-                        "Pendiente"
-                    ])
-                except Exception as e:
-                    st.warning(f"⚠️ No se pudo guardar el pedido en el historial de Sheets: {e}")
-
-                # ── Descontar stock del Excel ──────────────────────────────
-                with st.spinner("Actualizando stock en el catálogo..."):
-                    ok_stock = descontar_stock(st.session_state.carrito, df_stock)
-                st.cache_data.clear()   # fuerza recarga del catálogo
-
-                # ── Vaciar carrito ─────────────────────────────────────────
-                st.session_state.carrito = {}
-
-                st.balloons()
-                if ok_stock:
-                    st.success(f"✅ ¡Pedido **{id_pedido}** generado! Stock actualizado automáticamente.")
-                else:
-                    st.success(f"✅ ¡Pedido **{id_pedido}** generado! Revisá el stock manualmente.")
-
-                st.markdown(f"""<a href="{ws_url}" target="_blank" style="display:block;text-align:center;
-                    background:linear-gradient(135deg,#25D366,#128C7E);color:white;font-size:1.4rem;
-                    font-weight:800;padding:1.1rem 2rem;border-radius:14px;text-decoration:none;
-                    margin-top:1rem;box-shadow:0 4px 20px #25D36655;letter-spacing:1px;">
-                    📲 ENVIAR PEDIDO POR WHATSAPP → {id_pedido}</a>
-                    <script>window.open("{ws_url}","_blank");</script>""", unsafe_allow_html=True)
+        st.markdown("---")
+        num_items = sum(st.session_state.carrito.values())
+        if st.button(f"🛒 FINALIZAR COMPRA ({num_items} items) ➔", type="primary", use_container_width=True, key="btn_go_cart_bottom"):
+            st.session_state.vista = "carrito"
+            st.rerun()
 
 # ════════════════════════════════════════════════════════════════════════════
 # PANEL ADMINISTRADOR
