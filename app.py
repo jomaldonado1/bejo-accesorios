@@ -303,14 +303,16 @@ for k, v in {
     if k not in st.session_state:
         st.session_state[k] = v
 
-# ── HEADER (Logo) ────────────────────────────────────────────────────────────
-logo_col1, logo_col2, logo_col3 = st.columns([1, 1.8, 1])
+# ── HEADER (Logo y Nombre) ───────────────────────────────────────────────────
+logo_col1, logo_col2, logo_col3 = st.columns([1.3, 1, 1.3])
 with logo_col2:
     try:
         st.image("logo.png", use_container_width=True)
     except Exception:
-        st.markdown('<div class="bejo-header">⚡ BEJO ⚡</div>', unsafe_allow_html=True)
-        st.markdown('<div class="bejo-subtitle">ACCESORIOS PARA CELULARES · CALIDAD PREMIUM</div>', unsafe_allow_html=True)
+        pass
+
+st.markdown('<div class="bejo-header">⚡ BEJO ⚡</div>', unsafe_allow_html=True)
+st.markdown('<div class="bejo-subtitle">ACCESORIOS PARA CELULARES · CALIDAD PREMIUM</div>', unsafe_allow_html=True)
 
 # ── GRILLA DE INICIO (3 elementos) ───────────────────────────────────────────
 imgs_grilla = [
