@@ -296,33 +296,54 @@ if df_stock.empty:
     st.warning("No se pudieron cargar los datos de Google Sheets.")
 else:
     st.markdown("### 🔍 Buscar Accesorios")
-    cf1, cf2, cf3 = st.columns(3)
+    cf1, cf2, cf3, cf4 = st.columns(4)
     with cf1:
-        marcas    = ["Todas"] + sorted([m for m in df_stock["Marca Principal"].dropna().unique() if str(m).strip()])
-        marca_sel = st.selectbox("Marca:", marcas)
-    df_fil = df_stock if marca_sel == "Todas" else df_stock[df_stock["Marca Principal"] == marca_sel]
+        tipos = ["Todos"] + sorted([t for t in df_stock["Nombre del Artículo"].dropna().unique() if str(t).strip()])
+        tipo_sel = st.selectbox("Tipo de Producto:", tipos)
+    df_fil = df_stock if tipo_sel == "Todos" else df_stock[df_stock["Nombre del Artículo"] == tipo_sel]
+    
     with cf2:
-        modelos    = ["Todos"] + sorted([m for m in df_fil["Modelo Exacto"].dropna().unique() if str(m).strip()])
-        modelo_sel = st.selectbox("Modelo:", modelos)
-    if modelo_sel != "Todos":
-        df_fil = df_fil[df_fil["Modelo Exacto"] == modelo_sel]
+        marcas = ["Todas"] + sorted([m for m in df_fil["Marca Principal"].dropna().unique() if str(m).strip()])
+        marca_sel = st.selectbox("Marca:", marcas)
+    df_fil = df_fil if marca_sel == "Todas" else df_fil[df_fil["Marca Principal"] == marca_sel]
+    
     with cf3:
-        disenos    = ["Todos"] + sorted([d for d in df_fil["Color / Diseño (Variación)"].dropna().unique() if str(d).strip()])
+        modelos = ["Todos"] + sorted([m for m in df_fil["Modelo Exacto"].dropna().unique() if str(m).strip()])
+        modelo_sel = st.selectbox("Modelo:", modelos)
+    df_fil = df_fil if modelo_sel == "Todos" else df_fil[df_fil["Modelo Exacto"] == modelo_sel]
+    
+    with cf4:
+        disenos = ["Todos"] + sorted([d for d in df_fil["Color / Diseño (Variación)"].dropna().unique() if str(d).strip()])
         diseno_sel = st.selectbox("Color / Diseño:", disenos)
-    if diseno_sel != "Todos":
-        df_fil = df_fil[df_fil["Color / Diseño (Variación)"] == diseno_sel]
+    df_fil = df_fil if diseno_sel == "Todos" else df_fil[df_fil["Color / Diseño (Variación)"] == diseno_sel]
+    
     st.markdown("---")
 
-    mostrar_todo = (
-        st.checkbox("Ver todo el catálogo completo", value=False)
-        if (marca_sel == "Todas" and modelo_sel == "Todos") else True
-    )
-    items = df_fil if mostrar_todo else df_fil.head(6)
+    # HASH / FILTERS TRACKING TO RESET PAGE TO 1
+    filter_key = f"{tipo_sel}_{marca_sel}_{modelo_sel}_{diseno_sel}"
+    if st.session_state.get("last_filter_key") != filter_key:
+        st.session_state.catalog_page = 1
+        st.session_state.last_filter_key = filter_key
+
+    items = df_fil
     if items.empty:
         st.info("No hay productos disponibles para los filtros seleccionados.")
     else:
+        items_per_page = 6
+        total_items = len(items)
+        total_pages = max(1, (total_items + items_per_page - 1) // items_per_page)
+        
+        # Clamp page number just in case
+        if st.session_state.get("catalog_page", 1) > total_pages:
+            st.session_state.catalog_page = 1
+            
+        curr_page = st.session_state.get("catalog_page", 1)
+        start_idx = (curr_page - 1) * items_per_page
+        end_idx = start_idx + items_per_page
+        page_items = items.iloc[start_idx:end_idx]
+
         # Mostramos los elementos en una grilla de 3 columnas
-        for idx_group in range(0, len(items), 3):
+        for idx_group in range(0, len(page_items), 3):
             cols = st.columns(3)
             for col_idx in range(3):
                 item_idx = idx_group + col_idx
@@ -368,6 +389,21 @@ else:
                                             st.rerun()
                                         else:
                                             st.error(f"⚠️ Solo hay {stock_actual} unidades disponibles.")
+
+        # Controles de paginación
+        if total_pages > 1:
+            st.markdown("<br>", unsafe_allow_html=True)
+            p_col1, p_col2, p_col3 = st.columns([1, 2, 1])
+            with p_col1:
+                if st.button("⬅️ Anterior", disabled=(curr_page == 1), use_container_width=True, key="cat_prev_page"):
+                    st.session_state.catalog_page -= 1
+                    st.rerun()
+            with p_col2:
+                st.markdown(f"<p style='text-align:center; font-weight:700; font-size:1.1rem; color:#fff;'>Página {curr_page} de {total_pages}</p>", unsafe_allow_html=True)
+            with p_col3:
+                if st.button("Siguiente ➡️", disabled=(curr_page == total_pages), use_container_width=True, key="cat_next_page"):
+                    st.session_state.catalog_page += 1
+                    st.rerun()
 
     # ── CARRITO ──────────────────────────────────────────────────────────────
     if st.session_state.carrito:
@@ -533,23 +569,30 @@ with st.expander("⚙️ Panel de Control – Solo Administrador"):
             # ════════════════════════════════════════════════════════════════
             st.markdown('<div class="admin-filtros">', unsafe_allow_html=True)
             st.markdown("#### 🔍 Buscá el producto por filtros")
-            af1, af2, af3 = st.columns(3)
+            af1, af2, af3, af4 = st.columns(4)
             with af1:
-                marcas_a = ["(Todas)"] + sorted([m for m in df_stock["Marca Principal"].dropna().unique() if str(m).strip()])
-                m_a = st.selectbox("Marca:", marcas_a, key="adm_marca")
-            df_a = df_stock if m_a == "(Todas)" else df_stock[df_stock["Marca Principal"] == m_a]
+                tipos_a = ["(Todos)"] + sorted([t for t in df_stock["Nombre del Artículo"].dropna().unique() if str(t).strip()])
+                t_a = st.selectbox("Tipo:", tipos_a, key="adm_tipo")
+            df_a = df_stock if t_a == "(Todos)" else df_stock[df_stock["Nombre del Artículo"] == t_a]
+            
             with af2:
+                marcas_a = ["(Todas)"] + sorted([m for m in df_a["Marca Principal"].dropna().unique() if str(m).strip()])
+                m_a = st.selectbox("Marca:", marcas_a, key="adm_marca")
+            df_a = df_a if m_a == "(Todas)" else df_a[df_a["Marca Principal"] == m_a]
+            
+            with af3:
                 modelos_a = ["(Todos)"] + sorted([m for m in df_a["Modelo Exacto"].dropna().unique() if str(m).strip()])
                 mo_a = st.selectbox("Modelo:", modelos_a, key="adm_modelo")
-            if mo_a != "(Todos)": df_a = df_a[df_a["Modelo Exacto"] == mo_a]
-            with af3:
+            df_a = df_a if mo_a == "(Todos)" else df_a[df_a["Modelo Exacto"] == mo_a]
+            
+            with af4:
                 colores_a = ["(Todos)"] + sorted([d for d in df_a["Color / Diseño (Variación)"].dropna().unique() if str(d).strip()])
                 co_a = st.selectbox("Color / Diseño:", colores_a, key="adm_color")
-            if co_a != "(Todos)": df_a = df_a[df_a["Color / Diseño (Variación)"] == co_a]
+            df_a = df_a if co_a == "(Todos)" else df_a[df_a["Color / Diseño (Variación)"] == co_a]
             st.markdown('</div>', unsafe_allow_html=True)
 
             # ── Resultado de búsqueda ─────────────────────────────────────
-            filtros_activos = (m_a != "(Todas)" or mo_a != "(Todos)" or co_a != "(Todos)")
+            filtros_activos = (t_a != "(Todos)" or m_a != "(Todas)" or mo_a != "(Todos)" or co_a != "(Todos)")
 
             if not filtros_activos:
                 st.info("👆 Seleccioná al menos un filtro para buscar un producto, o usá el botón para agregar uno nuevo.")
