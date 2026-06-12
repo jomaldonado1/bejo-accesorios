@@ -163,6 +163,15 @@ div[data-testid="stFileUploader"] button { color:#ff6b35 !important; border-colo
 hr { border-color:rgba(255,107,53,0.2) !important; }
 iframe { border-radius:14px; border:2px solid rgba(255,107,53,0.4); }
 
+/* ── OCULTAR PANEL ADMIN HASTA HOVER ── */
+.admin-hidden-trigger > div {
+    opacity: 0.0;
+    transition: opacity 0.5s ease-in-out;
+}
+.admin-hidden-trigger:hover > div {
+    opacity: 1.0;
+}
+
 /* ── RESPONSIVE ── */
 @media (max-width:600px) {
     .welcome-grid { gap:5px; } .welcome-grid img { border-radius:7px; }
@@ -631,12 +640,13 @@ else:
 # PANEL ADMINISTRADOR
 # ════════════════════════════════════════════════════════════════════════════
 st.markdown("---")
+st.markdown('<div class="admin-hidden-trigger">', unsafe_allow_html=True)
 with st.expander("⚙️ Panel de Control – Solo Administrador"):
 
     if not st.session_state.admin_autenticado:
         st.markdown("🔐 **Ingresá la clave de administrador:**")
         kc, kb = st.columns([3, 1])
-        clave_ing = kc.text_input("Clave:", type="password", placeholder="Contraseña...", label_visibility="collapsed")
+        clave_ing = kc.text_input("Clave:", placeholder="Contraseña...", label_visibility="collapsed")
         if kb.button("Entrar 🔓"):
             if clave_ing == CLAVE_ADMIN:
                 st.session_state.admin_autenticado = True; st.rerun()
@@ -982,3 +992,5 @@ with st.expander("⚙️ Panel de Control – Solo Administrador"):
                             st.rerun()
                         except Exception as e:
                             st.error(f"No se pudo eliminar: {e}")
+
+st.markdown('</div>', unsafe_allow_html=True)
