@@ -254,6 +254,54 @@ def descontar_stock(carrito: dict, df_ref: pd.DataFrame):
         st.warning(f"⚠️ No se pudo actualizar el stock en el Excel: {e}")
         return False
 
+def crear_preferencia_mp(total_pedido, id_pedido):
+    """Crea una preferencia de pago en Mercado Pago y devuelve la URL de checkout (init_point)."""
+    # Intentar obtener de st.secrets de forma estructurada o plana
+    access_token = None
+    if "mercadopago" in st.secrets:
+        access_token = st.secrets["mercadopago"].get("access_token", None)
+    if not access_token:
+        access_token = st.secrets.get("MERCADOPAGO_ACCESS_TOKEN", None)
+        
+    if not access_token:
+        return None
+        
+    import requests
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+    
+    preference_data = {
+        "items": [
+            {
+                "title": f"Pedido {id_pedido} - BEJO Accesorios",
+                "quantity": 1,
+                "unit_price": float(total_pedido),
+                "currency_id": "ARS"
+            }
+        ],
+        "back_urls": {
+            "success": "https://bejo-accesorios.streamlit.app",
+            "failure": "https://bejo-accesorios.streamlit.app",
+            "pending": "https://bejo-accesorios.streamlit.app"
+        },
+        "auto_return": "approved"
+    }
+    
+    try:
+        response = requests.post(
+            "https://api.mercadopago.com/checkout/preferences",
+            json=preference_data,
+            headers=headers,
+            timeout=10
+        )
+        if response.status_code in (200, 201):
+            return response.json().get("init_point")
+        return None
+    except Exception:
+        return None
+
 def imagen_a_base64(archivo_subido, max_size=(400,400), quality=72):
     """Comprime una imagen subida y la convierte a data-URL base64."""
     if not PIL_OK:
@@ -303,7 +351,28 @@ def cargar_datos_sheets():
         return df
     except Exception as e:
         st.error(f"⚠️ Error al conectar con Google Sheets: {e}")
-        return pd.DataFrame()
+        # Fallback de datos de prueba para desarrollo local
+        mock_data = [
+            {
+                "Nombre del Artículo": "Funda Silicona",
+                "Marca Principal": "Samsung",
+                "Modelo Exacto": "Galaxy A54",
+                "Color / Diseño (Variación)": "Negro Mate",
+                "Precio Mercado": 15000,
+                "Cantidad": 5,
+                "Imagen_URL": "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500"
+            },
+            {
+                "Nombre del Artículo": "Funda Transparente",
+                "Marca Principal": "Apple",
+                "Modelo Exacto": "iPhone 14",
+                "Color / Diseño (Variación)": "Transparente",
+                "Precio Mercado": 18000,
+                "Cantidad": 8,
+                "Imagen_URL": "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500"
+            }
+        ]
+        return pd.DataFrame(mock_data)
 
 df_stock = cargar_datos_sheets()
 
@@ -363,17 +432,29 @@ if st.session_state.vista == "carrito":
             nombre_prod  = f"{row['Nombre del Artículo']} {row['Modelo Exacto']} ({row['Color / Diseño (Variación)']})"
             precio_unit  = row["Precio Mercado"]
             stock_actual = row["Cantidad"]
-            c1, c2, c3, c4 = st.columns([3, 1.2, 1.5, 0.8])
+            c1, c2, c3, c4 = st.columns([2.5, 1.8, 1.2, 0.5])
             c1.markdown(f"🔹 **{nombre_prod}**")
-            nueva_cant = c2.number_input("", min_value=1, max_value=min(stock_actual,10),
-                                         value=int(cantidad), step=1,
-                                         key=f"cqty_{idx}", label_visibility="collapsed")
-            if nueva_cant != cantidad:
-                st.session_state.carrito[idx] = nueva_cant
-                st.rerun()
-            subtotal = precio_unit * nueva_cant
+            
+            # Selector de cantidad con botones - / +
+            qty_col1, qty_col2, qty_col3 = c2.columns([1, 1, 1])
+            with qty_col1:
+                if st.button("➖", key=f"qty_dec_{idx}", use_container_width=True):
+                    if cantidad > 1:
+                        st.session_state.carrito[idx] = cantidad - 1
+                        st.rerun()
+            with qty_col2:
+                st.markdown(f"<p style='text-align:center; font-weight:700; font-size:1.1rem; line-height:2.2; margin:0;'>{cantidad}</p>", unsafe_allow_html=True)
+            with qty_col3:
+                if st.button("➕", key=f"qty_inc_{idx}", use_container_width=True):
+                    if cantidad < min(stock_actual, 10):
+                        st.session_state.carrito[idx] = cantidad + 1
+                        st.rerun()
+                    else:
+                        st.toast(f"Límite alcanzado ({min(stock_actual, 10)})", icon="⚠️")
+                        
+            subtotal = precio_unit * cantidad
             total_pedido += subtotal
-            resumen_productos.append(f"- {nombre_prod} x{nueva_cant} (${subtotal:,.0f})")
+            resumen_productos.append(f"- {nombre_prod} x{cantidad} (${subtotal:,.0f})")
             c3.markdown(f"**${subtotal:,.0f}**")
             if c4.button("🗑️", key=f"del_{idx}"):
                 del st.session_state.carrito[idx]; st.rerun()
@@ -416,7 +497,7 @@ if st.session_state.vista == "carrito":
 
         # ── PAGO ─────────────────────────────────────────────────────────────
         st.markdown('<div class="seccion-titulo">💳 Método de Pago</div>', unsafe_allow_html=True)
-        metodo_pago = st.radio("pago_r", ["💵  Efectivo","🏦  Transferencia Bancaria"],
+        metodo_pago = st.radio("pago_r", ["💵  Efectivo", "🏦  Transferencia Bancaria", "💳  Mercado Pago (Tarjeta, Dinero en cuenta)"],
                                index=None, label_visibility="collapsed")
         mitad = total_pedido // 2
         resto = total_pedido - mitad
@@ -425,6 +506,19 @@ if st.session_state.vista == "carrito":
             ✅ Transferí <b>la mitad ahora: ${mitad:,.0f}</b><br>
             📦 El resto (<b>${resto:,.0f}</b>) lo abonás al recibir el producto.<br><br>
             💬 Los datos bancarios te los mandamos por WhatsApp. 🤝</div>""", unsafe_allow_html=True)
+        elif metodo_pago == "💳  Mercado Pago (Tarjeta, Dinero en cuenta)":
+            access_token = None
+            if "mercadopago" in st.secrets:
+                access_token = st.secrets["mercadopago"].get("access_token", None)
+            if not access_token:
+                access_token = st.secrets.get("MERCADOPAGO_ACCESS_TOKEN", None)
+                
+            if not access_token:
+                st.warning("⚠️ El vendedor aún no configuró las credenciales de Mercado Pago en Streamlit. Seleccioná otro método o coordiná por WhatsApp.")
+            else:
+                st.markdown(f"""<div class="info-ws">💳 <b>PAGO CON MERCADO PAGO</b><br><br>
+                Al confirmar el pedido, generaremos un link de pago oficial de Mercado Pago para que abones el total de <b>${total_pedido:,.0f}</b>.<br><br>
+                Podrás abonar con tarjeta de crédito/débito, transferencia bancaria o dinero en cuenta. 🤝</div>""", unsafe_allow_html=True)
 
         st.markdown("")
         if st.button("🚀 CONFIRMAR PEDIDO Y ENVIAR A WHATSAPP", type="primary", use_container_width=True):
@@ -433,18 +527,31 @@ if st.session_state.vista == "carrito":
             if metodo_pago    is None: errores.append("⚠️ Seleccioná el método de pago.")
             if metodo_entrega == "🏠  Envío a domicilio" and not direccion.strip():
                 errores.append("⚠️ Ingresá tu dirección de envío.")
+            if metodo_pago == "💳  Mercado Pago (Tarjeta, Dinero en cuenta)":
+                access_token = st.secrets.get("mercadopago", {}).get("access_token", None) or st.secrets.get("MERCADOPAGO_ACCESS_TOKEN", None)
+                if not access_token:
+                    errores.append("⚠️ El vendedor aún no configuró las credenciales de Mercado Pago en Streamlit. Seleccioná otro método de pago.")
             if errores:
                 for e in errores: st.markdown(f'<div class="error-validacion">{e}</div>', unsafe_allow_html=True)
             else:
                 ahora     = datetime.now()
                 id_pedido = f"PED-{ahora.strftime('%d%m-%H%M')}-{random.randint(100,999)}"
                 le = metodo_entrega.replace("🏪  ","").replace("🏠  ","")
-                lp = metodo_pago.replace("💵  ","").replace("🏦  ","")
+                lp = metodo_pago.replace("💵  ","").replace("🏦  ","").replace("💳  ","")
+                
+                # Generar link de pago si es Mercado Pago
+                mp_url = None
+                if metodo_pago == "💳  Mercado Pago (Tarjeta, Dinero en cuenta)":
+                    with st.spinner("Generando link de pago de Mercado Pago..."):
+                        mp_url = crear_preferencia_mp(total_pedido, id_pedido)
+                
                 msg = (f"⚡ ¡Hola BEJO! Nuevo pedido 🔥\n\n🆔 *ID Pedido:* {id_pedido}\n"
                        f"📦 *Productos:*\n" + "\n".join(resumen_productos) +
                        f"\n\n💰 *Total:* ${total_pedido:,.0f}\n💳 *Pago:* {lp}\n")
                 if metodo_pago == "🏦  Transferencia Bancaria":
                     msg += f"   ↳ Seña (50%): ${mitad:,.0f} | Resto al recibir: ${resto:,.0f}\n"
+                elif metodo_pago == "💳  Mercado Pago (Tarjeta, Dinero en cuenta)" and mp_url:
+                    msg += f"   ↳ 🔗 *Link de Pago:* {mp_url}\n"
                 msg += f"📍 *Entrega:* {le}\n"
                 if metodo_entrega == "🏠  Envío a domicilio":
                     msg += f"🏠 *Dirección:* {direccion}\n"
@@ -487,19 +594,45 @@ if st.session_state.vista == "carrito":
                 else:
                     st.success(f"✅ ¡Pedido **{id_pedido}** generado! Revisá el stock manualmente.")
 
-                # Redirección automática a WhatsApp sin botones redundantes
-                st.markdown(f"""
-                    <div style="background: rgba(37, 211, 102, 0.15); border: 1px solid #25D366; border-radius: 12px; padding: 15px; text-align: center; margin-top: 1.5rem;">
-                        <h3 style="color: #a8ffdb; margin: 0 0 10px 0;">📲 Redirigiendo a WhatsApp...</h3>
-                        <p style="color: #fff; margin: 0; font-size: 1rem;">Estamos abriendo tu chat para enviar los detalles del pedido <b>{id_pedido}</b>.</p>
-                        <p style="color: #a89cff; font-size: 0.85rem; margin: 10px 0 0 0;">Si la aplicación no se abre automáticamente, <a href="{ws_url}" target="_self" style="color: #ffd200; font-weight: 700; text-decoration: underline;">hacé clic acá para enviar</a>.</p>
-                    </div>
-                    <script>
-                        setTimeout(function() {{
-                            window.location.href = "{ws_url}";
-                        }}, 2000);
-                    </script>
-                """, unsafe_allow_html=True)
+                # Redirección automática / Botones finales
+                if mp_url:
+                    st.markdown(f"""
+                        <div style="background: rgba(37, 211, 102, 0.15); border: 1px solid #25D366; border-radius: 12px; padding: 20px; text-align: center; margin-top: 1.5rem;">
+                            <h3 style="color: #a8ffdb; margin: 0 0 15px 0;">🎉 ¡Pedido {id_pedido} confirmado!</h3>
+                            <p style="color: #fff; margin-bottom: 20px; font-size: 1.05rem;">
+                                Por favor, realizá el pago en Mercado Pago y enviá el pedido por WhatsApp.
+                            </p>
+                            <div style="display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center;">
+                                <a href="{mp_url}" target="_blank" style="display: inline-block; background: #009EE3; color: white; font-weight: 800; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(0,158,227,0.4); border: none; width: 80%; max-width: 320px;">
+                                    💳 PAGAR CON MERCADO PAGO
+                                </a>
+                                <a href="{ws_url}" target="_self" style="display: inline-block; background: #25D366; color: white; font-weight: 800; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(37,211,102,0.4); border: none; width: 80%; max-width: 320px;">
+                                    📲 ENVIAR POR WHATSAPP
+                                </a>
+                            </div>
+                            <p style="color: #a89cff; font-size: 0.85rem; margin-top: 20px;">
+                                En 5 segundos te redirigiremos automáticamente a WhatsApp para que envíes el detalle y el link al vendedor.
+                            </p>
+                        </div>
+                        <script>
+                            setTimeout(function() {{
+                                window.location.href = "{ws_url}";
+                            }}, 5000);
+                        </script>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                        <div style="background: rgba(37, 211, 102, 0.15); border: 1px solid #25D366; border-radius: 12px; padding: 15px; text-align: center; margin-top: 1.5rem;">
+                            <h3 style="color: #a8ffdb; margin: 0 0 10px 0;">📲 Redirigiendo a WhatsApp...</h3>
+                            <p style="color: #fff; margin: 0; font-size: 1rem;">Estamos abriendo tu chat para enviar los detalles del pedido <b>{id_pedido}</b>.</p>
+                            <p style="color: #a89cff; font-size: 0.85rem; margin: 10px 0 0 0;">Si la aplicación no se abre automáticamente, <a href="{ws_url}" target="_self" style="color: #ffd200; font-weight: 700; text-decoration: underline;">hacé clic acá para enviar</a>.</p>
+                        </div>
+                        <script>
+                            setTimeout(function() {{
+                                window.location.href = "{ws_url}";
+                            }}, 2000);
+                        </script>
+                    """, unsafe_allow_html=True)
     st.stop()
 
 # ── VISTA CATÁLOGO (Default) ──────────────────────────────────────────────────
