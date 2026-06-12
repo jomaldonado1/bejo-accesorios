@@ -164,11 +164,12 @@ hr { border-color:rgba(255,107,53,0.2) !important; }
 iframe { border-radius:14px; border:2px solid rgba(255,107,53,0.4); }
 
 /* ── OCULTAR PANEL ADMIN HASTA HOVER ── */
-.admin-hidden-trigger > div {
+div.element-container:has(div.admin-trigger) + div.element-container {
     opacity: 0.0;
-    transition: opacity 0.5s ease-in-out;
+    transition: opacity 0.4s ease-in-out;
+    margin-top: 3rem;
 }
-.admin-hidden-trigger:hover > div {
+div.element-container:has(div.admin-trigger) + div.element-container:hover {
     opacity: 1.0;
 }
 
@@ -372,6 +373,14 @@ if st.session_state.vista == "carrito":
             unsafe_allow_html=True)
 
         elif metodo_entrega == "🏠  Envío a domicilio":
+            st.markdown(f"""
+            <div style="background: rgba(255, 107, 53, 0.12); border-left: 4px solid #ff6b35; padding: 12px; border-radius: 0 10px 10px 0; margin-bottom: 15px; font-size: 0.9rem; color: #fff;">
+                🛵 <b>Información sobre Envíos:</b><br>
+                • Realizamos envíos en <b>San Miguel de Tucumán</b> (consultar por envíos fuera de S.M.T.).<br>
+                • <b>Envío GRATIS</b> dentro de las 4 Avenidas.<br>
+                • Fuera de las 4 Avenidas, se coordinará el costo por WhatsApp de acuerdo a tu dirección.
+            </div>
+            """, unsafe_allow_html=True)
             st.markdown("#### 📍 Tu dirección de entrega")
             direccion = st.text_input("🏠 Dirección completa (calle, número, barrio):",
                                       placeholder="Ej: San Martín 456, Yerba Buena, Tucumán", key="inp_dir")
@@ -640,7 +649,7 @@ else:
 # PANEL ADMINISTRADOR
 # ════════════════════════════════════════════════════════════════════════════
 st.markdown("---")
-st.markdown('<div class="admin-hidden-trigger">', unsafe_allow_html=True)
+st.markdown('<div class="admin-trigger"></div>', unsafe_allow_html=True)
 with st.expander("⚙️ Panel de Control – Solo Administrador"):
 
     if not st.session_state.admin_autenticado:
@@ -993,4 +1002,4 @@ with st.expander("⚙️ Panel de Control – Solo Administrador"):
                         except Exception as e:
                             st.error(f"No se pudo eliminar: {e}")
 
-st.markdown('</div>', unsafe_allow_html=True)
+
