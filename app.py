@@ -185,6 +185,45 @@ def get_sheet():
     client = gspread.authorize(creds)
     return client.open("inventario_tienda").sheet1
 
+def get_pedidos_sheet():
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    if "gcp_service_account" in st.secrets:
+        creds_dict = {k: v for k, v in st.secrets["gcp_service_account"].items()}
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    else:
+        creds = ServiceAccountCredentials.from_json_keyfile_name("claves.json", scope)
+    client = gspread.authorize(creds)
+    spreadsheet = client.open("inventario_tienda")
+    try:
+        sheet = spreadsheet.worksheet("Pedidos")
+    except Exception:
+        # Si no existe la solapa de Pedidos, la creamos
+        sheet = spreadsheet.add_worksheet(title="Pedidos", rows=1000, cols=6)
+        sheet.append_row(["Fecha", "ID Pedido", "Cliente / Contacto", "Detalle Pedido WS", "Total", "Estado"])
+    return sheet
+
+def cargar_pedidos_sheets():
+    try:
+        sheet = get_pedidos_sheet()
+        data  = sheet.get_all_records()
+        return pd.DataFrame(data)
+    except Exception as e:
+        st.error(f"⚠️ Error al cargar historial de pedidos: {e}")
+        return pd.DataFrame()
+
+def actualizar_estado_pedido(id_ped, nuevo_estado, df_pedidos):
+    try:
+        sheet = get_pedidos_sheet()
+        matching_idx = df_pedidos[df_pedidos["ID Pedido"] == id_ped].index
+        if len(matching_idx) > 0:
+            fila_sheet = int(matching_idx[0]) + 2  # fila 1 son cabeceras, datos desde fila 2
+            sheet.update_cell(fila_sheet, 6, nuevo_estado)  # Estado es col 6
+            return True
+        return False
+    except Exception as e:
+        st.error(f"Error al actualizar estado del pedido: {e}")
+        return False
+
 def descontar_stock(carrito: dict, df_ref: pd.DataFrame):
     """Resta del Excel las cantidades vendidas de cada producto del carrito."""
     try:
@@ -268,17 +307,11 @@ for k, v in {
 st.markdown('<div class="bejo-header">⚡ BEJO ⚡</div>', unsafe_allow_html=True)
 st.markdown('<div class="bejo-subtitle">ACCESORIOS PARA CELULARES · CALIDAD PREMIUM</div>', unsafe_allow_html=True)
 
-# ── GRILLA 3×3 ───────────────────────────────────────────────────────────────
+# ── GRILLA DE INICIO (3 elementos) ───────────────────────────────────────────
 imgs_grilla = [
     "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&q=80",
     "https://images.unsplash.com/photo-1592890288564-76628a30a657?w=400&q=80",
     "https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=400&q=80",
-    "https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?w=400&q=80",
-    "https://images.unsplash.com/photo-1544866092-1677b6a5c38c?w=400&q=80",
-    "https://images.unsplash.com/photo-1574944985070-8f3ebc6b79d2?w=400&q=80",
-    "https://images.unsplash.com/photo-1610945264803-c22b62831e8c?w=400&q=80",
-    "https://images.unsplash.com/photo-1616348436168-de43ad0db179?w=400&q=80",
-    "https://images.unsplash.com/photo-1556656793-08538906a9f8?w=400&q=80",
 ]
 grid_html = '<div class="welcome-grid">' + "".join(f'<img src="{u}" alt="acc" loading="lazy"/>' for u in imgs_grilla) + '</div>'
 st.markdown(grid_html, unsafe_allow_html=True)
@@ -500,6 +533,23 @@ else:
                 msg += "\n✨ ¡Gracias por elegir BEJO! 🙌"
                 ws_url = f"https://wa.me/{NUMERO_WS}?text={urllib.parse.quote(msg)}"
 
+                # ── Guardar pedido en el Excel (solapa Pedidos) ─────────────
+                try:
+                    p_sheet = get_pedidos_sheet()
+                    cliente_info = f"Pago: {lp} | Entrega: {le}"
+                    if metodo_entrega == "🏠  Envío a domicilio":
+                        cliente_info += f" | Dir: {direccion}"
+                    p_sheet.append_row([
+                        ahora.strftime('%Y-%m-%d %H:%M:%S'),
+                        id_pedido,
+                        cliente_info,
+                        msg,
+                        str(total_pedido),
+                        "Pendiente"
+                    ])
+                except Exception as e:
+                    st.warning(f"⚠️ No se pudo guardar el pedido en el historial de Sheets: {e}")
+
                 # ── Descontar stock del Excel ──────────────────────────────
                 with st.spinner("Actualizando stock en el catálogo..."):
                     ok_stock = descontar_stock(st.session_state.carrito, df_stock)
@@ -550,20 +600,69 @@ with st.expander("⚙️ Panel de Control – Solo Administrador"):
         if df_stock.empty:
             st.warning("No hay datos cargados de Google Sheets.")
         else:
-            # ── Descargar inventario en Excel ──────────────────────────────
-            buffer = BytesIO()
-            with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-                df_stock.to_excel(writer, index=False, sheet_name='Inventario')
-            buffer.seek(0)
-            
-            st.download_button(
-                label="📥 Descargar Inventario en Excel (.xlsx)",
-                data=buffer,
-                file_name=f"inventario_bejo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
+            # ── Descargar reportes ──────────────────────────────
+            dc1, dc2 = st.columns(2)
+            with dc1:
+                # Descargar inventario
+                buffer = BytesIO()
+                with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                    df_stock.to_excel(writer, index=False, sheet_name='Inventario')
+                buffer.seek(0)
+                st.download_button(
+                    label="📥 Descargar Inventario (Excel)",
+                    data=buffer,
+                    file_name=f"inventario_bejo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+            with dc2:
+                # Descargar pedidos
+                df_pedidos_all = cargar_pedidos_sheets()
+                if not df_pedidos_all.empty:
+                    buffer_ped = BytesIO()
+                    with pd.ExcelWriter(buffer_ped, engine='openpyxl') as writer:
+                        df_pedidos_all.to_excel(writer, index=False, sheet_name='Pedidos')
+                    buffer_ped.seek(0)
+                    st.download_button(
+                        label="📥 Descargar Pedidos (Excel)",
+                        data=buffer_ped,
+                        file_name=f"pedidos_bejo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True
+                    )
+                else:
+                    st.button("📥 No hay pedidos registrados", disabled=True, use_container_width=True)
+
             st.markdown("")
+
+            # ── Control de Estados de Pedidos ──────────────────────────────
+            if not df_pedidos_all.empty:
+                with st.expander("📦 Gestionar Estados de Pedidos"):
+                    pedidos_list = df_pedidos_all["ID Pedido"].tolist()[::-1] # más recientes primero
+                    ped_sel = st.selectbox("Seleccioná un Pedido para gestionar:", pedidos_list, key="adm_ped_sel")
+                    
+                    if ped_sel:
+                        ped_row = df_pedidos_all[df_pedidos_all["ID Pedido"] == ped_sel].iloc[0]
+                        
+                        st.markdown(f"📅 **Fecha:** {ped_row['Fecha']}")
+                        st.markdown(f"💰 **Total:** ${float(ped_row['Total']):,.0f}")
+                        st.markdown(f"👤 **Cliente/Contacto:** {ped_row['Cliente / Contacto']}")
+                        st.markdown(f"📌 **Estado actual:** `{ped_row['Estado']}`")
+                        
+                        with st.expander("📝 Ver Mensaje Completo enviado a WS"):
+                            st.text(ped_row["Detalle Pedido WS"])
+                            
+                        estados_posibles = ["Pendiente", "Entregado", "Rechazado", "Cancelado"]
+                        idx_est_actual = estados_posibles.index(ped_row["Estado"]) if ped_row["Estado"] in estados_posibles else 0
+                        nuevo_est = st.selectbox("Cambiar Estado a:", estados_posibles, index=idx_est_actual, key="adm_nuevo_est")
+                        
+                        if st.button("💾 Actualizar Estado de Pedido", type="primary", use_container_width=True):
+                            if actualizar_estado_pedido(ped_sel, nuevo_est, df_pedidos_all):
+                                st.success(f"✅ Estado del pedido {ped_sel} actualizado a '{nuevo_est}' con éxito.")
+                                time.sleep(1)
+                                st.rerun()
+
+            st.markdown("---")
             # ════════════════════════════════════════════════════════════════
             # FILTROS EN CASCADA
             # ════════════════════════════════════════════════════════════════
