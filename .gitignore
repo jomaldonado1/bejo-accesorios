@@ -1,0 +1,18 @@
+# Credenciales privadas - NUNCA subir a GitHub
+claves.json
+
+# Secretos locales de Streamlit
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+.venv/
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini
