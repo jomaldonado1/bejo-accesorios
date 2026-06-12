@@ -164,12 +164,16 @@ hr { border-color:rgba(255,107,53,0.2) !important; }
 iframe { border-radius:14px; border:2px solid rgba(255,107,53,0.4); }
 
 /* ── OCULTAR PANEL ADMIN HASTA HOVER ── */
-div.element-container:has(div.admin-trigger) ~ div.element-container {
+div[data-testid="stExpander"] {
     opacity: 0.0 !important;
-    transition: opacity 0.4s ease-in-out !important;
+    transition: opacity 0.3s ease-in-out !important;
 }
-div.element-container:has(div.admin-trigger) ~ div.element-container:hover,
-div.element-container:has(div.admin-trigger) ~ div.element-container:focus-within {
+div[data-testid="stExpander"]:hover,
+div[data-testid="stExpander"]:focus-within {
+    opacity: 1.0 !important;
+}
+/* Evitar que los expanders anidados dentro del panel se oculten */
+div[data-testid="stExpander"] div[data-testid="stExpander"] {
     opacity: 1.0 !important;
 }
 
