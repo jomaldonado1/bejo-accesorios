@@ -320,42 +320,54 @@ else:
     items = df_fil if mostrar_todo else df_fil.head(6)
     if items.empty:
         st.info("No hay productos disponibles para los filtros seleccionados.")
-
-    for index, row in items.iterrows():
-        nombre_c     = f"{row['Nombre del Artículo']} {row['Modelo Exacto']}"
-        variacion    = row["Color / Diseño (Variación)"]
-        precio       = row["Precio Mercado"]
-        stock_actual = row["Cantidad"]
-        url_foto     = row["Imagen_URL"]
-        if pd.isna(url_foto) or str(url_foto).strip() == "":
-            url_foto = "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500"
-
-        ci, co, cb = st.columns([1, 2, 1.2])
-        with ci:
-            mostrar_imagen(url_foto, use_container_width=True)
-        with co:
-            st.markdown(f"#### {nombre_c}")
-            st.markdown(f"🎨 *{variacion}*")
-            st.markdown(f"### **${precio:,.0f}**")
-        with cb:
-            st.write("")
-            if stock_actual <= 0:
-                st.error("🔴 SIN STOCK")
-                st.button("Agotado ✖️", key=f"btn_{index}", disabled=True)
-            else:
-                st.success("🟢 Disponible")
-                qty = st.number_input("Cantidad", min_value=1, max_value=min(stock_actual, 10),
-                                      value=1, step=1, key=f"qty_{index}")
-                if st.button("Agregar 🛒", key=f"btn_{index}"):
-                    en_carrito = st.session_state.carrito.get(index, 0)
-                    nueva_cant = en_carrito + qty
-                    if nueva_cant <= stock_actual:
-                        st.session_state.carrito[index]         = nueva_cant
-                        st.session_state.mostrar_banner_carrito = True
-                        st.rerun()
-                    else:
-                        st.error(f"⚠️ Solo hay {stock_actual} unidades disponibles.")
-        st.divider()
+    else:
+        # Mostramos los elementos en una grilla de 3 columnas
+        for idx_group in range(0, len(items), 3):
+            cols = st.columns(3)
+            for col_idx in range(3):
+                item_idx = idx_group + col_idx
+                if item_idx < len(items):
+                    index = items.index[item_idx]
+                    row = items.iloc[item_idx]
+                    
+                    nombre_c     = f"{row['Nombre del Artículo']} {row['Modelo Exacto']}"
+                    variacion    = row["Color / Diseño (Variación)"]
+                    precio       = row["Precio Mercado"]
+                    stock_actual = row["Cantidad"]
+                    url_foto     = row["Imagen_URL"]
+                    if pd.isna(url_foto) or str(url_foto).strip() == "":
+                        url_foto = "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500"
+                    
+                    with cols[col_idx]:
+                        with st.container(border=True):
+                            mostrar_imagen(url_foto, use_container_width=True)
+                            st.markdown(f"**{nombre_c}**")
+                            st.markdown(f"<div style='font-size:0.85rem; color:#a89cff; margin-top:-10px;'>🎨 {variacion}</div>", unsafe_allow_html=True)
+                            st.markdown(f"### **${precio:,.0f}**")
+                            
+                            # Botón Popover para ver detalles y comprar sin hacer larga la lista
+                            with st.popover("🔍 Ver / Comprar 🛒", use_container_width=True):
+                                mostrar_imagen(url_foto, use_container_width=True)
+                                st.markdown(f"### {nombre_c}")
+                                st.markdown(f"🎨 **Color / Diseño:** {variacion}")
+                                st.markdown(f"💳 **Precio:** ${precio:,.0f}")
+                                
+                                if stock_actual <= 0:
+                                    st.error("🔴 SIN STOCK DISPONIBLE")
+                                    st.button("Agotado ✖️", key=f"btn_ag_agotado_{index}", disabled=True, use_container_width=True)
+                                else:
+                                    st.success(f"🟢 Disponible: {stock_actual} unidades")
+                                    qty = st.number_input("Cantidad:", min_value=1, max_value=min(stock_actual, 10),
+                                                          value=1, step=1, key=f"qty_{index}")
+                                    if st.button("Agregar al Carrito 🛒", key=f"btn_{index}", type="primary", use_container_width=True):
+                                        en_carrito = st.session_state.carrito.get(index, 0)
+                                        nueva_cant = en_carrito + qty
+                                        if nueva_cant <= stock_actual:
+                                            st.session_state.carrito[index]         = nueva_cant
+                                            st.session_state.mostrar_banner_carrito = True
+                                            st.rerun()
+                                        else:
+                                            st.error(f"⚠️ Solo hay {stock_actual} unidades disponibles.")
 
     # ── CARRITO ──────────────────────────────────────────────────────────────
     if st.session_state.carrito:
@@ -502,6 +514,20 @@ with st.expander("⚙️ Panel de Control – Solo Administrador"):
         if df_stock.empty:
             st.warning("No hay datos cargados de Google Sheets.")
         else:
+            # ── Descargar inventario en Excel ──────────────────────────────
+            buffer = BytesIO()
+            with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                df_stock.to_excel(writer, index=False, sheet_name='Inventario')
+            buffer.seek(0)
+            
+            st.download_button(
+                label="📥 Descargar Inventario en Excel (.xlsx)",
+                data=buffer,
+                file_name=f"inventario_bejo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+            st.markdown("")
             # ════════════════════════════════════════════════════════════════
             # FILTROS EN CASCADA
             # ════════════════════════════════════════════════════════════════
