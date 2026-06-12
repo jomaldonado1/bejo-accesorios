@@ -254,15 +254,27 @@ def descontar_stock(carrito: dict, df_ref: pd.DataFrame):
         st.warning(f"⚠️ No se pudo actualizar el stock en el Excel: {e}")
         return False
 
+def obtener_access_token_mp():
+    """Obtiene de forma segura el access token de Mercado Pago desde st.secrets."""
+    if "mercadopago" in st.secrets:
+        try:
+            tok = st.secrets["mercadopago"].get("access_token", None)
+            if tok: return tok
+        except Exception:
+            pass
+    for key in ["MERCADOPAGO_ACCESS_TOKEN", "mercadopago_access_token"]:
+        tok = st.secrets.get(key, None)
+        if tok: return tok
+        try:
+            tok = st.secrets[key]
+            if tok: return tok
+        except Exception:
+            pass
+    return None
+
 def crear_preferencia_mp(total_pedido, id_pedido):
     """Crea una preferencia de pago en Mercado Pago y devuelve la URL de checkout (init_point)."""
-    # Intentar obtener de st.secrets de forma estructurada o plana
-    access_token = None
-    if "mercadopago" in st.secrets:
-        access_token = st.secrets["mercadopago"].get("access_token", None)
-    if not access_token:
-        access_token = st.secrets.get("MERCADOPAGO_ACCESS_TOKEN", None)
-        
+    access_token = obtener_access_token_mp()
     if not access_token:
         return None
         
@@ -507,12 +519,7 @@ if st.session_state.vista == "carrito":
             📦 El resto (<b>${resto:,.0f}</b>) lo abonás al recibir el producto.<br><br>
             💬 Los datos bancarios te los mandamos por WhatsApp. 🤝</div>""", unsafe_allow_html=True)
         elif metodo_pago == "💳  Mercado Pago (Tarjeta, Dinero en cuenta)":
-            access_token = None
-            if "mercadopago" in st.secrets:
-                access_token = st.secrets["mercadopago"].get("access_token", None)
-            if not access_token:
-                access_token = st.secrets.get("MERCADOPAGO_ACCESS_TOKEN", None)
-                
+            access_token = obtener_access_token_mp()
             if not access_token:
                 st.warning("⚠️ El vendedor aún no configuró las credenciales de Mercado Pago en Streamlit. Seleccioná otro método o coordiná por WhatsApp.")
             else:
@@ -528,7 +535,7 @@ if st.session_state.vista == "carrito":
             if metodo_entrega == "🏠  Envío a domicilio" and not direccion.strip():
                 errores.append("⚠️ Ingresá tu dirección de envío.")
             if metodo_pago == "💳  Mercado Pago (Tarjeta, Dinero en cuenta)":
-                access_token = st.secrets.get("mercadopago", {}).get("access_token", None) or st.secrets.get("MERCADOPAGO_ACCESS_TOKEN", None)
+                access_token = obtener_access_token_mp()
                 if not access_token:
                     errores.append("⚠️ El vendedor aún no configuró las credenciales de Mercado Pago en Streamlit. Seleccioná otro método de pago.")
             if errores:
