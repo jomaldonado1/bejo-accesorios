@@ -406,9 +406,19 @@ for k, v in {
     "admin_modo": None,          # "editar" | "nuevo"
     "admin_idx_sel": None,       # índice del df del producto seleccionado
     "vista": "catalogo",         # "catalogo" | "carrito"
+    "dir_sel_georef": "",        # dirección elegida desde el autocomplete
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
+
+# ── Sincronizar dirección elegida desde autocomplete (via query params) ───────
+_dir_param = st.query_params.get("dir_sel", "")
+if _dir_param and _dir_param != st.session_state.get("dir_sel_georef", ""):
+    st.session_state["dir_sel_georef"] = _dir_param
+    # Limpiar el param de la URL para no reprocesarlo
+    _qp = dict(st.query_params)
+    _qp.pop("dir_sel", None)
+    st.query_params.from_dict(_qp)
 
 # ── CONDITIONAL CSS FOR ADMIN PANEL HOVER ──
 if not st.session_state.admin_autenticado:
@@ -591,13 +601,246 @@ if st.session_state.vista == "carrito":
             </div>
             """, unsafe_allow_html=True)
             st.markdown("#### 📍 Tu dirección de entrega")
-            direccion = st.text_input("🏠 Dirección completa (calle, número, barrio):",
-                                      placeholder="Ej: San Martín 456, Yerba Buena, Tucumán", key="inp_dir")
+
+            # ── Autocomplete Georef-AR ────────────────────────────────────────
+            # Genera el componente HTML que hace fetch a la API Georef de Argentina
+            # filtrando por los departamentos del Gran Tucumán.
+            _GEOREF_DEPTS = "capital,yerba+buena,taf%C3%AD+viejo,cruz+alta"
+            _autocomplete_html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{ background: transparent; font-family: 'Segoe UI', sans-serif; }}
+  #wrap {{
+    position: relative;
+    width: 100%;
+  }}
+  #ac-input {{
+    width: 100%;
+    padding: 11px 16px 11px 42px;
+    background: rgba(255,255,255,0.07);
+    border: 1.5px solid rgba(255,107,53,0.5);
+    border-radius: 10px;
+    color: #fff;
+    font-size: 0.97rem;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }}
+  #ac-input:focus {{
+    border-color: #ff6b35;
+    box-shadow: 0 0 0 3px rgba(255,107,53,0.18);
+  }}
+  #ac-input::placeholder {{ color: rgba(255,255,255,0.38); }}
+  #icon {{
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.15rem;
+    pointer-events: none;
+    opacity: 0.75;
+  }}
+  #dropdown {{
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    right: 0;
+    background: #1a1535;
+    border: 1px solid rgba(255,107,53,0.4);
+    border-radius: 10px;
+    overflow: hidden;
+    z-index: 9999;
+    display: none;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    max-height: 260px;
+    overflow-y: auto;
+  }}
+  .dd-item {{
+    padding: 10px 16px;
+    cursor: pointer;
+    color: #e8e0ff;
+    font-size: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    transition: background .15s;
+  }}
+  .dd-item:last-child {{ border-bottom: none; }}
+  .dd-item:hover, .dd-item.active {{ background: rgba(255,107,53,0.18); }}
+  .dd-calle {{ font-weight: 700; color: #fff; }}
+  .dd-loc {{ font-size: 0.78rem; color: #a89cff; }}
+  #status {{
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.4);
+    pointer-events: none;
+  }}
+  #hint {{
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.35);
+    margin-top: 6px;
+    padding-left: 4px;
+  }}
+  #selected-badge {{
+    display: none;
+    margin-top: 8px;
+    padding: 8px 14px;
+    background: rgba(37,211,102,0.13);
+    border: 1px solid rgba(37,211,102,0.35);
+    border-radius: 8px;
+    color: #a8ffdb;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <span id="icon">🏠</span>
+  <input id="ac-input" type="text"
+         placeholder="Escribí tu calle (ej: San Martín, Corrientes...)"
+         autocomplete="off" spellcheck="false"/>
+  <span id="status"></span>
+  <div id="dropdown"></div>
+</div>
+<div id="hint">Buscá por nombre de calle · Gran Tucumán</div>
+<div id="selected-badge">✅ <span id="sel-text"></span></div>
+
+<script>
+const DEPTS = ['capital','yerba buena','tafí viejo','cruz alta'];
+const API = 'https://apis.datos.gob.ar/georef/api/calles';
+let debounceTimer = null;
+let selIndex = -1;
+let currentItems = [];
+
+const inp   = document.getElementById('ac-input');
+const dd    = document.getElementById('dropdown');
+const stEl  = document.getElementById('status');
+const badge = document.getElementById('selected-badge');
+const selTx = document.getElementById('sel-text');
+
+async function buscar(q) {{
+  if (q.length < 2) {{ dd.style.display='none'; stEl.textContent=''; return; }}
+  stEl.textContent = '🔄';
+  try {{
+    // Hacer 4 llamadas en paralelo, una por departamento del Gran Tucumán
+    const reqs = DEPTS.map(dept =>
+      fetch(`${{API}}?nombre=${{encodeURIComponent(q)}}&provincia=tucuman&departamento=${{encodeURIComponent(dept)}}&max=3&campos=nombre,localidad_censal.nombre,departamento.nombre`)
+        .then(r => r.json()).catch(() => ({{ calles: [] }}))
+    );
+    const results = await Promise.all(reqs);
+    // Aplanar, deduplicar por nombre+localidad
+    const seen = new Set();
+    currentItems = [];
+    for (const res of results) {{
+      for (const c of (res.calles || [])) {{
+        const key = c.nombre + '|' + (c.localidad_censal?.nombre || '');
+        if (!seen.has(key)) {{
+          seen.add(key);
+          currentItems.push({{
+            calle: c.nombre,
+            localidad: c.localidad_censal?.nombre || '',
+            depto: c.departamento?.nombre || ''
+          }});
+        }}
+      }}
+    }}
+    renderDropdown(currentItems);
+    stEl.textContent = currentItems.length ? '' : '🔍';
+  }} catch(e) {{
+    stEl.textContent = '⚠️';
+  }}
+}}
+
+function renderDropdown(items) {{
+  if (!items.length) {{ dd.style.display='none'; return; }}
+  dd.innerHTML = items.map((it, i) => `
+    <div class="dd-item" data-i="${{i}}">
+      <span class="dd-calle">${{it.calle}}</span>
+      <span class="dd-loc">${{it.localidad}}${{it.depto && it.localidad !== it.depto ? ' · ' + it.depto : ''}}, Tucumán</span>
+    </div>`).join('');
+  dd.style.display = 'block';
+  selIndex = -1;
+  dd.querySelectorAll('.dd-item').forEach(el => {{
+    el.addEventListener('mousedown', e => {{ e.preventDefault(); elegir(parseInt(el.dataset.i)); }});
+  }});
+}}
+
+function elegir(i) {{
+  const it = currentItems[i];
+  if (!it) return;
+  const valor = it.calle + ', ' + it.localidad + ', Tucumán';
+  inp.value = valor;
+  dd.style.display = 'none';
+  badge.style.display = 'block';
+  selTx.textContent = valor;
+  // Comunicar al parent (Streamlit) via postMessage
+  const msg = {{ type: 'georef_dir', value: valor }};
+  window.parent.postMessage(JSON.stringify(msg), '*');
+  // También actualizar query param para que Python lo lea en el próximo render
+  // Usamos window.parent.location si es accesible (mismo origen)
+  try {{
+    const url = new URL(window.parent.location.href);
+    url.searchParams.set('dir_sel', valor);
+    window.parent.history.replaceState(null, '', url.toString());
+  }} catch(e) {{}}
+}}
+
+inp.addEventListener('input', () => {{
+  const q = inp.value.trim();
+  badge.style.display = 'none';
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => buscar(q), 280);
+}});
+
+inp.addEventListener('keydown', e => {{
+  const items = dd.querySelectorAll('.dd-item');
+  if (e.key === 'ArrowDown') {{
+    selIndex = Math.min(selIndex+1, items.length-1);
+    items.forEach((el,i) => el.classList.toggle('active', i===selIndex));
+    e.preventDefault();
+  }} else if (e.key === 'ArrowUp') {{
+    selIndex = Math.max(selIndex-1, 0);
+    items.forEach((el,i) => el.classList.toggle('active', i===selIndex));
+    e.preventDefault();
+  }} else if (e.key === 'Enter' && selIndex >= 0) {{
+    elegir(selIndex);
+    e.preventDefault();
+  }} else if (e.key === 'Escape') {{
+    dd.style.display = 'none';
+  }}
+}});
+
+inp.addEventListener('blur', () => setTimeout(() => dd.style.display='none', 150));
+inp.addEventListener('focus', () => {{ if (currentItems.length) dd.style.display='block'; }});
+</script>
+</body>
+</html>
+"""
+            st.components.v1.html(_autocomplete_html, height=130, scrolling=False)
+
+            # ── Dirección confirmable (pre-llenada si el usuario eligió del autocomplete) ──
+            _dir_preloaded = st.session_state.get("dir_sel_georef", "")
+            st.caption("✏️ Agregá el número de puerta, piso, depto u observaciones:")
+            direccion = st.text_input(
+                "🏠 Dirección completa:",
+                value=_dir_preloaded,
+                placeholder="Ej: San Martín 456, piso 2, Tucumán",
+                key="inp_dir"
+            )
+
             query_mapa = urllib.parse.quote(f"{direccion}, Tucumán, Argentina") if direccion.strip() else "Tucuman,Argentina"
             st.components.v1.iframe(f"https://maps.google.com/maps?q={query_mapa}&output=embed&z=15",
-                                    height=280, scrolling=False)
+                                    height=260, scrolling=False)
             if not direccion.strip():
-                st.caption("💡 Escribí tu dirección arriba para verla marcada en el mapa.")
+                st.caption("💡 Elegí tu calle arriba y aparecerá marcada en el mapa.")
             observacion = st.text_input("📝 Observaciones:", placeholder="Ej: Portón blanco, timbre 2")
             horario = st.selectbox("🕐 Horario preferible:", [
                 "Sin preferencia (cualquier hora)", "Mañana (8:00 a 12:00)",
@@ -842,40 +1085,54 @@ else:
         start_idx   = (curr_page - 1) * items_per_page
         page_groups = grouped_list[start_idx:start_idx + items_per_page]
 
-        # ── CSS GLOBAL (sin JS, carrusel 100% CSS puro) ────────────────────────
+        # ── CSS GLOBAL (carrusel CSS puro + lightbox) ───────────────────────
         st.markdown("""
 <style>
 /* ── Card ── */
 .bejo-card { background:rgba(255,255,255,0.05); border:1.5px solid rgba(255,107,53,0.35);
     border-radius:16px; overflow:hidden; transition:box-shadow .3s; margin-bottom:6px; }
 .bejo-card:hover { box-shadow:0 0 22px rgba(255,107,53,0.35); }
-/* ── Ocultar radios ── */
-.bejo-card input[type=radio] { position:absolute; opacity:0; width:0; height:0; pointer-events:none; }
+/* ── Título del producto (cabecera de la card) ── */
+.card-header { padding:10px 14px 7px; background:rgba(255,107,53,0.12);
+    border-bottom:1px solid rgba(255,107,53,0.25); }
+.card-title { font-weight:900; font-size:0.97rem; color:#fff; margin:0; line-height:1.3;
+    letter-spacing:0.01em; text-shadow:0 1px 6px rgba(0,0,0,0.4); }
+/* ── Ocultar radios y checkboxes de zoom ── */
+.bejo-card input[type=radio],
+.bejo-card input.zoom-cb { position:absolute; opacity:0; width:0; height:0; pointer-events:none; }
 /* ── Slides ── */
-.cslides { list-style:none; margin:0; padding:0; position:relative; background:#0f0c29; overflow:hidden; }
+.cslides { list-style:none; margin:0; padding:0; position:relative; background:#0f0c29; }
 .cslides > li { display:none; position:relative; }
-.cslides > li > img { width:100%; aspect-ratio:1/1; object-fit:cover; display:block; }
-/* ── Flechas prev / next ── */
-.cprev,.cnext { position:absolute; top:50%; transform:translateY(-50%);
+/* ── Imagen: zoom al hacer click ── */
+.img-lbl { display:block; cursor:zoom-in; position:relative; overflow:hidden; }
+.img-lbl img { width:100%; aspect-ratio:1/1; object-fit:cover; display:block;
+    transition:transform .3s; }
+.img-lbl:hover img { transform:scale(1.03); }
+.zoom-hint { position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.55);
+    border-radius:50%; width:30px; height:30px; display:flex; align-items:center;
+    justify-content:center; font-size:0.9rem; pointer-events:none; opacity:0.8; }
+/* ── Lightbox overlay ── */
+.zoom-ov { display:none; position:fixed; inset:0; z-index:99999;
+    background:rgba(0,0,0,0.93); align-items:center; justify-content:center;
+    cursor:zoom-out; flex-direction:column; gap:10px; }
+.zoom-ov > img { max-width:92vw; max-height:86vh; object-fit:contain; border-radius:12px;
+    box-shadow:0 0 60px rgba(255,107,53,0.25); }
+.zoom-close { color:rgba(255,255,255,0.55); font-size:0.8rem; user-select:none; }
+/* ── Flechas ── */
+.cprev,.cnext { position:absolute; top:42%; transform:translateY(-50%);
     background:rgba(0,0,0,0.55); color:#fff; cursor:pointer; border-radius:50%;
     width:32px; height:32px; display:flex; align-items:center; justify-content:center;
-    font-size:1.5rem; z-index:10; user-select:none; text-decoration:none;
-    transition:background .2s; }
+    font-size:1.5rem; z-index:10; user-select:none; text-decoration:none; transition:background .2s; }
 .cprev:hover,.cnext:hover { background:rgba(255,107,53,0.9); }
 .cprev { left:6px; } .cnext { right:6px; }
+/* ── Descripción del slide ── */
+.slide-info { padding:7px 12px 9px; background:rgba(15,12,41,0.9); }
+.slide-color { color:#c8bfff; font-size:0.83rem; font-weight:700; margin-bottom:2px; }
+.slide-price { color:#ffd200; font-size:1.05rem; font-weight:900; }
 /* ── Dots ── */
-.cdots { display:flex; justify-content:center; gap:6px; padding:6px 0 3px; list-style:none; margin:0; }
+.cdots { display:flex; justify-content:center; gap:6px; padding:5px 0 3px; list-style:none; margin:0; }
 .cdots > li > label { display:block; width:9px; height:9px; border-radius:50%;
     background:rgba(255,255,255,0.25); cursor:pointer; transition:background .2s; }
-/* ── Descripción propia de cada slide ── */
-.slide-info { padding:8px 12px 10px; background:rgba(15,12,41,0.9); }
-.slide-color { color:#c8bfff; font-size:0.82rem; font-weight:700; margin-bottom:4px; }
-.slide-price { color:#ffd200; font-size:1.05rem; font-weight:900; margin-bottom:3px; }
-.slide-stock-ok { font-size:0.72rem; color:#00ff6a; font-weight:600; }
-.slide-stock-no { font-size:0.72rem; color:#ff9999; font-weight:600; }
-/* ── Card body: solo título del grupo ── */
-.card-body { padding:5px 12px 8px; }
-.card-title { font-weight:700; font-size:0.83rem; color:#a89cff; margin:0; line-height:1.3; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -905,14 +1162,19 @@ else:
 
                 n_var = len(variantes)
 
-                # ── Radios ocultos ──────────────────────────────────────────────
+                # ── Radios del carrusel ──────────────────────────────────────────────
                 radios = "".join(
                     f'<input type="radio" name="{cid}" id="{cid}s{i}" {"checked" if i == 0 else ""}>'
                     for i in range(n_var)
                 )
 
-                # ── Slides con descripción propia dentro de cada <li> ──────────
-                # La info va DENTRO del <li> → cambia sola al navegar el carrusel
+                # ── Checkboxes de zoom (ocultos, uno por variante) ────────────────
+                zoom_cbs = "".join(
+                    f'<input type="checkbox" id="z{cid}s{i}" class="zoom-cb">'
+                    for i in range(n_var)
+                )
+
+                # ── Slides: foto + lupa + flechas + descripción propia ───────────
                 slides_items = []
                 for i, v in enumerate(variantes):
                     prev_i = (i - 1 + n_var) % n_var
@@ -921,81 +1183,85 @@ else:
                         f'<label class="cprev" for="{cid}s{prev_i}">&#8249;</label>'
                         f'<label class="cnext" for="{cid}s{next_i}">&#8250;</label>'
                     ) if n_var > 1 else ""
-                    stock_tag = (
-                        f'<span class="slide-stock-ok">🟢 {v["stock"]} disponibles</span>'
-                        if v["stock"] > 0 else
-                        '<span class="slide-stock-no">🔴 Sin stock</span>'
+                    # Imagen envuelta en label → click = activa checkbox de zoom
+                    img_wrap = (
+                        f'<label for="z{cid}s{i}" class="img-lbl">'
+                        f'<img src="{v["img"]}" alt="{v["color"]}" loading="lazy">'
+                        f'<span class="zoom-hint">🔍</span>'
+                        f'</label>'
                     )
                     info = (
                         f'<div class="slide-info">'
                         f'<div class="slide-color">🎨 {v["color"]}</div>'
                         f'<div class="slide-price">${v["precio"]:,.0f}</div>'
-                        f'{stock_tag}'
                         f'</div>'
                     )
-                    slides_items.append(
-                        f'<li><img src="{v["img"]}" alt="{v["color"]}" loading="lazy">{nav}{info}</li>'
-                    )
+                    slides_items.append(f'<li>{img_wrap}{nav}{info}</li>')
                 slides_ul = f'<ul class="cslides">{"".join(slides_items)}</ul>'
 
                 # ── Dots ───────────────────────────────────────────────────────
                 if n_var > 1:
-                    dots_items = "".join(
-                        f'<li><label for="{cid}s{i}"></label></li>'
-                        for i in range(n_var)
-                    )
-                    dots_ol = f'<ol class="cdots">{dots_items}</ol>'
+                    dots_ol = '<ol class="cdots">' + "".join(
+                        f'<li><label for="{cid}s{i}"></label></li>' for i in range(n_var)
+                    ) + '</ol>'
                 else:
                     dots_ol = ""
 
-                # ── CSS per-carrusel: muestra slide según radio :checked ────────
+                # ── Overlays de zoom (uno por variante, hermanos de los checkboxes) ──
+                zoom_ovs = "".join(
+                    f'<label for="z{cid}s{i}" class="zoom-ov" id="zo{cid}s{i}">'
+                    f'<img src="{v["img"]}" alt="{v["color"]}">'
+                    f'<span class="zoom-close">✕ Tocá para cerrar</span>'
+                    f'</label>'
+                    for i, v in enumerate(variantes)
+                )
+
+                # ── CSS per-carrusel ──────────────────────────────────────────────
                 show_rules = "".join(
                     f'#{cid}s{i}:checked~.cslides>li:nth-child({i+1}){{display:block}}'
                     f'#{cid}s{i}:checked~.cdots>li:nth-child({i+1})>label{{background:#ff6b35}}'
                     for i in range(n_var)
                 )
+                # Zoom: cuando checkbox i está checked, mostrar su overlay hermano
+                zoom_rules = "".join(
+                    f'#z{cid}s{i}:checked~#zo{cid}s{i}{{display:flex}}'
+                    for i in range(n_var)
+                )
 
                 card_html = f"""<div class="bejo-card">
-<style>{show_rules}</style>
-{radios}
+<style>{show_rules}{zoom_rules}</style>
+<div class="card-header"><div class="card-title">{nombre_c}</div></div>
+{radios}{zoom_cbs}
 {slides_ul}
 {dots_ol}
-<div class="card-body"><div class="card-title">{nombre_c}</div></div>
+{zoom_ovs}
 </div>"""
-
 
                 with cols[col_idx]:
                     st.markdown(card_html, unsafe_allow_html=True)
-                    with st.popover("🔍 Ver / Comprar 🛒", use_container_width=True):
-                        st.markdown(f"### {nombre_c}")
-                        st.markdown("---")
-                        for v in variantes:
-                            col_pi, col_inf = st.columns([1, 1])
-                            with col_pi:
-                                mostrar_imagen(v["img"], use_container_width=True)
-                            with col_inf:
-                                st.markdown(f"🎨 **{v['color']}**")
-                                st.markdown(f"💳 **${v['precio']:,.0f}**")
-                                if v["stock"] <= 0:
-                                    st.error("🔴 Sin stock")
-                                    st.button("Agotado ✖️", key=f"btn_ag_{v['idx']}", disabled=True, use_container_width=True)
+                    # ── Botón de agregar por variante (sin cantidad, sin popover) ─────
+                    for v in variantes:
+                        if v["stock"] <= 0:
+                            st.button(
+                                f"🔴 Agotado – {v['color']}",
+                                key=f"btn_ag_{v['idx']}",
+                                disabled=True,
+                                use_container_width=True,
+                            )
+                        else:
+                            if st.button(
+                                f"🛒 {v['color']} · ${v['precio']:,.0f}",
+                                key=f"btn_{v['idx']}",
+                                type="primary",
+                                use_container_width=True,
+                            ):
+                                en_carrito = st.session_state.carrito.get(v["idx"], 0)
+                                if en_carrito + 1 <= v["stock"]:
+                                    st.session_state.carrito[v["idx"]] = en_carrito + 1
+                                    st.session_state.mostrar_banner_carrito = True
+                                    st.rerun()
                                 else:
-                                    st.success(f"🟢 {v['stock']} disponibles")
-                                    qty = st.number_input("Cantidad:", min_value=1,
-                                                          max_value=min(v["stock"], 10),
-                                                          value=1, step=1, key=f"qty_{v['idx']}")
-                                    if st.button("🛒 Agregar al Carrito", key=f"btn_{v['idx']}",
-                                                 type="primary", use_container_width=True):
-                                        en_carrito = st.session_state.carrito.get(v["idx"], 0)
-                                        nueva_cant = en_carrito + qty
-                                        if nueva_cant <= v["stock"]:
-                                            st.session_state.carrito[v["idx"]] = nueva_cant
-                                            st.session_state.mostrar_banner_carrito = True
-                                            st.rerun()
-                                        else:
-                                            st.error(f"⚠️ Solo hay {v['stock']} unidades.")
-                            if v["vi"] < len(variantes) - 1:
-                                st.markdown("---")
+                                    st.error(f"⚠️ Solo hay {v['stock']} unidades disponibles.")
 
         # ── Controles de paginación ──────────────────────────────────────────────
         if total_pages > 1:
