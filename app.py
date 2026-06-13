@@ -867,14 +867,15 @@ else:
 .cdots { display:flex; justify-content:center; gap:6px; padding:6px 0 3px; list-style:none; margin:0; }
 .cdots > li > label { display:block; width:9px; height:9px; border-radius:50%;
     background:rgba(255,255,255,0.25); cursor:pointer; transition:background .2s; }
-/* ── Card body ── */
-.card-body { padding:10px 12px 12px; }
-.card-title { font-weight:800; font-size:0.93rem; color:#fff; margin-bottom:2px; line-height:1.3; }
-.card-badges { display:flex; flex-wrap:wrap; gap:4px; margin:4px 0 6px; }
-.var-badge { font-size:0.7rem; background:rgba(168,156,255,0.18); border:1px solid rgba(168,156,255,0.4);
-    color:#c8bfff; border-radius:20px; padding:2px 8px; }
-.var-badge.agotado { opacity:.4; text-decoration:line-through; }
-.card-price { color:#ffd200; font-size:1.05rem; font-weight:900; margin:2px 0 8px; }
+/* ── Descripción propia de cada slide ── */
+.slide-info { padding:8px 12px 10px; background:rgba(15,12,41,0.9); }
+.slide-color { color:#c8bfff; font-size:0.82rem; font-weight:700; margin-bottom:4px; }
+.slide-price { color:#ffd200; font-size:1.05rem; font-weight:900; margin-bottom:3px; }
+.slide-stock-ok { font-size:0.72rem; color:#00ff6a; font-weight:600; }
+.slide-stock-no { font-size:0.72rem; color:#ff9999; font-weight:600; }
+/* ── Card body: solo título del grupo ── */
+.card-body { padding:5px 12px 8px; }
+.card-title { font-weight:700; font-size:0.83rem; color:#a89cff; margin:0; line-height:1.3; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -902,10 +903,7 @@ else:
                         "vi":     vi_idx,
                     })
 
-                n_var      = len(variantes)
-                precios    = [v["precio"] for v in variantes]
-                precio_txt = (f"${min(precios):,.0f}" if min(precios) == max(precios)
-                              else f"${min(precios):,.0f} – ${max(precios):,.0f}")
+                n_var = len(variantes)
 
                 # ── Radios ocultos ──────────────────────────────────────────────
                 radios = "".join(
@@ -913,7 +911,8 @@ else:
                     for i in range(n_var)
                 )
 
-                # ── Slides: cada <li> tiene su imagen + flechas prev/next ───────
+                # ── Slides con descripción propia dentro de cada <li> ──────────
+                # La info va DENTRO del <li> → cambia sola al navegar el carrusel
                 slides_items = []
                 for i, v in enumerate(variantes):
                     prev_i = (i - 1 + n_var) % n_var
@@ -922,8 +921,20 @@ else:
                         f'<label class="cprev" for="{cid}s{prev_i}">&#8249;</label>'
                         f'<label class="cnext" for="{cid}s{next_i}">&#8250;</label>'
                     ) if n_var > 1 else ""
+                    stock_tag = (
+                        f'<span class="slide-stock-ok">🟢 {v["stock"]} disponibles</span>'
+                        if v["stock"] > 0 else
+                        '<span class="slide-stock-no">🔴 Sin stock</span>'
+                    )
+                    info = (
+                        f'<div class="slide-info">'
+                        f'<div class="slide-color">🎨 {v["color"]}</div>'
+                        f'<div class="slide-price">${v["precio"]:,.0f}</div>'
+                        f'{stock_tag}'
+                        f'</div>'
+                    )
                     slides_items.append(
-                        f'<li><img src="{v["img"]}" alt="{v["color"]}" loading="lazy">{nav}</li>'
+                        f'<li><img src="{v["img"]}" alt="{v["color"]}" loading="lazy">{nav}{info}</li>'
                     )
                 slides_ul = f'<ul class="cslides">{"".join(slides_items)}</ul>'
 
@@ -937,18 +948,11 @@ else:
                 else:
                     dots_ol = ""
 
-                # ── CSS específico de este carrusel (selector :checked) ─────────
-                # Los radios y .cslides son hermanos directos dentro de .bejo-card
+                # ── CSS per-carrusel: muestra slide según radio :checked ────────
                 show_rules = "".join(
                     f'#{cid}s{i}:checked~.cslides>li:nth-child({i+1}){{display:block}}'
                     f'#{cid}s{i}:checked~.cdots>li:nth-child({i+1})>label{{background:#ff6b35}}'
                     for i in range(n_var)
-                )
-
-                # ── Badges de variantes ─────────────────────────────────────────
-                badges = "".join(
-                    f'<span class="var-badge {"agotado" if v["stock"]<=0 else ""}">{"🔴 " if v["stock"]<=0 else ""}{v["color"]}</span>'
-                    for v in variantes
                 )
 
                 card_html = f"""<div class="bejo-card">
@@ -956,12 +960,9 @@ else:
 {radios}
 {slides_ul}
 {dots_ol}
-<div class="card-body">
-  <div class="card-title">{nombre_c}</div>
-  <div class="card-badges">{badges}</div>
-  <div class="card-price">{precio_txt}</div>
-</div>
+<div class="card-body"><div class="card-title">{nombre_c}</div></div>
 </div>"""
+
 
                 with cols[col_idx]:
                     st.markdown(card_html, unsafe_allow_html=True)
