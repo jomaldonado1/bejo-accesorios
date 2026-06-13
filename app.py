@@ -254,20 +254,32 @@ def descontar_stock(carrito: dict, df_ref: pd.DataFrame):
 
 def obtener_access_token_mp():
     """Obtiene de forma segura el access token de Mercado Pago desde st.secrets."""
-    if "mercadopago" in st.secrets:
-        try:
-            tok = st.secrets["mercadopago"].get("access_token", None)
+    try:
+        if "mercadopago" in st.secrets:
+            try:
+                tok = st.secrets["mercadopago"].get("access_token", None)
+                if tok: return tok
+            except Exception:
+                pass
+        for key in ["MERCADOPAGO_ACCESS_TOKEN", "mercadopago_access_token"]:
+            tok = st.secrets.get(key, None)
             if tok: return tok
-        except Exception:
-            pass
-    for key in ["MERCADOPAGO_ACCESS_TOKEN", "mercadopago_access_token"]:
-        tok = st.secrets.get(key, None)
-        if tok: return tok
-        try:
-            tok = st.secrets[key]
-            if tok: return tok
-        except Exception:
-            pass
+            try:
+                tok = st.secrets[key]
+                if tok: return tok
+            except Exception:
+                pass
+        # Fallback en caso de que haya quedado dentro del bloque [gcp_service_account] por formato TOML
+        if "gcp_service_account" in st.secrets:
+            try:
+                gcp = st.secrets["gcp_service_account"]
+                for key in ["MERCADOPAGO_ACCESS_TOKEN", "mercadopago_access_token"]:
+                    tok = gcp.get(key, None)
+                    if tok: return tok
+            except Exception:
+                pass
+    except Exception:
+        pass
     return None
 
 def crear_preferencia_mp(total_pedido, id_pedido):
