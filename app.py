@@ -823,7 +823,7 @@ else:
                 return PLACEHOLDER_IMG
             return str(url).strip()
 
-        # Construir lista de grupos únicos (manteniendo el orden original del df)
+        # Grupos únicos por Tipo + Marca + Modelo
         group_keys = df_fil[["Nombre del Artículo","Marca Principal","Modelo Exacto"]].drop_duplicates()
         grouped_list = []
         for _, gk in group_keys.iterrows():
@@ -836,33 +836,38 @@ else:
 
         items_per_page = 6
         total_pages    = max(1, (len(grouped_list) + items_per_page - 1) // items_per_page)
-
         if st.session_state.get("catalog_page", 1) > total_pages:
             st.session_state.catalog_page = 1
-
         curr_page   = st.session_state.get("catalog_page", 1)
         start_idx   = (curr_page - 1) * items_per_page
         page_groups = grouped_list[start_idx:start_idx + items_per_page]
 
-        # ── CSS + JS del carrusel ───────────────────────────────────────────────
+        # ── CSS GLOBAL (sin JS, carrusel 100% CSS puro) ────────────────────────
         st.markdown("""
 <style>
+/* ── Card ── */
 .bejo-card { background:rgba(255,255,255,0.05); border:1.5px solid rgba(255,107,53,0.35);
-    border-radius:16px; padding:0; overflow:hidden; transition:box-shadow .3s; margin-bottom:6px; }
+    border-radius:16px; overflow:hidden; transition:box-shadow .3s; margin-bottom:6px; }
 .bejo-card:hover { box-shadow:0 0 22px rgba(255,107,53,0.35); }
-.carousel-wrap { position:relative; width:100%; background:#0f0c29; }
-.carousel-wrap img { width:100%; aspect-ratio:1/1; object-fit:cover; display:none; }
-.carousel-wrap img.active { display:block; }
-.car-btn { position:absolute; top:50%; transform:translateY(-50%);
-    background:rgba(0,0,0,0.55); color:#fff; border:none; border-radius:50%;
-    width:30px; height:30px; cursor:pointer; font-size:1.1rem; line-height:30px;
-    text-align:center; z-index:10; transition:background .2s; }
-.car-btn:hover { background:rgba(255,107,53,0.85); }
-.car-btn.prev { left:6px; }
-.car-btn.next { right:6px; }
-.car-dots { display:flex; justify-content:center; gap:5px; padding:5px 0 3px; }
-.car-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,0.25); cursor:pointer; border:none; }
-.car-dot.active { background:#ff6b35; }
+/* ── Ocultar radios ── */
+.bejo-card input[type=radio] { position:absolute; opacity:0; width:0; height:0; pointer-events:none; }
+/* ── Slides ── */
+.cslides { list-style:none; margin:0; padding:0; position:relative; background:#0f0c29; overflow:hidden; }
+.cslides > li { display:none; position:relative; }
+.cslides > li > img { width:100%; aspect-ratio:1/1; object-fit:cover; display:block; }
+/* ── Flechas prev / next ── */
+.cprev,.cnext { position:absolute; top:50%; transform:translateY(-50%);
+    background:rgba(0,0,0,0.55); color:#fff; cursor:pointer; border-radius:50%;
+    width:32px; height:32px; display:flex; align-items:center; justify-content:center;
+    font-size:1.5rem; z-index:10; user-select:none; text-decoration:none;
+    transition:background .2s; }
+.cprev:hover,.cnext:hover { background:rgba(255,107,53,0.9); }
+.cprev { left:6px; } .cnext { right:6px; }
+/* ── Dots ── */
+.cdots { display:flex; justify-content:center; gap:6px; padding:6px 0 3px; list-style:none; margin:0; }
+.cdots > li > label { display:block; width:9px; height:9px; border-radius:50%;
+    background:rgba(255,255,255,0.25); cursor:pointer; transition:background .2s; }
+/* ── Card body ── */
 .card-body { padding:10px 12px 12px; }
 .card-title { font-weight:800; font-size:0.93rem; color:#fff; margin-bottom:2px; line-height:1.3; }
 .card-badges { display:flex; flex-wrap:wrap; gap:4px; margin:4px 0 6px; }
@@ -871,34 +876,6 @@ else:
 .var-badge.agotado { opacity:.4; text-decoration:line-through; }
 .card-price { color:#ffd200; font-size:1.05rem; font-weight:900; margin:2px 0 8px; }
 </style>
-<script>
-function carNext(id,total){
-    var w=document.getElementById('car-'+id);
-    if(!w)return;
-    var imgs=w.querySelectorAll('img'),dots=w.parentElement.querySelectorAll('.car-dot'),cur=0;
-    imgs.forEach(function(el,i){if(el.classList.contains('active'))cur=i;});
-    imgs[cur].classList.remove('active');if(dots[cur])dots[cur].classList.remove('active');
-    cur=(cur+1)%total;
-    imgs[cur].classList.add('active');if(dots[cur])dots[cur].classList.add('active');
-}
-function carPrev(id,total){
-    var w=document.getElementById('car-'+id);
-    if(!w)return;
-    var imgs=w.querySelectorAll('img'),dots=w.parentElement.querySelectorAll('.car-dot'),cur=0;
-    imgs.forEach(function(el,i){if(el.classList.contains('active'))cur=i;});
-    imgs[cur].classList.remove('active');if(dots[cur])dots[cur].classList.remove('active');
-    cur=(cur-1+total)%total;
-    imgs[cur].classList.add('active');if(dots[cur])dots[cur].classList.add('active');
-}
-function carDot(id,idx,total){
-    var w=document.getElementById('car-'+id);
-    if(!w)return;
-    var imgs=w.querySelectorAll('img'),dots=w.parentElement.querySelectorAll('.car-dot');
-    imgs.forEach(function(el){el.classList.remove('active');});
-    dots.forEach(function(el){el.classList.remove('active');});
-    imgs[idx].classList.add('active');if(dots[idx])dots[idx].classList.add('active');
-}
-</script>
 """, unsafe_allow_html=True)
 
         # ── RENDERIZADO DE CARDS ────────────────────────────────────────────────
@@ -911,7 +888,8 @@ function carDot(id,idx,total){
                 grupo_df = page_groups[gi]
                 first    = grupo_df.iloc[0]
                 nombre_c = f"{first['Nombre del Artículo']} {first['Modelo Exacto']}"
-                car_id   = f"g{start_idx + gi}"
+                # ID único corto para este carrusel
+                cid = f"c{start_idx + gi}"
 
                 variantes = []
                 for vi_idx, (vi_row_i, vi_row) in enumerate(grupo_df.iterrows()):
@@ -924,34 +902,65 @@ function carDot(id,idx,total){
                         "vi":     vi_idx,
                     })
 
-                precios    = [v["precio"] for v in variantes]
-                precio_txt = (f"${min(precios):,.0f}" if min(precios)==max(precios)
-                              else f"${min(precios):,.0f} – ${max(precios):,.0f}")
                 n_var      = len(variantes)
+                precios    = [v["precio"] for v in variantes]
+                precio_txt = (f"${min(precios):,.0f}" if min(precios) == max(precios)
+                              else f"${min(precios):,.0f} – ${max(precios):,.0f}")
 
-                imgs_html   = "".join(
-                    f'<img src="{v["img"]}" alt="{v["color"]}" class="{"active" if v["vi"]==0 else ""}" loading="lazy"/>'
-                    for v in variantes)
-                dots_html   = "".join(
-                    f'<button class="car-dot {"active" if v["vi"]==0 else ""}" onclick="carDot(\'{car_id}\',{v["vi"]},{n_var})"></button>'
-                    for v in variantes)
-                badges_html = "".join(
+                # ── Radios ocultos ──────────────────────────────────────────────
+                radios = "".join(
+                    f'<input type="radio" name="{cid}" id="{cid}s{i}" {"checked" if i == 0 else ""}>'
+                    for i in range(n_var)
+                )
+
+                # ── Slides: cada <li> tiene su imagen + flechas prev/next ───────
+                slides_items = []
+                for i, v in enumerate(variantes):
+                    prev_i = (i - 1 + n_var) % n_var
+                    next_i = (i + 1) % n_var
+                    nav = (
+                        f'<label class="cprev" for="{cid}s{prev_i}">&#8249;</label>'
+                        f'<label class="cnext" for="{cid}s{next_i}">&#8250;</label>'
+                    ) if n_var > 1 else ""
+                    slides_items.append(
+                        f'<li><img src="{v["img"]}" alt="{v["color"]}" loading="lazy">{nav}</li>'
+                    )
+                slides_ul = f'<ul class="cslides">{"".join(slides_items)}</ul>'
+
+                # ── Dots ───────────────────────────────────────────────────────
+                if n_var > 1:
+                    dots_items = "".join(
+                        f'<li><label for="{cid}s{i}"></label></li>'
+                        for i in range(n_var)
+                    )
+                    dots_ol = f'<ol class="cdots">{dots_items}</ol>'
+                else:
+                    dots_ol = ""
+
+                # ── CSS específico de este carrusel (selector :checked) ─────────
+                # Los radios y .cslides son hermanos directos dentro de .bejo-card
+                show_rules = "".join(
+                    f'#{cid}s{i}:checked~.cslides>li:nth-child({i+1}){{display:block}}'
+                    f'#{cid}s{i}:checked~.cdots>li:nth-child({i+1})>label{{background:#ff6b35}}'
+                    for i in range(n_var)
+                )
+
+                # ── Badges de variantes ─────────────────────────────────────────
+                badges = "".join(
                     f'<span class="var-badge {"agotado" if v["stock"]<=0 else ""}">{"🔴 " if v["stock"]<=0 else ""}{v["color"]}</span>'
-                    for v in variantes)
-                prev_btn = (f'<button class="car-btn prev" onclick="carPrev(\'{car_id}\',{n_var})">&#8249;</button>'
-                            if n_var > 1 else "")
-                next_btn = (f'<button class="car-btn next" onclick="carNext(\'{car_id}\',{n_var})">&#8250;</button>'
-                            if n_var > 1 else "")
-                dots_row = (f'<div class="car-dots">{dots_html}</div>' if n_var > 1 else "")
+                    for v in variantes
+                )
 
                 card_html = f"""<div class="bejo-card">
-  <div class="carousel-wrap" id="car-{car_id}">{prev_btn}{imgs_html}{next_btn}</div>
-  {dots_row}
-  <div class="card-body">
-    <div class="card-title">{nombre_c}</div>
-    <div class="card-badges">{badges_html}</div>
-    <div class="card-price">{precio_txt}</div>
-  </div>
+<style>{show_rules}</style>
+{radios}
+{slides_ul}
+{dots_ol}
+<div class="card-body">
+  <div class="card-title">{nombre_c}</div>
+  <div class="card-badges">{badges}</div>
+  <div class="card-price">{precio_txt}</div>
+</div>
 </div>"""
 
                 with cols[col_idx]:
