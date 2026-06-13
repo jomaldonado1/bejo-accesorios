@@ -413,6 +413,28 @@ for k, v in {
     if k not in st.session_state:
         st.session_state[k] = v
 
+# ── PROCESAR AGREGAR AL CARRITO DESDE QUERY PARAMS ──
+_add_idx = st.query_params.get("add_cart", "")
+if _add_idx:
+    try:
+        _idx = int(_add_idx)
+        if _idx in df_stock.index:
+            _row = df_stock.loc[_idx]
+            _stock = int(_row["Cantidad"])
+            _en_carrito = st.session_state.carrito.get(_idx, 0)
+            if _en_carrito + 1 <= _stock:
+                st.session_state.carrito[_idx] = _en_carrito + 1
+                st.session_state.mostrar_banner_carrito = True
+            else:
+                st.toast(f"⚠️ Solo hay {_stock} unidades disponibles de {_row['Nombre del Artículo']} ({_row['Color / Diseño (Variación)']}).", icon="⚠️")
+    except Exception:
+        pass
+    # Limpiar parámetro
+    _qp = dict(st.query_params)
+    _qp.pop("add_cart", None)
+    st.query_params.from_dict(_qp)
+    st.rerun()
+
 # ── CONDITIONAL CSS FOR ADMIN PANEL HOVER ──
 if not st.session_state.admin_autenticado:
     st.markdown("""
@@ -955,7 +977,7 @@ else:
 /* ── Flechas ── */
 .cprev,.cnext { position:absolute; top:42%; transform:translateY(-50%);
     background:rgba(0,0,0,0.55); color:#fff; cursor:pointer; border-radius:50%;
-    width:32px; height:32px; display:flex; align-items:center; justify-content:center;
+    width:32px; height:32px; display:none; align-items:center; justify-content:center;
     font-size:1.5rem; z-index:10; user-select:none; text-decoration:none; transition:background .2s; }
 .cprev:hover,.cnext:hover { background:rgba(255,107,53,0.9); }
 .cprev { left:6px; } .cnext { right:6px; }
@@ -963,6 +985,39 @@ else:
 .slide-info { padding:7px 12px 9px; background:rgba(15,12,41,0.9); }
 .slide-color { color:#c8bfff; font-size:0.83rem; font-weight:700; margin-bottom:2px; }
 .slide-price { color:#ffd200; font-size:1.05rem; font-weight:900; }
+/* ── Botones Agregar al Carrito en Slide ── */
+.slide-cta {
+    display: block;
+    text-align: center;
+    background: linear-gradient(135deg, #ff6b35, #ff3d00);
+    color: #ffffff !important;
+    font-weight: 700;
+    text-decoration: none;
+    padding: 8px 12px;
+    margin-top: 8px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 12px rgba(255,107,53,0.3);
+    transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+}
+.slide-cta:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(255,107,53,0.5);
+    background: linear-gradient(135deg, #ff7b4b, #ff4d1a);
+    color: #ffffff !important;
+}
+.slide-cta-agotado {
+    display: block;
+    text-align: center;
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.4) !important;
+    padding: 8px 12px;
+    margin-top: 8px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border: 1px solid rgba(255,255,255,0.1);
+}
 /* ── Dots ── */
 .cdots { display:flex; justify-content:center; gap:6px; padding:5px 0 3px; list-style:none; margin:0; }
 .cdots > li > label { display:block; width:9px; height:9px; border-radius:50%;
@@ -1024,10 +1079,16 @@ else:
                         f'<span class="zoom-hint">🔍</span>'
                         f'</label>'
                     )
+                    if v["stock"] <= 0:
+                        cta_html = '<div class="slide-cta-agotado">🔴 Agotado</div>'
+                    else:
+                        cta_html = f'<a class="slide-cta" href="?add_cart={v["idx"]}" target="_self">🛒 Agregar al carrito</a>'
+
                     info = (
                         f'<div class="slide-info">'
                         f'<div class="slide-color">🎨 {v["color"]}</div>'
                         f'<div class="slide-price">${v["precio"]:,.0f}</div>'
+                        f'{cta_html}'
                         f'</div>'
                     )
                     slides_items.append(f'<li>{img_wrap}{nav}{info}</li>')
@@ -1053,6 +1114,8 @@ else:
                 # ── CSS per-carrusel ──────────────────────────────────────────────
                 show_rules = "".join(
                     f'#{cid}s{i}:checked~.cslides>li:nth-child({i+1}){{display:block}}'
+                    f'#{cid}s{i}:checked~.cslides>li:nth-child({i+1}) .cprev{{display:flex!important}}'
+                    f'#{cid}s{i}:checked~.cslides>li:nth-child({i+1}) .cnext{{display:flex!important}}'
                     f'#{cid}s{i}:checked~.cdots>li:nth-child({i+1})>label{{background:#ff6b35}}'
                     for i in range(n_var)
                 )
@@ -1073,29 +1136,6 @@ else:
 
                 with cols[col_idx]:
                     st.markdown(card_html, unsafe_allow_html=True)
-                    # ── Botón de agregar por variante (sin cantidad, sin popover) ─────
-                    for v in variantes:
-                        if v["stock"] <= 0:
-                            st.button(
-                                f"🔴 Agotado – {v['color']}",
-                                key=f"btn_ag_{v['idx']}",
-                                disabled=True,
-                                use_container_width=True,
-                            )
-                        else:
-                            if st.button(
-                                f"🛒 {v['color']} · ${v['precio']:,.0f}",
-                                key=f"btn_{v['idx']}",
-                                type="primary",
-                                use_container_width=True,
-                            ):
-                                en_carrito = st.session_state.carrito.get(v["idx"], 0)
-                                if en_carrito + 1 <= v["stock"]:
-                                    st.session_state.carrito[v["idx"]] = en_carrito + 1
-                                    st.session_state.mostrar_banner_carrito = True
-                                    st.rerun()
-                                else:
-                                    st.error(f"⚠️ Solo hay {v['stock']} unidades disponibles.")
 
         # ── Controles de paginación ──────────────────────────────────────────────
         if total_pages > 1:
