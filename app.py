@@ -303,6 +303,7 @@ def crear_preferencia_mp(total_pedido, id_pedido):
                 "currency_id": "ARS"
             }
         ],
+        "external_reference": id_pedido,
         "back_urls": {
             "success": "https://bejo-accesorios.streamlit.app",
             "failure": "https://bejo-accesorios.streamlit.app",
@@ -434,6 +435,64 @@ else:
     }
     </style>
     """, unsafe_allow_html=True)
+
+# ── DETECTAR RETORNO DE MERCADO PAGO ──
+qp = st.query_params
+if "external_reference" in qp:
+    id_pedido = qp["external_reference"]
+    status = qp.get("status", "unknown")
+    payment_id = qp.get("payment_id", "")
+    
+    # Intentar actualizar el estado a "Pagado" en Google Sheets si fue aprobado
+    if status == "approved":
+        try:
+            df_ped = cargar_pedidos_sheets()
+            if not df_ped.empty:
+                actualizar_estado_pedido(id_pedido, "Pagado", df_ped)
+        except Exception:
+            pass
+
+    st.balloons()
+    
+    # Cabecera especial de confirmación
+    st.markdown('<div class="bejo-header">⚡ BEJO ⚡</div>', unsafe_allow_html=True)
+    st.markdown('<div class="bejo-subtitle">PEDIDO RECONFIRMADO</div>', unsafe_allow_html=True)
+    
+    status_text = "APROBADO ✅" if status == "approved" else "PENDIENTE ⏳" if status == "pending" else "RECHAZADO ❌" if status == "rejected" else status.upper()
+    box_color = "linear-gradient(135deg, #00c851, #007e33)" if status == "approved" else "linear-gradient(135deg, #f7971e, #ffd200)" if status == "pending" else "linear-gradient(135deg, #ff4444, #cc0000)"
+    text_color = "#1a1a1a" if status == "pending" else "#ffffff"
+    
+    st.markdown(f"""
+    <div style="background: {box_color}; color:{text_color}; border-radius:18px; padding:2rem; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.25); margin: 1.5rem 0;">
+        <h1 style="color:{text_color}; margin:0 0 10px 0; font-size:2.2rem;">¡PEDIDO RECONFIRMADO! 🎉</h1>
+        <h3 style="color:{text_color}; opacity: 0.9; margin:0 0 20px 0; font-size:1.15rem;">Tu pago ha sido registrado de manera segura.</h3>
+        
+        <div style="background:rgba(255,255,255,0.15); border-radius:12px; padding:1.2rem; margin-bottom:1.5rem; text-align:left;">
+            <p style="margin:5px 0; font-size:1.1rem; color:{text_color};">🆔 <b>ID de Pedido:</b> <span style="font-weight:700;">{id_pedido}</span></p>
+            <p style="margin:5px 0; font-size:1.1rem; color:{text_color};">💳 <b>Estado del Pago:</b> <span style="font-weight:700;">{status_text}</span></p>
+            <p style="margin:5px 0; font-size:1.1rem; color:{text_color};">🧾 <b>ID Transacción MP:</b> <span style="font-weight:700;">{payment_id}</span></p>
+        </div>
+        
+        <p style="font-size:0.95rem; color:{text_color}; opacity: 0.85; margin:0;">
+            📸 <b>¡Sacale captura a esta pantalla!</b> Así tenés tu comprobante listo.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("### ¿Qué deseas hacer ahora?")
+    col_back1, col_back2 = st.columns(2)
+    with col_back1:
+        if st.button("🛍️ ¿Deseas hacer otra compra? Volver al Catálogo", use_container_width=True, type="primary"):
+            st.query_params.clear()
+            st.session_state.vista = "catalogo"
+            st.rerun()
+    with col_back2:
+        # Link a WhatsApp por si acaso
+        msg_re = f"Hola BEJO! Confirmo el pago de mi pedido {id_pedido} (Transacción: {payment_id})."
+        ws_url_re = f"https://wa.me/{NUMERO_WS}?text={urllib.parse.quote(msg_re)}"
+        st.link_button("📲 Mandar comprobante por WhatsApp", ws_url_re, use_container_width=True)
+        
+    st.stop()
 
 # ── HEADER (Logo y Nombre) ───────────────────────────────────────────────────
 logo_col1, logo_col2, logo_col3 = st.columns([1.3, 1, 1.3])
