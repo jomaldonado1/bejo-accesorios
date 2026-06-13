@@ -463,21 +463,19 @@ if "external_reference" in qp:
     text_color = "#1a1a1a" if status == "pending" else "#ffffff"
     
     st.markdown(f"""
-    <div style="background: {box_color}; color:{text_color}; border-radius:18px; padding:2rem; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.25); margin: 1.5rem 0;">
-        <h1 style="color:{text_color}; margin:0 0 10px 0; font-size:2.2rem;">¡PEDIDO RECONFIRMADO! 🎉</h1>
-        <h3 style="color:{text_color}; opacity: 0.9; margin:0 0 20px 0; font-size:1.15rem;">Tu pago ha sido registrado de manera segura.</h3>
-        
-        <div style="background:rgba(255,255,255,0.15); border-radius:12px; padding:1.2rem; margin-bottom:1.5rem; text-align:left;">
-            <p style="margin:5px 0; font-size:1.1rem; color:{text_color};">🆔 <b>ID de Pedido:</b> <span style="font-weight:700;">{id_pedido}</span></p>
-            <p style="margin:5px 0; font-size:1.1rem; color:{text_color};">💳 <b>Estado del Pago:</b> <span style="font-weight:700;">{status_text}</span></p>
-            <p style="margin:5px 0; font-size:1.1rem; color:{text_color};">🧾 <b>ID Transacción MP:</b> <span style="font-weight:700;">{payment_id}</span></p>
-        </div>
-        
-        <p style="font-size:0.95rem; color:{text_color}; opacity: 0.85; margin:0;">
-            📸 <b>¡Sacale captura a esta pantalla!</b> Así tenés tu comprobante listo.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+<div style="background: {box_color}; color:{text_color}; border-radius:18px; padding:2rem; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.25); margin: 1.5rem 0;">
+<h1 style="color:{text_color}; margin:0 0 10px 0; font-size:2.2rem;">¡PEDIDO RECONFIRMADO! 🎉</h1>
+<h3 style="color:{text_color}; opacity: 0.9; margin:0 0 20px 0; font-size:1.15rem;">Tu pago ha sido registrado de manera segura.</h3>
+<div style="background:rgba(255,255,255,0.15); border-radius:12px; padding:1.2rem; margin-bottom:1.5rem; text-align:left;">
+<p style="margin:5px 0; font-size:1.1rem; color:{text_color};">🆔 <b>ID de Pedido:</b> <span style="font-weight:700;">{id_pedido}</span></p>
+<p style="margin:5px 0; font-size:1.1rem; color:{text_color};">💳 <b>Estado del Pago:</b> <span style="font-weight:700;">{status_text}</span></p>
+<p style="margin:5px 0; font-size:1.1rem; color:{text_color};">🧾 <b>ID Transacción MP:</b> <span style="font-weight:700;">{payment_id}</span></p>
+</div>
+<p style="font-size:0.95rem; color:{text_color}; opacity: 0.85; margin:0;">
+📸 <b>¡Sacale captura a esta pantalla!</b> Así tenés tu comprobante listo.
+</p>
+</div>
+""", unsafe_allow_html=True)
     
     st.markdown("### ¿Qué deseas hacer ahora?")
     col_back1, col_back2 = st.columns(2)
