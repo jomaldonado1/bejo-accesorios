@@ -406,19 +406,12 @@ for k, v in {
     "admin_modo": None,          # "editar" | "nuevo"
     "admin_idx_sel": None,       # índice del df del producto seleccionado
     "vista": "catalogo",         # "catalogo" | "carrito"
-    "dir_sel_georef": "",        # dirección elegida desde el autocomplete
+    "_georef_query": "",          # texto de búsqueda del autocomplete
+    "_georef_sugerencias": [],    # sugerencias devueltas por Georef
+    "_georef_elegida": None,      # calle elegida del autocomplete
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
-
-# ── Sincronizar dirección elegida desde autocomplete (via query params) ───────
-_dir_param = st.query_params.get("dir_sel", "")
-if _dir_param and _dir_param != st.session_state.get("dir_sel_georef", ""):
-    st.session_state["dir_sel_georef"] = _dir_param
-    # Limpiar el param de la URL para no reprocesarlo
-    _qp = dict(st.query_params)
-    _qp.pop("dir_sel", None)
-    st.query_params.from_dict(_qp)
 
 # ── CONDITIONAL CSS FOR ADMIN PANEL HOVER ──
 if not st.session_state.admin_autenticado:
@@ -603,251 +596,92 @@ if st.session_state.vista == "carrito":
             st.markdown("#### 📍 Tu dirección de entrega")
 
             # ── Autocomplete Georef-AR ────────────────────────────────────────
-            # Genera el componente HTML que hace fetch a la API Georef de Argentina
-            # filtrando por los departamentos del Gran Tucumán.
-            _GEOREF_DEPTS = "capital,yerba+buena,taf%C3%AD+viejo,cruz+alta"
-            _autocomplete_html = f"""
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
-  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{ background: transparent; font-family: 'Segoe UI', sans-serif; }}
-  #wrap {{
-    position: relative;
-    width: 100%;
-  }}
-  #ac-input {{
-    width: 100%;
-    padding: 11px 16px 11px 42px;
-    background: rgba(255,255,255,0.07);
-    border: 1.5px solid rgba(255,107,53,0.5);
-    border-radius: 10px;
-    color: #fff;
-    font-size: 0.97rem;
-    outline: none;
-    transition: border-color .2s, box-shadow .2s;
-  }}
-  #ac-input:focus {{
-    border-color: #ff6b35;
-    box-shadow: 0 0 0 3px rgba(255,107,53,0.18);
-  }}
-  #ac-input::placeholder {{ color: rgba(255,255,255,0.38); }}
-  #icon {{
-    position: absolute;
-    left: 13px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 1.15rem;
-    pointer-events: none;
-    opacity: 0.75;
-  }}
-  #dropdown {{
-    position: absolute;
-    top: calc(100% + 5px);
-    left: 0;
-    right: 0;
-    background: #1a1535;
-    border: 1px solid rgba(255,107,53,0.4);
-    border-radius: 10px;
-    overflow: hidden;
-    z-index: 9999;
-    display: none;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-    max-height: 260px;
-    overflow-y: auto;
-  }}
-  .dd-item {{
-    padding: 10px 16px;
-    cursor: pointer;
-    color: #e8e0ff;
-    font-size: 0.9rem;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    transition: background .15s;
-  }}
-  .dd-item:last-child {{ border-bottom: none; }}
-  .dd-item:hover, .dd-item.active {{ background: rgba(255,107,53,0.18); }}
-  .dd-calle {{ font-weight: 700; color: #fff; }}
-  .dd-loc {{ font-size: 0.78rem; color: #a89cff; }}
-  #status {{
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 0.8rem;
-    color: rgba(255,255,255,0.4);
-    pointer-events: none;
-  }}
-  #hint {{
-    font-size: 0.75rem;
-    color: rgba(255,255,255,0.35);
-    margin-top: 6px;
-    padding-left: 4px;
-  }}
-  #selected-badge {{
-    display: none;
-    margin-top: 8px;
-    padding: 8px 14px;
-    background: rgba(37,211,102,0.13);
-    border: 1px solid rgba(37,211,102,0.35);
-    border-radius: 8px;
-    color: #a8ffdb;
-    font-size: 0.85rem;
-    font-weight: 600;
-  }}
-</style>
-</head>
-<body>
-<div id="wrap">
-  <span id="icon">🏠</span>
-  <input id="ac-input" type="text"
-         placeholder="Escribí tu calle (ej: San Martín, Corrientes...)"
-         autocomplete="off" spellcheck="false"/>
-  <span id="status"></span>
-  <div id="dropdown"></div>
-</div>
-<div id="hint">Buscá por nombre de calle · Gran Tucumán</div>
-<div id="selected-badge">✅ <span id="sel-text"></span></div>
 
-<script>
-const DEPTS = ['capital','yerba buena','tafí viejo','cruz alta'];
-const API = 'https://apis.datos.gob.ar/georef/api/calles';
-let debounceTimer = null;
-let selIndex = -1;
-let currentItems = [];
+            # -- Autocomplete Georef-AR (100% Python) ---------------------------------
+            import requests as _req
 
-const inp   = document.getElementById('ac-input');
-const dd    = document.getElementById('dropdown');
-const stEl  = document.getElementById('status');
-const badge = document.getElementById('selected-badge');
-const selTx = document.getElementById('sel-text');
+            def _buscar_georef(q):
+                """Busca calles en el Gran Tucuman via Georef-AR API."""
+                if len(q.strip()) < 2:
+                    return []
+                DEPTS = ["capital", "yerba buena", "tafi viejo", "cruz alta"]
+                seen, results = set(), []
+                try:
+                    for dept in DEPTS:
+                        r = _req.get(
+                            "https://apis.datos.gob.ar/georef/api/calles",
+                            params={
+                                "nombre": q,
+                                "provincia": "tucuman",
+                                "departamento": dept,
+                                "max": 3,
+                                "campos": "nombre,localidad_censal.nombre,departamento.nombre",
+                            },
+                            timeout=3,
+                        )
+                        for c in r.json().get("calles", []):
+                            loc = c.get("localidad_censal", {}).get("nombre", "")
+                            key = c["nombre"] + "|" + loc
+                            if key not in seen:
+                                seen.add(key)
+                                label = c["nombre"] + ", " + loc + ", Tucuman"
+                                results.append(label)
+                except Exception:
+                    pass
+                return results
 
-async function buscar(q) {{
-  if (q.length < 2) {{ dd.style.display='none'; stEl.textContent=''; return; }}
-  stEl.textContent = '🔄';
-  try {{
-    // Hacer 4 llamadas en paralelo, una por departamento del Gran Tucumán
-    const reqs = DEPTS.map(dept =>
-      fetch(`${{API}}?nombre=${{encodeURIComponent(q)}}&provincia=tucuman&departamento=${{encodeURIComponent(dept)}}&max=3&campos=nombre,localidad_censal.nombre,departamento.nombre`)
-        .then(r => r.json()).catch(() => ({{ calles: [] }}))
-    );
-    const results = await Promise.all(reqs);
-    // Aplanar, deduplicar por nombre+localidad
-    const seen = new Set();
-    currentItems = [];
-    for (const res of results) {{
-      for (const c of (res.calles || [])) {{
-        const key = c.nombre + '|' + (c.localidad_censal?.nombre || '');
-        if (!seen.has(key)) {{
-          seen.add(key);
-          currentItems.push({{
-            calle: c.nombre,
-            localidad: c.localidad_censal?.nombre || '',
-            depto: c.departamento?.nombre || ''
-          }});
-        }}
-      }}
-    }}
-    renderDropdown(currentItems);
-    stEl.textContent = currentItems.length ? '' : '🔍';
-  }} catch(e) {{
-    stEl.textContent = '⚠️';
-  }}
-}}
+            def _on_busqueda_change():
+                q = st.session_state.get("_georef_query", "")
+                st.session_state["_georef_sugerencias"] = _buscar_georef(q)
+                st.session_state["_georef_elegida"] = None
 
-function renderDropdown(items) {{
-  if (!items.length) {{ dd.style.display='none'; return; }}
-  dd.innerHTML = items.map((it, i) => `
-    <div class="dd-item" data-i="${{i}}">
-      <span class="dd-calle">${{it.calle}}</span>
-      <span class="dd-loc">${{it.localidad}}${{it.depto && it.localidad !== it.depto ? ' · ' + it.depto : ''}}, Tucumán</span>
-    </div>`).join('');
-  dd.style.display = 'block';
-  selIndex = -1;
-  dd.querySelectorAll('.dd-item').forEach(el => {{
-    el.addEventListener('mousedown', e => {{ e.preventDefault(); elegir(parseInt(el.dataset.i)); }});
-  }});
-}}
+            def _on_select_calle():
+                elegida = st.session_state.get("_georef_sel_box")
+                if elegida and elegida != "-- Selecciona una calle --":
+                    st.session_state["inp_dir"] = elegida
+                    st.session_state["_georef_elegida"] = elegida
 
-function elegir(i) {{
-  const it = currentItems[i];
-  if (!it) return;
-  const valor = it.calle + ', ' + it.localidad + ', Tucumán';
-  inp.value = valor;
-  dd.style.display = 'none';
-  badge.style.display = 'block';
-  selTx.textContent = valor;
-  // Comunicar al parent (Streamlit) via postMessage
-  const msg = {{ type: 'georef_dir', value: valor }};
-  window.parent.postMessage(JSON.stringify(msg), '*');
-  // También actualizar query param para que Python lo lea en el próximo render
-  // Usamos window.parent.location si es accesible (mismo origen)
-  try {{
-    const url = new URL(window.parent.location.href);
-    url.searchParams.set('dir_sel', valor);
-    window.parent.history.replaceState(null, '', url.toString());
-  }} catch(e) {{}}
-}}
-
-inp.addEventListener('input', () => {{
-  const q = inp.value.trim();
-  badge.style.display = 'none';
-  clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => buscar(q), 280);
-}});
-
-inp.addEventListener('keydown', e => {{
-  const items = dd.querySelectorAll('.dd-item');
-  if (e.key === 'ArrowDown') {{
-    selIndex = Math.min(selIndex+1, items.length-1);
-    items.forEach((el,i) => el.classList.toggle('active', i===selIndex));
-    e.preventDefault();
-  }} else if (e.key === 'ArrowUp') {{
-    selIndex = Math.max(selIndex-1, 0);
-    items.forEach((el,i) => el.classList.toggle('active', i===selIndex));
-    e.preventDefault();
-  }} else if (e.key === 'Enter' && selIndex >= 0) {{
-    elegir(selIndex);
-    e.preventDefault();
-  }} else if (e.key === 'Escape') {{
-    dd.style.display = 'none';
-  }}
-}});
-
-inp.addEventListener('blur', () => setTimeout(() => dd.style.display='none', 150));
-inp.addEventListener('focus', () => {{ if (currentItems.length) dd.style.display='block'; }});
-</script>
-</body>
-</html>
-"""
-            st.components.v1.html(_autocomplete_html, height=130, scrolling=False)
-
-            # ── Dirección confirmable (pre-llenada si el usuario eligió del autocomplete) ──
-            _dir_preloaded = st.session_state.get("dir_sel_georef", "")
-            st.caption("✏️ Agregá el número de puerta, piso, depto u observaciones:")
-            direccion = st.text_input(
-                "🏠 Dirección completa:",
-                value=_dir_preloaded,
-                placeholder="Ej: San Martín 456, piso 2, Tucumán",
-                key="inp_dir"
+            st.text_input(
+                "Busca tu calle:",
+                placeholder="Ej: San Martin, Corrientes, Av. Alem...",
+                key="_georef_query",
+                on_change=_on_busqueda_change,
+                help="Escribi el nombre de tu calle y selecciona de la lista.",
             )
 
-            query_mapa = urllib.parse.quote(f"{direccion}, Tucumán, Argentina") if direccion.strip() else "Tucuman,Argentina"
-            st.components.v1.iframe(f"https://maps.google.com/maps?q={query_mapa}&output=embed&z=15",
-                                    height=260, scrolling=False)
-            if not direccion.strip():
-                st.caption("💡 Elegí tu calle arriba y aparecerá marcada en el mapa.")
-            observacion = st.text_input("📝 Observaciones:", placeholder="Ej: Portón blanco, timbre 2")
-            horario = st.selectbox("🕐 Horario preferible:", [
-                "Sin preferencia (cualquier hora)", "Mañana (8:00 a 12:00)",
-                "Mediodía (12:00 a 15:00)", "Tarde (15:00 a 18:00)", "Noche (18:00 a 21:00)"
-            ])
+            sugerencias = st.session_state.get("_georef_sugerencias", [])
+            if sugerencias:
+                st.markdown(
+                    "<div style='font-size:0.8rem;color:#a89cff;margin:-6px 0 4px 2px;'>"
+                    "Calles encontradas en Gran Tucuman &mdash; elegila:</div>",
+                    unsafe_allow_html=True,
+                )
+                st.selectbox(
+                    "",
+                    ["-- Selecciona una calle --"] + sugerencias,
+                    key="_georef_sel_box",
+                    label_visibility="collapsed",
+                    on_change=_on_select_calle,
+                )
+            elif st.session_state.get("_georef_query", ""):
+                st.caption("No se encontraron calles. Proba con otro nombre.")
 
-        # ── PAGO ─────────────────────────────────────────────────────────────
+            elegida = st.session_state.get("_georef_elegida")
+            if elegida:
+                st.markdown(
+                    f"<div style='background:rgba(37,211,102,0.13);border:1px solid rgba(37,211,102,0.35);"
+                    f"border-radius:8px;padding:8px 14px;color:#a8ffdb;font-size:0.85rem;"
+                    f"font-weight:600;margin-bottom:6px;'> {elegida}</div>",
+                    unsafe_allow_html=True,
+                )
+
+            st.caption("Agrega el numero de puerta, piso, depto u observaciones:")
+            direccion = st.text_input(
+                "Direccion completa:",
+                placeholder="Ej: San Martin 456, piso 2, Tucuman",
+                key="inp_dir",
+            )
+
         st.markdown('<div class="seccion-titulo">💳 Método de Pago</div>', unsafe_allow_html=True)
         metodo_pago = st.radio("pago_r", ["💵  Efectivo", "🏦  Transferencia Bancaria", "💳  Mercado Pago (Tarjeta, Dinero en cuenta)"],
                                index=None, label_visibility="collapsed")
