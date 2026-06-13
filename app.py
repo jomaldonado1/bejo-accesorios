@@ -461,7 +461,11 @@ if "external_reference" in qp:
     status_text = "APROBADO ✅" if status == "approved" else "PENDIENTE ⏳" if status == "pending" else "RECHAZADO ❌" if status == "rejected" else status.upper()
     box_color = "linear-gradient(135deg, #00c851, #007e33)" if status == "approved" else "linear-gradient(135deg, #f7971e, #ffd200)" if status == "pending" else "linear-gradient(135deg, #ff4444, #cc0000)"
     text_color = "#1a1a1a" if status == "pending" else "#ffffff"
-    
+
+    # Mensaje automático a WS con datos del pedido
+    msg_re = f"⚡ Hola BEJO! Acabo de pagar mi pedido 🔥\n\n🆔 *ID Pedido:* {id_pedido}\n💳 *Estado del pago:* {status_text}\n🧾 *ID Transacción MP:* {payment_id}\n\n¿Desean hacer alguna verificación o tengo alguna otra consulta? 🙌"
+    ws_url_re = f"https://wa.me/{NUMERO_WS}?text={urllib.parse.quote(msg_re)}"
+
     st.markdown(f"""
 <div style="background: {box_color}; color:{text_color}; border-radius:18px; padding:2rem; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.25); margin: 1.5rem 0;">
 <h1 style="color:{text_color}; margin:0 0 10px 0; font-size:2.2rem;">¡PEDIDO RECONFIRMADO! 🎉</h1>
@@ -471,24 +475,24 @@ if "external_reference" in qp:
 <p style="margin:5px 0; font-size:1.1rem; color:{text_color};">💳 <b>Estado del Pago:</b> <span style="font-weight:700;">{status_text}</span></p>
 <p style="margin:5px 0; font-size:1.1rem; color:{text_color};">🧾 <b>ID Transacción MP:</b> <span style="font-weight:700;">{payment_id}</span></p>
 </div>
-<p style="font-size:0.95rem; color:{text_color}; opacity: 0.85; margin:0;">
+<p style="font-size:0.95rem; color:{text_color}; opacity: 0.85; margin:0 0 8px 0;">
 📸 <b>¡Sacale captura a esta pantalla!</b> Así tenés tu comprobante listo.
 </p>
+<p style="font-size:0.9rem; color:{text_color}; opacity:0.75; margin:0;">
+📲 En unos segundos te abriremos WhatsApp automáticamente para confirmar con el vendedor...
+</p>
 </div>
+<script>
+setTimeout(function() {{
+    window.location.href = "{ws_url_re}";
+}}, 4000);
+</script>
 """, unsafe_allow_html=True)
-    
-    st.markdown("### ¿Qué deseas hacer ahora?")
-    col_back1, col_back2 = st.columns(2)
-    with col_back1:
-        if st.button("🛍️ ¿Deseas hacer otra compra? Volver al Catálogo", use_container_width=True, type="primary"):
-            st.query_params.clear()
-            st.session_state.vista = "catalogo"
-            st.rerun()
-    with col_back2:
-        # Link a WhatsApp por si acaso
-        msg_re = f"Hola BEJO! Confirmo el pago de mi pedido {id_pedido} (Transacción: {payment_id})."
-        ws_url_re = f"https://wa.me/{NUMERO_WS}?text={urllib.parse.quote(msg_re)}"
-        st.link_button("📲 Mandar comprobante por WhatsApp", ws_url_re, use_container_width=True)
+
+    if st.button("🛍️ Volver al Catálogo / Hacer otra compra", use_container_width=True, type="primary", key="btn_volver_mp"):
+        st.query_params.clear()
+        st.session_state.vista = "catalogo"
+        st.rerun()
         
     st.stop()
 
@@ -809,85 +813,198 @@ else:
         st.session_state.catalog_page = 1
         st.session_state.last_filter_key = filter_key
 
-    items = df_fil
-    if items.empty:
+    if df_fil.empty:
         st.info("No hay productos disponibles para los filtros seleccionados.")
     else:
+        PLACEHOLDER_IMG = "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500"
+
+        def safe_img(url):
+            if pd.isna(url) or str(url).strip() == "":
+                return PLACEHOLDER_IMG
+            return str(url).strip()
+
+        # Construir lista de grupos únicos (manteniendo el orden original del df)
+        group_keys = df_fil[["Nombre del Artículo","Marca Principal","Modelo Exacto"]].drop_duplicates()
+        grouped_list = []
+        for _, gk in group_keys.iterrows():
+            mask = (
+                (df_fil["Nombre del Artículo"] == gk["Nombre del Artículo"]) &
+                (df_fil["Marca Principal"]      == gk["Marca Principal"]) &
+                (df_fil["Modelo Exacto"]        == gk["Modelo Exacto"])
+            )
+            grouped_list.append(df_fil[mask])
+
         items_per_page = 6
-        total_items = len(items)
-        total_pages = max(1, (total_items + items_per_page - 1) // items_per_page)
-        
-        # Clamp page number just in case
+        total_pages    = max(1, (len(grouped_list) + items_per_page - 1) // items_per_page)
+
         if st.session_state.get("catalog_page", 1) > total_pages:
             st.session_state.catalog_page = 1
-            
-        curr_page = st.session_state.get("catalog_page", 1)
-        start_idx = (curr_page - 1) * items_per_page
-        end_idx = start_idx + items_per_page
-        page_items = items.iloc[start_idx:end_idx]
 
-        # Mostramos los elementos en una grilla de 3 columnas
-        for idx_group in range(0, len(page_items), 3):
+        curr_page   = st.session_state.get("catalog_page", 1)
+        start_idx   = (curr_page - 1) * items_per_page
+        page_groups = grouped_list[start_idx:start_idx + items_per_page]
+
+        # ── CSS + JS del carrusel ───────────────────────────────────────────────
+        st.markdown("""
+<style>
+.bejo-card { background:rgba(255,255,255,0.05); border:1.5px solid rgba(255,107,53,0.35);
+    border-radius:16px; padding:0; overflow:hidden; transition:box-shadow .3s; margin-bottom:6px; }
+.bejo-card:hover { box-shadow:0 0 22px rgba(255,107,53,0.35); }
+.carousel-wrap { position:relative; width:100%; background:#0f0c29; }
+.carousel-wrap img { width:100%; aspect-ratio:1/1; object-fit:cover; display:none; }
+.carousel-wrap img.active { display:block; }
+.car-btn { position:absolute; top:50%; transform:translateY(-50%);
+    background:rgba(0,0,0,0.55); color:#fff; border:none; border-radius:50%;
+    width:30px; height:30px; cursor:pointer; font-size:1.1rem; line-height:30px;
+    text-align:center; z-index:10; transition:background .2s; }
+.car-btn:hover { background:rgba(255,107,53,0.85); }
+.car-btn.prev { left:6px; }
+.car-btn.next { right:6px; }
+.car-dots { display:flex; justify-content:center; gap:5px; padding:5px 0 3px; }
+.car-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,0.25); cursor:pointer; border:none; }
+.car-dot.active { background:#ff6b35; }
+.card-body { padding:10px 12px 12px; }
+.card-title { font-weight:800; font-size:0.93rem; color:#fff; margin-bottom:2px; line-height:1.3; }
+.card-badges { display:flex; flex-wrap:wrap; gap:4px; margin:4px 0 6px; }
+.var-badge { font-size:0.7rem; background:rgba(168,156,255,0.18); border:1px solid rgba(168,156,255,0.4);
+    color:#c8bfff; border-radius:20px; padding:2px 8px; }
+.var-badge.agotado { opacity:.4; text-decoration:line-through; }
+.card-price { color:#ffd200; font-size:1.05rem; font-weight:900; margin:2px 0 8px; }
+</style>
+<script>
+function carNext(id,total){
+    var w=document.getElementById('car-'+id);
+    if(!w)return;
+    var imgs=w.querySelectorAll('img'),dots=w.parentElement.querySelectorAll('.car-dot'),cur=0;
+    imgs.forEach(function(el,i){if(el.classList.contains('active'))cur=i;});
+    imgs[cur].classList.remove('active');if(dots[cur])dots[cur].classList.remove('active');
+    cur=(cur+1)%total;
+    imgs[cur].classList.add('active');if(dots[cur])dots[cur].classList.add('active');
+}
+function carPrev(id,total){
+    var w=document.getElementById('car-'+id);
+    if(!w)return;
+    var imgs=w.querySelectorAll('img'),dots=w.parentElement.querySelectorAll('.car-dot'),cur=0;
+    imgs.forEach(function(el,i){if(el.classList.contains('active'))cur=i;});
+    imgs[cur].classList.remove('active');if(dots[cur])dots[cur].classList.remove('active');
+    cur=(cur-1+total)%total;
+    imgs[cur].classList.add('active');if(dots[cur])dots[cur].classList.add('active');
+}
+function carDot(id,idx,total){
+    var w=document.getElementById('car-'+id);
+    if(!w)return;
+    var imgs=w.querySelectorAll('img'),dots=w.parentElement.querySelectorAll('.car-dot');
+    imgs.forEach(function(el){el.classList.remove('active');});
+    dots.forEach(function(el){el.classList.remove('active');});
+    imgs[idx].classList.add('active');if(dots[idx])dots[idx].classList.add('active');
+}
+</script>
+""", unsafe_allow_html=True)
+
+        # ── RENDERIZADO DE CARDS ────────────────────────────────────────────────
+        for g_idx in range(0, len(page_groups), 3):
             cols = st.columns(3)
             for col_idx in range(3):
-                item_idx = idx_group + col_idx
-                if item_idx < len(items):
-                    index = items.index[item_idx]
-                    row = items.iloc[item_idx]
-                    
-                    nombre_c     = f"{row['Nombre del Artículo']} {row['Modelo Exacto']}"
-                    variacion    = row["Color / Diseño (Variación)"]
-                    precio       = row["Precio Mercado"]
-                    stock_actual = row["Cantidad"]
-                    url_foto     = row["Imagen_URL"]
-                    if pd.isna(url_foto) or str(url_foto).strip() == "":
-                        url_foto = "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500"
-                    
-                    with cols[col_idx]:
-                        with st.container(border=True):
-                            mostrar_imagen(url_foto, use_container_width=True)
-                            st.markdown(f"**{nombre_c}**")
-                            st.markdown(f"<div style='font-size:0.85rem; color:#a89cff; margin-top:-10px;'>🎨 {variacion}</div>", unsafe_allow_html=True)
-                            st.markdown(f"### **${precio:,.0f}**")
-                            
-                            # Botón Popover para ver detalles y comprar sin hacer larga la lista
-                            with st.popover("🔍 Ver / Comprar 🛒", use_container_width=True):
-                                mostrar_imagen(url_foto, use_container_width=True)
-                                st.markdown(f"### {nombre_c}")
-                                st.markdown(f"🎨 **Color / Diseño:** {variacion}")
-                                st.markdown(f"💳 **Precio:** ${precio:,.0f}")
-                                
-                                if stock_actual <= 0:
-                                    st.error("🔴 SIN STOCK DISPONIBLE")
-                                    st.button("Agotado ✖️", key=f"btn_ag_agotado_{index}", disabled=True, use_container_width=True)
+                gi = g_idx + col_idx
+                if gi >= len(page_groups):
+                    break
+                grupo_df = page_groups[gi]
+                first    = grupo_df.iloc[0]
+                nombre_c = f"{first['Nombre del Artículo']} {first['Modelo Exacto']}"
+                car_id   = f"g{start_idx + gi}"
+
+                variantes = []
+                for vi_idx, (vi_row_i, vi_row) in enumerate(grupo_df.iterrows()):
+                    variantes.append({
+                        "idx":    vi_row_i,
+                        "color":  vi_row["Color / Diseño (Variación)"],
+                        "precio": vi_row["Precio Mercado"],
+                        "stock":  vi_row["Cantidad"],
+                        "img":    safe_img(vi_row["Imagen_URL"]),
+                        "vi":     vi_idx,
+                    })
+
+                precios    = [v["precio"] for v in variantes]
+                precio_txt = (f"${min(precios):,.0f}" if min(precios)==max(precios)
+                              else f"${min(precios):,.0f} – ${max(precios):,.0f}")
+                n_var      = len(variantes)
+
+                imgs_html   = "".join(
+                    f'<img src="{v["img"]}" alt="{v["color"]}" class="{"active" if v["vi"]==0 else ""}" loading="lazy"/>'
+                    for v in variantes)
+                dots_html   = "".join(
+                    f'<button class="car-dot {"active" if v["vi"]==0 else ""}" onclick="carDot(\'{car_id}\',{v["vi"]},{n_var})"></button>'
+                    for v in variantes)
+                badges_html = "".join(
+                    f'<span class="var-badge {"agotado" if v["stock"]<=0 else ""}">{"🔴 " if v["stock"]<=0 else ""}{v["color"]}</span>'
+                    for v in variantes)
+                prev_btn = (f'<button class="car-btn prev" onclick="carPrev(\'{car_id}\',{n_var})">&#8249;</button>'
+                            if n_var > 1 else "")
+                next_btn = (f'<button class="car-btn next" onclick="carNext(\'{car_id}\',{n_var})">&#8250;</button>'
+                            if n_var > 1 else "")
+                dots_row = (f'<div class="car-dots">{dots_html}</div>' if n_var > 1 else "")
+
+                card_html = f"""<div class="bejo-card">
+  <div class="carousel-wrap" id="car-{car_id}">{prev_btn}{imgs_html}{next_btn}</div>
+  {dots_row}
+  <div class="card-body">
+    <div class="card-title">{nombre_c}</div>
+    <div class="card-badges">{badges_html}</div>
+    <div class="card-price">{precio_txt}</div>
+  </div>
+</div>"""
+
+                with cols[col_idx]:
+                    st.markdown(card_html, unsafe_allow_html=True)
+                    with st.popover("🔍 Ver / Comprar 🛒", use_container_width=True):
+                        st.markdown(f"### {nombre_c}")
+                        st.markdown("---")
+                        for v in variantes:
+                            col_pi, col_inf = st.columns([1, 1])
+                            with col_pi:
+                                mostrar_imagen(v["img"], use_container_width=True)
+                            with col_inf:
+                                st.markdown(f"🎨 **{v['color']}**")
+                                st.markdown(f"💳 **${v['precio']:,.0f}**")
+                                if v["stock"] <= 0:
+                                    st.error("🔴 Sin stock")
+                                    st.button("Agotado ✖️", key=f"btn_ag_{v['idx']}", disabled=True, use_container_width=True)
                                 else:
-                                    st.success(f"🟢 Disponible: {stock_actual} unidades")
-                                    qty = st.number_input("Cantidad:", min_value=1, max_value=min(stock_actual, 10),
-                                                          value=1, step=1, key=f"qty_{index}")
-                                    if st.button("Agregar al Carrito 🛒", key=f"btn_{index}", type="primary", use_container_width=True):
-                                        en_carrito = st.session_state.carrito.get(index, 0)
+                                    st.success(f"🟢 {v['stock']} disponibles")
+                                    qty = st.number_input("Cantidad:", min_value=1,
+                                                          max_value=min(v["stock"], 10),
+                                                          value=1, step=1, key=f"qty_{v['idx']}")
+                                    if st.button("🛒 Agregar al Carrito", key=f"btn_{v['idx']}",
+                                                 type="primary", use_container_width=True):
+                                        en_carrito = st.session_state.carrito.get(v["idx"], 0)
                                         nueva_cant = en_carrito + qty
-                                        if nueva_cant <= stock_actual:
-                                            st.session_state.carrito[index]         = nueva_cant
+                                        if nueva_cant <= v["stock"]:
+                                            st.session_state.carrito[v["idx"]] = nueva_cant
                                             st.session_state.mostrar_banner_carrito = True
                                             st.rerun()
                                         else:
-                                            st.error(f"⚠️ Solo hay {stock_actual} unidades disponibles.")
+                                            st.error(f"⚠️ Solo hay {v['stock']} unidades.")
+                            if v["vi"] < len(variantes) - 1:
+                                st.markdown("---")
 
-        # Controles de paginación
+        # ── Controles de paginación ──────────────────────────────────────────────
         if total_pages > 1:
             st.markdown("<br>", unsafe_allow_html=True)
             p_col1, p_col2, p_col3 = st.columns([1, 2, 1])
             with p_col1:
-                if st.button("⬅️ Anterior", disabled=(curr_page == 1), use_container_width=True, key="cat_prev_page"):
+                if st.button("⬅️ Anterior", disabled=(curr_page == 1),
+                             use_container_width=True, key="cat_prev_page"):
                     st.session_state.catalog_page -= 1
                     st.rerun()
             with p_col2:
-                st.markdown(f"<p style='text-align:center; font-weight:700; font-size:1.1rem; color:#fff;'>Página {curr_page} de {total_pages}</p>", unsafe_allow_html=True)
+                st.markdown(f"<p style='text-align:center;font-weight:700;font-size:1.1rem;color:#fff;'>"
+                            f"Página {curr_page} de {total_pages}</p>", unsafe_allow_html=True)
             with p_col3:
-                if st.button("Siguiente ➡️", disabled=(curr_page == total_pages), use_container_width=True, key="cat_next_page"):
+                if st.button("Siguiente ➡️", disabled=(curr_page == total_pages),
+                             use_container_width=True, key="cat_next_page"):
                     st.session_state.catalog_page += 1
                     st.rerun()
+
 
     # ── BOTÓN DE CHECKOUT AL FINAL DEL CATÁLOGO ───────────────────────────────
     if st.session_state.carrito:
