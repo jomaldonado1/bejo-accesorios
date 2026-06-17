@@ -392,6 +392,32 @@ def mostrar_imagen(src, **kwargs):
     else:
         st.image("https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500", **kwargs)
 
+def limpiar_precio_mercado(val):
+    import re
+    if pd.isna(val):
+        return 0
+    s = str(val).strip().replace('$', '')
+    if not s:
+        return 0
+    if ',' in s and '.' not in s:
+        s = s.replace(',', '')
+    elif ',' in s and '.' in s:
+        s = s.replace(',', '')
+    try:
+        val_float = float(s)
+        if val_float < 200:
+            return int(val_float * 1000)
+        return int(val_float)
+    except ValueError:
+        s_clean = re.sub(r'[^\d.]', '', s)
+        try:
+            val_float = float(s_clean)
+            if val_float < 200:
+                return int(val_float * 1000)
+            return int(val_float)
+        except ValueError:
+            return 0
+
 @st.cache_data(ttl=5)
 def cargar_datos_sheets():
     try:
@@ -400,12 +426,7 @@ def cargar_datos_sheets():
         df    = pd.DataFrame(data)
         df.columns = df.columns.str.strip()
         df["Cantidad"] = pd.to_numeric(df["Cantidad"], errors="coerce").fillna(0).astype(int)
-        df["Precio Mercado"] = (
-            df["Precio Mercado"].astype(str)
-            .str.replace('$','',regex=False).str.replace('.','',regex=False)
-            .str.replace(',','',regex=False).str.strip()
-        )
-        df["Precio Mercado"] = pd.to_numeric(df["Precio Mercado"], errors="coerce").fillna(0).astype(int)
+        df["Precio Mercado"] = df["Precio Mercado"].apply(limpiar_precio_mercado)
         if "Imagen_URL" not in df.columns:
             df["Imagen_URL"] = ""
         return df
