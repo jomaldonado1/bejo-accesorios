@@ -236,6 +236,43 @@ def actualizar_estado_pedido(id_ped, nuevo_estado, df_pedidos):
         st.error(f"Error al actualizar estado del pedido: {e}")
         return False
 
+def get_compatibilidad_sheet():
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    has_secrets = False
+    try:
+        has_secrets = "gcp_service_account" in st.secrets
+    except Exception:
+        pass
+    if has_secrets:
+        creds_dict = {k: v for k, v in st.secrets["gcp_service_account"].items()}
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    else:
+        creds = ServiceAccountCredentials.from_json_keyfile_name("claves.json", scope)
+    client = gspread.authorize(creds)
+    spreadsheet = client.open("inventario_tienda")
+    return spreadsheet.worksheet("Compatibilidad")
+
+@st.cache_data(ttl=5)
+def cargar_compatibilidad_sheets():
+    try:
+        sheet = get_compatibilidad_sheet()
+        rows = sheet.get_all_values()
+        if len(rows) < 5:
+            return pd.DataFrame(columns=["tipo de producto", "marca", "modelo", "compatibilidad"])
+        
+        headers = [h.strip() for h in rows[3]]
+        data = rows[4:]
+        df = pd.DataFrame(data, columns=headers)
+        df = df.loc[:, df.columns != '']
+        df.columns = df.columns.str.strip()
+        for col in df.columns:
+            df[col] = df[col].astype(str).str.strip()
+        return df
+    except Exception as e:
+        st.error(f"⚠️ Error al conectar con la pestaña de Compatibilidad: {e}")
+        return pd.DataFrame()
+
+
 def descontar_stock(carrito: dict, df_ref: pd.DataFrame):
     """Resta del Excel las cantidades vendidas de cada producto del carrito."""
     try:
@@ -547,6 +584,89 @@ with nav_c2:
         st.rerun()
 st.markdown("---")
 
+# ── VISTA DE COMPATIBILIDAD ───────────────────────────────────────────────────
+if st.session_state.vista == "compatibilidad":
+    st.markdown('<div class="carrito-titulo">🔍 Comprobador de Compatibilidad</div>', unsafe_allow_html=True)
+    if st.button("⬅️ Volver al Catálogo / Inicio", use_container_width=True, key="btn_volver_cat_comp"):
+        st.session_state.vista = "catalogo"
+        st.rerun()
+    st.markdown("")
+
+    # Cargar datos de la pestaña Compatibilidad
+    df_comp = cargar_compatibilidad_sheets()
+    
+    if df_comp.empty:
+        st.warning("⚠️ No se pudieron cargar los datos de compatibilidad en este momento. Por favor intentá más tarde.")
+    else:
+        st.markdown("""
+        <div style="background: rgba(255, 107, 53, 0.12); border-left: 4px solid #ff6b35; padding: 15px; border-radius: 0 10px 10px 0; margin-bottom: 20px;">
+            <span style="color: #fff; font-weight: 600; font-size: 1rem;">📱 Averiguá qué accesorios son compatibles con otros modelos</span><br>
+            <span style="color: #c8bfff; font-size: 0.9rem;">Elegí el tipo de artículo, la marca y el modelo de tu teléfono para ver las compatibilidades en nuestro stock.</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Filtros en cascada
+        col_comp1, col_comp2, col_comp3 = st.columns(3)
+        
+        # 1. Tipo de producto
+        col_tipos = sorted(df_comp["tipo de producto"].dropna().unique())
+        if not col_tipos:
+            st.info("No hay tipos de producto cargados en la hoja de compatibilidad.")
+        else:
+            with col_comp1:
+                tipo_sel = st.selectbox("1. Seleccioná el tipo de artículo:", col_tipos, key="comp_tipo_sel")
+            
+            df_filtered = df_comp[df_comp["tipo de producto"] == tipo_sel]
+            
+            # 2. Marca
+            col_marcas = sorted(df_filtered["marca"].dropna().unique())
+            if not col_marcas:
+                st.info("No hay marcas cargadas para este tipo de producto.")
+            else:
+                with col_comp2:
+                    marca_sel = st.selectbox("2. Seleccioná la marca de tu celu:", col_marcas, key="comp_marca_sel")
+                    
+                df_filtered = df_filtered[df_filtered["marca"] == marca_sel]
+                
+                # 3. Modelo
+                col_modelos = sorted(df_filtered["modelo"].dropna().unique())
+                if not col_modelos:
+                    st.info("No hay modelos cargados para esta marca.")
+                else:
+                    with col_comp3:
+                        modelo_sel = st.selectbox("3. Seleccioná el modelo exacto:", col_modelos, key="comp_modelo_sel")
+                        
+                    df_final = df_filtered[df_filtered["modelo"] == modelo_sel]
+                    
+                    st.markdown("---")
+                    
+                    if not df_final.empty:
+                        # Mostrar compatibilidad
+                        compat_value = df_final.iloc[0]["compatibilidad"]
+                        if compat_value and str(compat_value).strip():
+                            # Formatear la lista de compatibles de forma premium
+                            lista_compat = [item.strip() for item in str(compat_value).split(",") if item.strip()]
+                            
+                            st.markdown(f"""
+                            <div class="prod-card" style="border-color: #ff6b35; background: rgba(255, 107, 53, 0.05);">
+                                <div style="color: #ff6b35; font-size: 1.25rem; font-weight: 900; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                                    <span>✅ COMPATIBILIDADES ENCONTRADAS</span>
+                                </div>
+                                <p style="font-size: 1.05rem; color: #fff; margin-bottom: 12px;">
+                                    Para tu <b>{tipo_sel}</b> de <b>{marca_sel} {modelo_sel}</b>, también podés usar las de estos modelos:
+                                </p>
+                                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
+                                    {"".join(f'<span style="background: rgba(255,107,53,0.15); border: 1.5px solid #ff6b35; border-radius: 20px; padding: 6px 16px; color: #fff; font-size: 0.95rem; font-weight: 700; box-shadow: 0 2px 8px rgba(255,107,53,0.2);">{item}</span>' for item in lista_compat)}
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        else:
+                            st.info("ℹ️ No hay información de compatibilidad cargada en el Excel para este modelo específico.")
+                    else:
+                        st.info("ℹ️ No se encontró ningún registro para la combinación seleccionada en la planilla de compatibilidades.")
+
+    st.stop()
+
 # ── VISTA DEL CARRITO Y CHECKOUT ──────────────────────────────────────────────
 if st.session_state.vista == "carrito":
     st.markdown('<div class="carrito-titulo">🛒 Tu Carrito de Compras</div>', unsafe_allow_html=True)
@@ -849,6 +969,20 @@ grid_html = '<div class="welcome-grid">' + "".join(f'<img src="{u}" alt="acc" lo
 st.markdown(grid_html, unsafe_allow_html=True)
 st.markdown("---")
 
+# ── Comprobador de Compatibilidad (Acceso Rápido) ──────────────────────────────
+st.markdown(
+    """
+    <div style="text-align: center; margin-bottom: 0.5rem;">
+        <span style="color: #c8bfff; font-size: 0.95rem; font-weight: 600;">📱 ¿Querés saber qué fundas o vidrios templados son compatibles con tu celu?</span>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+if st.button("🔍 COMPROBÁ LA COMPATIBILIDAD (FUNDA, VIDRIO TEMPLADO, ACCESORIO)", type="primary", use_container_width=True, key="btn_go_compatibilidad"):
+    st.session_state.vista = "compatibilidad"
+    st.rerun()
+st.markdown("---")
+
 # ── Consulta por WhatsApp ─────────────────────────────────────────────────────
 st.markdown(
     f"""
@@ -957,8 +1091,17 @@ else:
 .bejo-card input[type=radio],
 .bejo-card input.zoom-cb { position:absolute; opacity:0; width:0; height:0; pointer-events:none; }
 /* ── Slides ── */
-.cslides { list-style:none; margin:0; padding:0; position:relative; background:#0f0c29; }
-.cslides > li { display:none; position:relative; }
+.cslides { list-style:none; margin:0; padding:0; position:relative; background:#0f0c29; width:100%; }
+.cslides > li {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease-in-out;
+}
 /* ── Imagen: zoom al hacer click ── */
 .img-lbl { display:block; cursor:zoom-in; position:relative; overflow:hidden; }
 .img-lbl img { width:100%; aspect-ratio:1/1; object-fit:cover; display:block;
@@ -977,8 +1120,9 @@ else:
 /* ── Flechas ── */
 .cprev,.cnext { position:absolute; top:42%; transform:translateY(-50%);
     background:rgba(0,0,0,0.55); color:#fff; cursor:pointer; border-radius:50%;
-    width:32px; height:32px; display:none; align-items:center; justify-content:center;
-    font-size:1.5rem; z-index:10; user-select:none; text-decoration:none; transition:background .2s; }
+    width:32px; height:32px; visibility:hidden; opacity:0; pointer-events:none;
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.5rem; z-index:10; user-select:none; text-decoration:none; transition:background .2s, opacity .2s; }
 .cprev:hover,.cnext:hover { background:rgba(255,107,53,0.9); }
 .cprev { left:6px; } .cnext { right:6px; }
 /* ── Descripción del slide ── */
@@ -1113,9 +1257,9 @@ else:
 
                 # ── CSS per-carrusel ──────────────────────────────────────────────
                 show_rules = "".join(
-                    f'#{cid}s{i}:checked~.cslides>li:nth-child({i+1}){{display:block}}'
-                    f'#{cid}s{i}:checked~.cslides>li:nth-child({i+1}) .cprev{{display:flex!important}}'
-                    f'#{cid}s{i}:checked~.cslides>li:nth-child({i+1}) .cnext{{display:flex!important}}'
+                    f'#{cid}s{i}:checked~.cslides>li:nth-child({i+1}){{position:relative;visibility:visible;opacity:1;pointer-events:auto}}'
+                    f'#{cid}s{i}:checked~.cslides>li:nth-child({i+1}) .cprev{{visibility:visible;opacity:1;pointer-events:auto}}'
+                    f'#{cid}s{i}:checked~.cslides>li:nth-child({i+1}) .cnext{{visibility:visible;opacity:1;pointer-events:auto}}'
                     f'#{cid}s{i}:checked~.cdots>li:nth-child({i+1})>label{{background:#ff6b35}}'
                     for i in range(n_var)
                 )
@@ -1125,7 +1269,7 @@ else:
                     for i in range(n_var)
                 )
 
-                card_html = f"""<div class="bejo-card">
+                card_html = f"""<div class="bejo-card" onclick="event.stopPropagation()">
 <style>{show_rules}{zoom_rules}</style>
 <div class="card-header"><div class="card-title">{nombre_c}</div></div>
 {radios}{zoom_cbs}
@@ -1174,7 +1318,7 @@ with st.expander("⚙️ Panel de Control – Solo Administrador"):
     if not st.session_state.admin_autenticado:
         st.markdown("🔐 **Ingresá la clave de administrador:**")
         kc, kb = st.columns([3, 1])
-        clave_ing = kc.text_input("Clave:", placeholder="Contraseña...", label_visibility="collapsed")
+        clave_ing = kc.text_input("Clave:", type="password", placeholder="Contraseña...", label_visibility="collapsed")
         if kb.button("Entrar 🔓"):
             if clave_ing == CLAVE_ADMIN:
                 st.session_state.admin_autenticado = True; st.rerun()
@@ -1486,8 +1630,14 @@ with st.expander("⚙️ Panel de Control – Solo Administrador"):
 
                             sheet = get_sheet()
                             sheet.append_row([
-                                n_nombre.strip(), n_marca.strip(), n_modelo.strip(),
-                                n_color.strip(), str(n_precio), str(n_cantidad), url_foto_nueva
+                                n_marca.strip(),
+                                n_nombre.strip(),
+                                n_modelo.strip(),
+                                n_color.strip(),
+                                str(n_precio),
+                                "",  # Tu Precio Competitivo
+                                str(n_cantidad),
+                                url_foto_nueva
                             ])
                             st.success(f"✅ ¡Producto **{n_nombre}** agregado al catálogo!")
                             st.cache_data.clear()
