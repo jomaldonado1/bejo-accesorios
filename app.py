@@ -1112,20 +1112,22 @@ else:
 .bejo-card input[type=radio],
 .bejo-card input.zoom-cb { position:absolute; opacity:0; width:0; height:0; pointer-events:none; }
 /* ── Slides ── */
-.cslides { list-style:none; margin:0; padding:0; position:relative; background:#0f0c29; width:100%; }
+.cslides { list-style:none; margin:0 !important; padding:0 !important; position:relative; background:#0f0c29; width:100% !important; }
 .cslides > li {
     position: absolute;
     top: 0;
     left: 0;
-    width: 100%;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
     visibility: hidden;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s ease-in-out;
 }
 /* ── Imagen: zoom al hacer click ── */
-.img-lbl { display:block; cursor:zoom-in; position:relative; overflow:hidden; }
-.img-lbl img { width:100%; aspect-ratio:1/1; object-fit:cover; display:block;
+.img-lbl { display:block !important; width:100% !important; cursor:zoom-in; position:relative; overflow:hidden; margin:0 !important; padding:0 !important; }
+.img-lbl img { width:100% !important; max-width:100% !important; height:auto !important; aspect-ratio:1/1 !important; object-fit:cover !important; display:block !important;
     transition:transform .3s; }
 .img-lbl:hover img { transform:scale(1.03); }
 .zoom-hint { position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.55);
@@ -1147,12 +1149,14 @@ else:
 .cprev:hover,.cnext:hover { background:rgba(255,107,53,0.9); }
 .cprev { left:6px; } .cnext { right:6px; }
 /* ── Descripción del slide ── */
-.slide-info { padding:7px 12px 9px; background:rgba(15,12,41,0.9); }
+.slide-info { padding:7px 12px 9px; background:rgba(15,12,41,0.9); width:100% !important; box-sizing:border-box !important; }
 .slide-color { color:#c8bfff; font-size:0.83rem; font-weight:700; margin-bottom:2px; }
 .slide-price { color:#ffd200; font-size:1.05rem; font-weight:900; }
 /* ── Botones Agregar al Carrito en Slide ── */
 .slide-cta {
-    display: block;
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
     text-align: center;
     background: linear-gradient(135deg, #ff6b35, #ff3d00);
     color: #ffffff !important;
@@ -1172,7 +1176,9 @@ else:
     color: #ffffff !important;
 }
 .slide-cta-agotado {
-    display: block;
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
     text-align: center;
     background: rgba(255,255,255,0.06);
     color: rgba(255,255,255,0.4) !important;
@@ -1278,10 +1284,10 @@ else:
 
                 # ── CSS per-carrusel ──────────────────────────────────────────────
                 show_rules = "".join(
-                    f'#{cid}s{i}:checked~.cslides>li:nth-child({i+1}){{position:relative;visibility:visible;opacity:1;pointer-events:auto}}'
-                    f'#{cid}s{i}:checked~.cslides>li:nth-child({i+1}) .cprev{{visibility:visible;opacity:1;pointer-events:auto}}'
-                    f'#{cid}s{i}:checked~.cslides>li:nth-child({i+1}) .cnext{{visibility:visible;opacity:1;pointer-events:auto}}'
-                    f'#{cid}s{i}:checked~.cdots>li:nth-child({i+1})>label{{background:#ff6b35}}'
+                    f'#{cid}s{i}:checked~.cslides>li:nth-child({i+1}){{position:relative !important;width:100% !important;visibility:visible !important;opacity:1 !important;pointer-events:auto !important}}'
+                    f'#{cid}s{i}:checked~.cslides>li:nth-child({i+1}) .cprev{{visibility:visible !important;opacity:1 !important;pointer-events:auto !important}}'
+                    f'#{cid}s{i}:checked~.cslides>li:nth-child({i+1}) .cnext{{visibility:visible !important;opacity:1 !important;pointer-events:auto !important}}'
+                    f'#{cid}s{i}:checked~.cdots>li:nth-child({i+1})>label{{background:#ff6b35 !important}}'
                     for i in range(n_var)
                 )
                 # Zoom: cuando checkbox i está checked, mostrar su overlay hermano
