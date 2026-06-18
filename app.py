@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import gspread
+import folium
+from streamlit_folium import st_folium
 from oauth2client.service_account import ServiceAccountCredentials
 import random
 from datetime import datetime
@@ -272,6 +274,40 @@ def cargar_compatibilidad_sheets():
         st.error(f"⚠️ Error al conectar con la pestaña de Compatibilidad: {e}")
         return pd.DataFrame()
 
+def geocodificar_inversa_nominatim(lat, lon):
+    import requests as _req
+    url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}"
+    headers = {
+        'User-Agent': 'BEJO_Accesorios_App/1.0 (tienda_accesorios_agent)'
+    }
+    try:
+        r = _req.get(url, headers=headers, timeout=5)
+        if r.status_code == 200:
+            data = r.json()
+            address_parts = data.get("address", {})
+            road = address_parts.get("road", "")
+            house_number = address_parts.get("house_number", "")
+            city = address_parts.get("city", address_parts.get("town", address_parts.get("suburb", "")))
+            state = address_parts.get("state", "")
+            
+            clean_addr = ""
+            if road:
+                clean_addr += road
+                if house_number:
+                    clean_addr += f" {house_number}"
+                if city:
+                    clean_addr += f", {city}"
+                if state:
+                    clean_addr += f", {state}"
+            else:
+                clean_addr = data.get("display_name", "")
+                
+            return clean_addr
+        return None
+    except Exception:
+        return None
+
+
 
 def descontar_stock(carrito: dict, df_ref: pd.DataFrame):
     """Resta del Excel las cantidades vendidas de cada producto del carrito."""
@@ -467,6 +503,9 @@ for k, v in {
     "_georef_query": "",          # texto de búsqueda del autocomplete
     "_georef_sugerencias": [],    # sugerencias devueltas por Georef
     "_georef_elegida": None,      # calle elegida del autocomplete
+    "map_coords": [-26.8306, -65.2201], # Centro de San Miguel de Tucumán
+    "last_clicked_tracked": None,
+    "inp_dir": "",
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -721,11 +760,15 @@ if st.session_state.vista == "carrito":
                 st.markdown(f"<p style='text-align:center; font-weight:700; font-size:1.1rem; line-height:2.2; margin:0;'>{cantidad}</p>", unsafe_allow_html=True)
             with qty_col3:
                 if st.button("➕", key=f"qty_inc_{idx}", use_container_width=True):
-                    if cantidad < min(stock_actual, 10):
-                        st.session_state.carrito[idx] = cantidad + 1
-                        st.rerun()
+                    if cantidad < stock_actual:
+                        if cantidad < 10:
+                            st.session_state.carrito[idx] = cantidad + 1
+                            st.rerun()
+                        else:
+                            st.toast("⚠️ Límite de compra de 10 unidades por persona alcanzado.", icon="⚠️")
                     else:
-                        st.toast(f"Límite alcanzado ({min(stock_actual, 10)})", icon="⚠️")
+                        st.session_state[f"msg_error_stock_{idx}"] = True
+                        st.rerun()
                         
             subtotal = precio_unit * cantidad
             total_pedido += subtotal
@@ -733,6 +776,17 @@ if st.session_state.vista == "carrito":
             c3.markdown(f"**${subtotal:,.0f}**")
             if c4.button("🗑️", key=f"del_{idx}"):
                 del st.session_state.carrito[idx]; st.rerun()
+
+            # Mostrar advertencia si el cliente intenta superar el stock
+            if st.session_state.get(f"msg_error_stock_{idx}"):
+                st.warning(
+                    f"😔 **¡No hay más stock disponible de este producto!**\n\n"
+                    f"Ya agregaste las **{stock_actual}** unidades que tenemos en stock de: **{nombre_prod}**.\n\n"
+                    f"Si necesitás más unidades, podés elegir otra variante (otro color o modelo de celular) desde el catálogo."
+                )
+                if st.button("Entendido 👍", key=f"clear_stock_msg_{idx}"):
+                    st.session_state[f"msg_error_stock_{idx}"] = False
+                    st.rerun()
 
         st.markdown(f'<div class="total-box">💰 Total a Pagar: ${total_pedido:,.0f}</div>', unsafe_allow_html=True)
 
@@ -758,89 +812,41 @@ if st.session_state.vista == "carrito":
             """, unsafe_allow_html=True)
             st.markdown("#### 📍 Tu dirección de entrega")
 
-            # ── Autocomplete Georef-AR ────────────────────────────────────────
-
-            # -- Autocomplete Georef-AR (100% Python) ---------------------------------
-            import requests as _req
-
-            def _buscar_georef(q):
-                """Busca calles en el Gran Tucuman via Georef-AR API."""
-                if len(q.strip()) < 2:
-                    return []
-                DEPTS = ["capital", "yerba buena", "tafi viejo", "cruz alta"]
-                seen, results = set(), []
-                try:
-                    for dept in DEPTS:
-                        r = _req.get(
-                            "https://apis.datos.gob.ar/georef/api/calles",
-                            params={
-                                "nombre": q,
-                                "provincia": "tucuman",
-                                "departamento": dept,
-                                "max": 3,
-                                "campos": "nombre,localidad_censal.nombre,departamento.nombre",
-                            },
-                            timeout=3,
-                        )
-                        for c in r.json().get("calles", []):
-                            loc = c.get("localidad_censal", {}).get("nombre", "")
-                            key = c["nombre"] + "|" + loc
-                            if key not in seen:
-                                seen.add(key)
-                                label = c["nombre"] + ", " + loc + ", Tucuman"
-                                results.append(label)
-                except Exception:
-                    pass
-                return results
-
-            def _on_busqueda_change():
-                q = st.session_state.get("_georef_query", "")
-                st.session_state["_georef_sugerencias"] = _buscar_georef(q)
-                st.session_state["_georef_elegida"] = None
-
-            def _on_select_calle():
-                elegida = st.session_state.get("_georef_sel_box")
-                if elegida and elegida != "-- Selecciona una calle --":
-                    st.session_state["inp_dir"] = elegida
-                    st.session_state["_georef_elegida"] = elegida
-
-            st.text_input(
-                "Busca tu calle:",
-                placeholder="Ej: San Martin, Corrientes, Av. Alem...",
-                key="_georef_query",
-                on_change=_on_busqueda_change,
-                help="Escribi el nombre de tu calle y selecciona de la lista.",
+            st.markdown("<p style='font-size:0.85rem; color:#a89cff; margin-bottom:8px;'>📍 Hacé clic o tocá en el mapa para ubicar tu dirección con el pin. Luego podés completar o corregir los detalles abajo:</p>", unsafe_allow_html=True)
+            
+            map_coords = st.session_state.map_coords
+            m = folium.Map(location=map_coords, zoom_start=15, control_scale=True)
+            folium.Marker(
+                map_coords,
+                popup="Tu ubicación seleccionada",
+                tooltip="Hacé clic en el mapa para mover este pin",
+                icon=folium.Icon(color="red", icon="info-sign")
+            ).add_to(m)
+            
+            map_data = st_folium(
+                m,
+                height=280,
+                use_container_width=True,
+                key="direccion_map_picker",
+                returned_objects=["last_clicked"]
             )
-
-            sugerencias = st.session_state.get("_georef_sugerencias", [])
-            if sugerencias:
-                st.markdown(
-                    "<div style='font-size:0.8rem;color:#a89cff;margin:-6px 0 4px 2px;'>"
-                    "Calles encontradas en Gran Tucuman &mdash; elegila:</div>",
-                    unsafe_allow_html=True,
-                )
-                st.selectbox(
-                    "",
-                    ["-- Selecciona una calle --"] + sugerencias,
-                    key="_georef_sel_box",
-                    label_visibility="collapsed",
-                    on_change=_on_select_calle,
-                )
-            elif st.session_state.get("_georef_query", ""):
-                st.caption("No se encontraron calles. Proba con otro nombre.")
-
-            elegida = st.session_state.get("_georef_elegida")
-            if elegida:
-                st.markdown(
-                    f"<div style='background:rgba(37,211,102,0.13);border:1px solid rgba(37,211,102,0.35);"
-                    f"border-radius:8px;padding:8px 14px;color:#a8ffdb;font-size:0.85rem;"
-                    f"font-weight:600;margin-bottom:6px;'> {elegida}</div>",
-                    unsafe_allow_html=True,
-                )
-
-            st.caption("Agrega el numero de puerta, piso, depto u observaciones:")
+            
+            if map_data and map_data.get("last_clicked"):
+                last_clicked = map_data["last_clicked"]
+                last_clicked_tracked = st.session_state.get("last_clicked_tracked")
+                if last_clicked != last_clicked_tracked:
+                    st.session_state.last_clicked_tracked = last_clicked
+                    lat, lon = last_clicked["lat"], last_clicked["lng"]
+                    st.session_state.map_coords = [lat, lon]
+                    with st.spinner("Buscando dirección..."):
+                        dir_geocodificada = geocodificar_inversa_nominatim(lat, lon)
+                        if dir_geocodificada:
+                            st.session_state.inp_dir = dir_geocodificada
+                    st.rerun()
+            
+            st.caption("Agrega el número de puerta, piso, depto u observaciones:")
             direccion = st.text_input(
-                "Direccion completa:",
+                "Dirección completa:",
                 placeholder="Ej: San Martin 456, piso 2, Tucuman",
                 key="inp_dir",
             )
