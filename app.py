@@ -33,10 +33,21 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&display=swap');
 html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
 
-.stApp {
-    background: linear-gradient(160deg, #0a0a14 0%, #1a0a2e 30%, #0d1f2d 60%, #0f1923 100%);
+/* ── FONDO TOTAL (todos los selectores de Streamlit) ── */
+.stApp,
+[data-testid="stApp"],
+[data-testid="stAppViewContainer"],
+[data-testid="stMain"] > div,
+section.main,
+.main .block-container {
+    background: radial-gradient(ellipse at 20% 50%, #1a0533 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, #0d2137 0%, transparent 55%),
+                radial-gradient(ellipse at 50% 100%, #150824 0%, transparent 60%),
+                linear-gradient(180deg, #08060f 0%, #100818 50%, #060d18 100%) !important;
     color: #ffffff;
 }
+[data-testid="stHeader"] { background: transparent !important; }
+[data-testid="stToolbar"] { background: transparent !important; }
 
 /* ── FLOATING CART ── */
 #bejo-cart-float {
@@ -95,44 +106,117 @@ html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
     letter-spacing: 3px; margin-top: -0.5rem; margin-bottom: 1.5rem;
 }
 
-/* ── NAVBAR ── */
-.bejo-navbar {
-    display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
-    background: rgba(15,12,41,0.85); backdrop-filter: blur(12px);
-    border-bottom: 2px solid rgba(255,107,53,0.35);
-    padding: 0.55rem 1rem; gap: 4px; margin-bottom: 1rem;
-    box-shadow: 0 4px 18px rgba(0,0,0,0.35);
-    border-radius: 0 0 16px 16px;
-    position: sticky; top: 0; z-index: 100;
+/* ── NAVBAR PREMIUM ── */
+.bejo-navwrap {
+    margin: 0.5rem 0 1.2rem 0;
+    background: linear-gradient(135deg, rgba(18,10,40,0.97) 0%, rgba(10,18,35,0.97) 100%);
+    border: 1px solid rgba(255,107,53,0.3);
+    border-radius: 14px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,107,53,0.15);
+    overflow: visible;
+    position: relative;
 }
-.bejo-nav-link {
-    color: #e0d7ff; text-decoration: none; font-weight: 700;
-    font-size: clamp(0.75rem,2vw,0.95rem); letter-spacing: 1.2px; text-transform: uppercase;
-    padding: 6px 14px; border-radius: 8px;
-    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
-    border: 1px solid transparent; white-space: nowrap;
+.bejo-navlist {
+    display: flex; align-items: center; flex-wrap: wrap;
+    list-style: none; margin: 0; padding: 6px 10px;
+    gap: 2px;
 }
-.bejo-nav-link:hover {
-    background: rgba(255,107,53,0.22); color: #ff6b35;
-    border-color: rgba(255,107,53,0.45);
-    box-shadow: 0 0 12px rgba(255,107,53,0.25);
+.bejo-navlist li { position: relative; }
+.bejo-navitem {
+    display: flex; align-items: center; gap: 5px;
+    color: #c8bfff; text-decoration: none;
+    font-weight: 700; font-size: 0.82rem; letter-spacing: 1px;
+    text-transform: uppercase; white-space: nowrap;
+    padding: 9px 14px; border-radius: 9px;
+    border: 1px solid transparent;
+    transition: all 0.2s ease; cursor: pointer;
+    background: none;
 }
-.bejo-nav-link.active {
-    background: linear-gradient(135deg, #ff6b35, #ff3d00);
-    color: white; border-color: #ff6b35;
-    box-shadow: 0 4px 14px rgba(255,107,53,0.45);
+.bejo-navitem:hover {
+    background: rgba(255,107,53,0.18);
+    color: #ff8c5a;
+    border-color: rgba(255,107,53,0.35);
 }
-.bejo-nav-link.ws-link {
-    background: linear-gradient(135deg, #25D366, #1da851);
-    color: white; border-color: #25D366;
-    box-shadow: 0 4px 12px rgba(37,211,102,0.3);
+.bejo-navitem.nav-active {
+    background: linear-gradient(135deg, #ff6b35 0%, #e03500 100%);
+    color: #fff;
+    border-color: #ff6b35;
+    box-shadow: 0 3px 14px rgba(255,107,53,0.45);
 }
-.bejo-nav-link.ws-link:hover {
-    box-shadow: 0 6px 20px rgba(37,211,102,0.5);
-    background: linear-gradient(135deg, #20bf5e, #158b3c);
+.bejo-navitem.nav-oferta {
+    color: #ff4d4d;
+    border-color: rgba(255,77,77,0.3);
+}
+.bejo-navitem.nav-oferta:hover {
+    background: rgba(255,77,77,0.18);
+    border-color: #ff4d4d;
+    color: #ff6666;
+}
+.bejo-navitem.nav-mayor {
+    color: #ffd200;
+    border-color: rgba(255,210,0,0.25);
+}
+.bejo-navitem.nav-mayor:hover {
+    background: rgba(255,210,0,0.15);
+    border-color: #ffd200;
+    color: #ffe566;
+}
+.bejo-navitem.nav-ws {
+    background: linear-gradient(135deg, #25D366, #1aab50);
     color: white;
+    border-color: #25D366;
+    box-shadow: 0 3px 12px rgba(37,211,102,0.35);
 }
-.bejo-nav-divider { width:1px; height:20px; background:rgba(255,107,53,0.3); margin: 0 4px; }
+.bejo-navitem.nav-ws:hover {
+    background: linear-gradient(135deg, #20bf5e, #148d3e);
+    color: white;
+    box-shadow: 0 5px 18px rgba(37,211,102,0.5);
+}
+.nav-divider {
+    width: 1px; height: 22px;
+    background: rgba(255,107,53,0.25);
+    margin: 0 4px; flex-shrink: 0;
+}
+/* Dropdown */
+.nav-has-dd:hover .nav-dropdown,
+.nav-dropdown:hover { display: block !important; }
+.nav-dropdown {
+    display: none;
+    position: absolute; top: calc(100% + 6px); left: 0;
+    background: linear-gradient(180deg, #120a28 0%, #0c1522 100%);
+    border: 1px solid rgba(255,107,53,0.3);
+    border-radius: 12px;
+    padding: 8px;
+    min-width: 190px;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.6);
+    z-index: 9999;
+    animation: ddFadeIn .15s ease;
+}
+@keyframes ddFadeIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:none} }
+.nav-dd-item {
+    display: flex; align-items: center; gap: 8px;
+    color: #e0d7ff; text-decoration: none; font-size: 0.82rem;
+    font-weight: 700; letter-spacing: 0.5px;
+    padding: 8px 12px; border-radius: 8px;
+    transition: background 0.15s, color 0.15s;
+    cursor: pointer; white-space: nowrap;
+    border: none; background: none; width: 100%; text-align: left;
+}
+.nav-dd-item:hover {
+    background: rgba(255,107,53,0.2);
+    color: #ff8c5a;
+}
+.nav-dd-sep { height:1px; background:rgba(255,107,53,0.2); margin:4px 0; }
+.nav-cart-badge {
+    background: white; color: #ff3d00; border-radius: 50%;
+    width:18px; height:18px; font-size:0.65rem; font-weight:900;
+    display:inline-flex; align-items:center; justify-content:center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+.nav-arrow { font-size:0.6rem; opacity:0.7; margin-left:2px; }
+/* Ocultar botones de Streamlit usados solo como triggers */
+.bejo-nav-triggers { visibility: hidden; height: 0; overflow: hidden; padding: 0; margin: 0; }
+.bejo-nav-triggers > div { height: 0 !important; overflow: hidden !important; }
 
 /* ── BANNER CARRITO ── */
 .carrito-banner {
@@ -753,13 +837,102 @@ else:
 
 st.markdown('<div class="bejo-subtitle">ACCESORIOS PARA CELULARES · CALIDAD PREMIUM</div>', unsafe_allow_html=True)
 
-# ── BARRA DE NAVEGACIÓN PREMIUM ──────────────────────────────────────────────
+# ── BARRA DE NAVEGACIÓN PREMIUM con dropdown ─────────────────────────────────
 _vista_actual = st.session_state.vista
 _num_items = sum(st.session_state.carrito.values())
-_cart_label = f"🛒 Carrito ({_num_items})" if _num_items > 0 else "🛒 Carrito"
+_cart_badge = f'<span class="nav-cart-badge">{_num_items}</span>' if _num_items > 0 else ""
+_act_cat   = ' nav-active' if _vista_actual == 'catalogo' else ''
+_act_compat = ' nav-active' if _vista_actual == 'compatibilidad' else ''
+_act_cart  = ' nav-active' if _vista_actual == 'carrito' else ''
+_act_oferta = ' nav-active' if _vista_actual == 'ofertas' else ''
+_act_mayor = ' nav-active' if _vista_actual == 'mayor' else ''
+_ws_url = f"https://wa.me/{NUMERO_WS}?text=Hola%20BEJO!%20Quiero%20hacer%20una%20consulta"
 
-# Botones invisibles que reciben los clics del navbar HTML
-_nb1, _nb2, _nb3, _nb4 = st.columns(4)
+st.markdown(f"""
+<div class="bejo-navwrap">
+  <ul class="bejo-navlist">
+    <!-- Catálogo -->
+    <li>
+      <button class="bejo-navitem{_act_cat}" onclick="bejoNav('catalogo')">
+        🏠 Catálogo
+      </button>
+    </li>
+    <!-- Productos con dropdown -->
+    <li class="nav-has-dd" style="position:relative">
+      <button class="bejo-navitem" style="{'background:rgba(255,107,53,0.18);color:#ff8c5a;border-color:rgba(255,107,53,0.35)' if _vista_actual == 'catalogo' else ''}">
+        📦 Productos <span class="nav-arrow">▼</span>
+      </button>
+      <div class="nav-dropdown">
+        <button class="nav-dd-item" onclick="bejoNavFiltro('Funda')">📱 Fundas</button>
+        <button class="nav-dd-item" onclick="bejoNavFiltro('Vidrio Templado')">🔲 Vidrios Templados</button>
+        <button class="nav-dd-item" onclick="bejoNavFiltro('Auricular')">🎧 Auriculares</button>
+        <button class="nav-dd-item" onclick="bejoNavFiltro('Cable')">🔌 Cables</button>
+        <button class="nav-dd-item" onclick="bejoNavFiltro('Cargador')">⚡ Cargadores</button>
+        <button class="nav-dd-item" onclick="bejoNavFiltro('Soporte')">🔧 Soportes</button>
+        <div class="nav-dd-sep"></div>
+        <button class="nav-dd-item" onclick="bejoNav('catalogo')">📋 Ver Todo</button>
+      </div>
+    </li>
+    <li><div class="nav-divider"></div></li>
+    <!-- Ofertas -->
+    <li>
+      <button class="bejo-navitem nav-oferta{_act_oferta}" onclick="bejoNav('ofertas')">
+        🔥 Ofertas
+      </button>
+    </li>
+    <!-- Venta x Mayor -->
+    <li>
+      <button class="bejo-navitem nav-mayor{_act_mayor}" onclick="bejoNav('mayor')">
+        📦 Venta x Mayor
+      </button>
+    </li>
+    <li><div class="nav-divider"></div></li>
+    <!-- Compatibilidad -->
+    <li>
+      <button class="bejo-navitem{_act_compat}" onclick="bejoNav('compatibilidad')">
+        🔍 Compatibilidad
+      </button>
+    </li>
+    <li><div class="nav-divider"></div></li>
+    <!-- Carrito -->
+    <li>
+      <button class="bejo-navitem{_act_cart}" onclick="bejoNav('carrito')" style="{'background:linear-gradient(135deg,#ff6b35,#e03500);color:#fff;border-color:#ff6b35;box-shadow:0 3px 14px rgba(255,107,53,.45)' if _vista_actual=='carrito' else ''}">
+        🛒 Carrito {_cart_badge}
+      </button>
+    </li>
+    <!-- WhatsApp -->
+    <li>
+      <a class="bejo-navitem nav-ws" href="{_ws_url}" target="_blank">
+        💬 WhatsApp
+      </a>
+    </li>
+  </ul>
+</div>
+<script>
+function bejoNav(vista) {{
+  var btns = window.parent.document.querySelectorAll('button');
+  var map = {{
+    'catalogo': 'nav_home', 'compatibilidad': 'nav_compat',
+    'carrito': 'nav_cart', 'ofertas': 'nav_ofertas', 'mayor': 'nav_mayor'
+  }};
+  var key = map[vista];
+  btns.forEach(function(b) {{
+    if (b.getAttribute('data-testid') === key || (b.innerText && b.innerText.toLowerCase().includes(key))) {{ b.click(); }}
+  }});
+  // fallback: buscar por aria-label o texto
+  window.parent.postMessage({{type:'bejoNav', vista:vista}}, '*');
+}}
+function bejoNavFiltro(tipo) {{
+  // Primero navegar al catálogo, luego setear el filtro via sessionStorage
+  sessionStorage.setItem('bejoFiltroTipo', tipo);
+  bejoNav('catalogo');
+}}
+</script>
+""", unsafe_allow_html=True)
+
+# Botones ocultos para la navegación real de Streamlit
+st.markdown('<div class="bejo-nav-triggers">', unsafe_allow_html=True)
+_nb1, _nb2, _nb3, _nb4, _nb5 = st.columns(5)
 with _nb1:
     _click_home = st.button("🏠 Catálogo", key="nav_home", use_container_width=True,
                             type="primary" if _vista_actual == "catalogo" else "secondary")
@@ -767,21 +940,101 @@ with _nb2:
     _click_compat = st.button("🔍 Compatibilidad", key="nav_compat", use_container_width=True,
                                type="primary" if _vista_actual == "compatibilidad" else "secondary")
 with _nb3:
-    _click_cart = st.button(_cart_label, key="nav_cart", use_container_width=True,
+    _click_cart = st.button(f"🛒 Carrito", key="nav_cart", use_container_width=True,
                              type="primary" if _vista_actual == "carrito" else "secondary")
 with _nb4:
-    _ws_nav_url = f"https://wa.me/{NUMERO_WS}?text=Hola%20BEJO!%20Quiero%20hacer%20una%20consulta"
-    st.link_button("💬 WhatsApp", _ws_nav_url, use_container_width=True)
+    _click_ofertas = st.button("🔥 Ofertas", key="nav_ofertas", use_container_width=True,
+                                type="primary" if _vista_actual == "ofertas" else "secondary")
+with _nb5:
+    _click_mayor = st.button("📦 Mayor", key="nav_mayor", use_container_width=True,
+                              type="primary" if _vista_actual == "mayor" else "secondary")
+st.markdown('</div>', unsafe_allow_html=True)
 
-if _click_home:
-    st.session_state.vista = "catalogo"; st.rerun()
-if _click_compat:
-    st.session_state.vista = "compatibilidad"; st.rerun()
-if _click_cart:
-    st.session_state.vista = "carrito"; st.rerun()
+if _click_home:   st.session_state.vista = "catalogo";       st.rerun()
+if _click_compat: st.session_state.vista = "compatibilidad"; st.rerun()
+if _click_cart:   st.session_state.vista = "carrito";        st.rerun()
+if _click_ofertas:st.session_state.vista = "ofertas";        st.rerun()
+if _click_mayor:  st.session_state.vista = "mayor";          st.rerun()
+
+# ── VISTA OFERTAS ──────────────────────────────────────────────────────────────
+if st.session_state.vista == "ofertas":
+    st.markdown("""
+    <div style="background:linear-gradient(135deg,rgba(255,77,77,0.2),rgba(255,107,53,0.1));
+                border:1.5px solid #ff4d4d; border-radius:16px; padding:1.5rem 2rem; margin-bottom:1.5rem;">
+        <div style="font-size:2rem; font-weight:900; color:#ff4d4d; letter-spacing:2px;">🔥 OFERTAS ESPECIALES</div>
+        <div style="color:#ffa0a0; font-size:1rem; margin-top:4px;">Precios rebajados por tiempo limitado</div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown("""
+    <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,77,77,0.3);
+                border-radius:12px; padding:2rem; text-align:center;">
+        <div style="font-size:3rem;">🚧</div>
+        <div style="color:#ffa0a0; font-size:1.2rem; font-weight:700; margin-top:0.5rem;">
+            Sección de Ofertas en construcción
+        </div>
+        <div style="color:#c8bfff; font-size:0.95rem; margin-top:0.5rem;">
+            Pronto vas a ver acá todos nuestros productos con descuento. 
+            Mientras tanto, consultá por WhatsApp para ofertas exclusivas 💬
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.stop()
+
+# ── VISTA VENTA POR MAYOR ──────────────────────────────────────────────────────
+if st.session_state.vista == "mayor":
+    _ws_mayor = f"https://wa.me/{NUMERO_WS}?text={urllib.parse.quote('Hola BEJO! Quiero consultar sobre precios mayoristas y cantidades disponibles 📦')}"
+    st.markdown("""
+    <div style="background:linear-gradient(135deg,rgba(255,210,0,0.18),rgba(255,165,0,0.08));
+                border:1.5px solid #ffd200; border-radius:16px; padding:1.5rem 2rem; margin-bottom:1.5rem;">
+        <div style="font-size:2rem; font-weight:900; color:#ffd200; letter-spacing:2px;">📦 VENTA POR MAYOR</div>
+        <div style="color:#ffe566; font-size:1rem; margin-top:4px;">Precios especiales para revendedores y comercios</div>
+    </div>
+    """, unsafe_allow_html=True)
+    mc1, mc2 = st.columns(2)
+    with mc1:
+        st.markdown("""
+        <div style="background:rgba(255,210,0,0.08); border:1px solid rgba(255,210,0,0.3);
+                    border-radius:14px; padding:1.5rem; height:100%;">
+            <div style="font-size:1.3rem; font-weight:800; color:#ffd200; margin-bottom:1rem;">✅ Beneficios</div>
+            <ul style="color:#e0d7ff; font-size:0.95rem; line-height:2; padding-left:1.2rem;">
+                <li>Precios mayoristas exclusivos</li>
+                <li>Stock reservado para clientes frecuentes</li>
+                <li>Envío sin cargo a partir de cierta cantidad</li>
+                <li>Acceso anticipado a nuevos productos</li>
+                <li>Atención personalizada por WhatsApp</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+    with mc2:
+        st.markdown("""
+        <div style="background:rgba(255,210,0,0.08); border:1px solid rgba(255,210,0,0.3);
+                    border-radius:14px; padding:1.5rem; height:100%;">
+            <div style="font-size:1.3rem; font-weight:800; color:#ffd200; margin-bottom:1rem;">📋 ¿Cómo funciona?</div>
+            <div style="color:#e0d7ff; font-size:0.95rem; line-height:1.8;">
+                <p><b>1.</b> Consultá por WhatsApp con la lista de productos que te interesan.</p>
+                <p><b>2.</b> Te enviamos una cotización mayorista en el día.</p>
+                <p><b>3.</b> Coordinamos pago y envío o retiro personal.</p>
+                <p style="color:#ffd200; font-weight:700; margin-top:1rem;">📍 San Miguel de Tucumán</p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style="text-align:center;">
+        <a href="{_ws_mayor}" target="_blank"
+           style="display:inline-block; background:linear-gradient(135deg,#ffd200,#ff9d00);
+                  color:#1a1a1a; font-weight:900; font-size:1.1rem; padding:14px 36px;
+                  border-radius:14px; text-decoration:none; letter-spacing:1px;
+                  box-shadow:0 6px 24px rgba(255,210,0,0.4);">
+            💬 CONSULTAR PRECIO MAYORISTA POR WHATSAPP
+        </a>
+    </div>
+    """, unsafe_allow_html=True)
+    st.stop()
 
 # ── VISTA DE COMPATIBILIDAD ───────────────────────────────────────────────────
 if st.session_state.vista == "compatibilidad":
+
     st.markdown('<div class="carrito-titulo">🔍 Comprobador de Compatibilidad</div>', unsafe_allow_html=True)
     if st.button("⬅️ Volver al Catálogo / Inicio", use_container_width=True, key="btn_volver_cat_comp"):
         st.session_state.vista = "catalogo"
