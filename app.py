@@ -55,9 +55,14 @@ section.main {
     max-width: 100% !important;
 }
 .block-container {
-    max-width: 1400px !important;
-    padding: 1rem 2.5rem 3rem 2.5rem !important;
-    margin: 0 auto !important;
+    max-width: 100% !important;
+    padding: 1rem 1.5rem 3rem 1.5rem !important;
+    margin: 0 !important;
+}
+@media (max-width: 768px) {
+    .block-container {
+        padding: 0.5rem 0.75rem 2rem 0.75rem !important;
+    }
 }
 [data-testid="stHeader"] { background: transparent !important; }
 [data-testid="stToolbar"] { display: none !important; }
@@ -236,6 +241,15 @@ section.main {
     pointer-events: none !important;
     position: absolute !important;
     opacity: 0 !important;
+}
+/* Ocultar el contenedor de columnas que le sigue al disparador */
+div:has(> div.bejo-nav-triggers) + div,
+div.element-container:has(> div.bejo-nav-triggers) + div.element-container,
+div.element-container:has(> div.bejo-nav-triggers) + div {
+    display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
 /* ── BANNER CARRITO ── */
@@ -653,15 +667,40 @@ def limpiar_precio_mercado(val):
     import re
     if pd.isna(val):
         return 0
-    s = str(val).strip().replace('$', '')
+    s = str(val).strip().replace('$', '').replace(' ', '')
     if not s:
         return 0
-    if ',' in s and '.' not in s:
-        s = s.replace(',', '')
-    elif ',' in s and '.' in s:
-        s = s.replace(',', '')
+    
+    # Si contiene tanto punto como coma, ej. 11.000,00 o 11,000.00
+    if ',' in s and '.' in s:
+        comma_idx = s.rfind(',')
+        dot_idx = s.rfind('.')
+        if comma_idx > dot_idx:
+            # Coma es decimal (sistema español), punto es miles. Eliminamos punto y reemplazamos coma por punto.
+            s = s.replace('.', '').replace(',', '.')
+        else:
+            # Punto es decimal (sistema inglés), coma es miles. Eliminamos coma.
+            s = s.replace(',', '')
+    elif ',' in s:
+        # Solo coma: si tiene 3 dígitos después de la coma (ej. 11,000) asumimos que es miles.
+        # Si tiene otra cantidad (ej. 11,00) es decimal.
+        parts = s.split(',')
+        if len(parts[-1]) == 3:
+            s = s.replace(',', '')
+        else:
+            s = s.replace(',', '.')
+    elif '.' in s:
+        # Solo punto: si tiene 3 dígitos después del punto (ej. 11.000) asumimos que es miles.
+        parts = s.split('.')
+        if len(parts[-1]) == 3:
+            s = s.replace('.', '')
+        else:
+            pass # Mantenemos el punto decimal
+            
     try:
         val_float = float(s)
+        # Si el valor resultante es menor a 200, interpretamos que el usuario introdujo
+        # miles con decimales mal interpretados o abreviado (ej: 11 en vez de 11000)
         if val_float < 200:
             return int(val_float * 1000)
         return int(val_float)
@@ -686,31 +725,50 @@ def cargar_datos_sheets():
         df["Precio Mercado"] = df["Precio Mercado"].apply(limpiar_precio_mercado)
         if "Imagen_URL" not in df.columns:
             df["Imagen_URL"] = ""
+            
+        # Detectar dinámicamente columna de Ofertas (ej: Oferta, Ofertas, OFERTA)
+        col_oferta = None
+        for c in df.columns:
+            if "oferta" in str(c).lower():
+                col_oferta = c
+                break
+        
+        if col_oferta:
+            df["En Oferta"] = df[col_oferta].astype(str).str.lower().apply(
+                lambda val: any(x in val.strip() for x in ["oferta", "si", "yes", "1", "true", "x", "✓", "🔥"])
+            )
+        else:
+            df["En Oferta"] = False
+            
         return df
     except Exception as e:
         st.error(f"⚠️ Error al conectar con Google Sheets: {e}")
         # Fallback de datos de prueba para desarrollo local
         mock_data = [
             {
-                "Nombre del Artículo": "Funda Silicona",
+                "Nombre del Artículo": "Funda de silicona",
                 "Marca Principal": "Samsung",
                 "Modelo Exacto": "Galaxy A54",
                 "Color / Diseño (Variación)": "Negro Mate",
                 "Precio Mercado": 15000,
                 "Cantidad": 5,
-                "Imagen_URL": "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500"
+                "Imagen_URL": "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500",
+                "Oferta": "si"
             },
             {
-                "Nombre del Artículo": "Funda Transparente",
+                "Nombre del Artículo": "Funda de silicona",
                 "Marca Principal": "Apple",
                 "Modelo Exacto": "iPhone 14",
                 "Color / Diseño (Variación)": "Transparente",
                 "Precio Mercado": 18000,
                 "Cantidad": 8,
-                "Imagen_URL": "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500"
+                "Imagen_URL": "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500",
+                "Oferta": ""
             }
         ]
-        return pd.DataFrame(mock_data)
+        df_mock = pd.DataFrame(mock_data)
+        df_mock["En Oferta"] = df_mock["Oferta"].str.lower() == "si"
+        return df_mock
 
 df_stock = cargar_datos_sheets()
 
@@ -856,16 +914,14 @@ st.markdown("""
 (function(){
   var c = document.getElementById('bejo-bg-canvas');
   if(!c) return;
-  // Mover canvas al body del parent
-  try { window.parent.document.body.appendChild(c); } catch(e) {}
   var ctx = c.getContext('2d');
   var W, H;
   function resize() {
-    W = c.width  = window.parent.innerWidth  || window.innerWidth;
-    H = c.height = window.parent.innerHeight || window.innerHeight;
+    W = c.width  = window.innerWidth;
+    H = c.height = window.innerHeight;
   }
   resize();
-  (window.parent || window).addEventListener('resize', resize);
+  window.addEventListener('resize', resize);
   var blobs = [
     { x:0.15, y:0.4, r:0.45, color:'rgba(120,20,180,0.55)', dx:0.0003, dy:0.0002 },
     { x:0.8,  y:0.2, r:0.38, color:'rgba(20,80,180,0.45)',  dx:-0.0002,dy:0.0003 },
@@ -914,7 +970,11 @@ _act_compat = ' nav-active' if _vista_actual == 'compatibilidad' else ''
 _act_cart  = ' nav-active' if _vista_actual == 'carrito' else ''
 _act_oferta = ' nav-active' if _vista_actual == 'ofertas' else ''
 _act_mayor = ' nav-active' if _vista_actual == 'mayor' else ''
+_act_prod  = ' nav-active' if _vista_actual == 'productos' else ''
 _ws_url = f"https://wa.me/{NUMERO_WS}?text=Hola%20BEJO!%20Quiero%20hacer%20una%20consulta"
+
+# Handler para el click en el carrito: si está vacío muestra un alert
+_cart_click_action = "alert('No hay nada cargado aún')" if _num_items == 0 else "bejoNav('carrito')"
 
 st.markdown(f"""
 <div class="bejo-navwrap">
@@ -927,12 +987,12 @@ st.markdown(f"""
     </li>
     <!-- Productos con dropdown -->
     <li class="nav-has-dd" style="position:relative">
-      <button class="bejo-navitem">
+      <button class="bejo-navitem{_act_prod}" onclick="bejoNav('productos')">
         Productos <span class="nav-arrow">▼</span>
       </button>
       <div class="nav-dropdown">
         <button class="nav-dd-item" onclick="bejoNavFiltro('Funda')">Fundas</button>
-        <button class="nav-dd-item" onclick="bejoNavFiltro('Vidrio Templado')">Vidrios Templados</button>
+        <button class="nav-dd-item" onclick="bejoNavFiltro('Vidrio')">Vidrios Templados</button>
         <button class="nav-dd-item" onclick="bejoNavFiltro('Auricular')">Auriculares</button>
         <button class="nav-dd-item" onclick="bejoNavFiltro('Cable')">Cables</button>
         <button class="nav-dd-item" onclick="bejoNavFiltro('Cargador')">Cargadores</button>
@@ -964,7 +1024,7 @@ st.markdown(f"""
     <li><div class="nav-divider"></div></li>
     <!-- Carrito -->
     <li>
-      <button class="bejo-navitem{_act_cart}" onclick="bejoNav('carrito')" {"style='background:linear-gradient(135deg,#ff6b35,#e03500);color:#fff;border-color:#ff6b35;box-shadow:0 3px 14px rgba(255,107,53,.45)' " if _vista_actual=='carrito' else ''}>
+      <button class="bejo-navitem{_act_cart}" onclick="{_cart_click_action}" {"style='background:linear-gradient(135deg,#ff6b35,#e03500);color:#fff;border-color:#ff6b35;box-shadow:0 3px 14px rgba(255,107,53,.45)' " if _vista_actual=='carrito' else ''}>
         🛒 Carrito {_cart_badge}
       </button>
     </li>
@@ -978,7 +1038,6 @@ st.markdown(f"""
 </div>
 <script>
 function bejoNav(vista) {{
-  var iframe = document.querySelector('iframe[title="streamlit_component"]');
   var doc = window.parent.document;
   var btns = doc.querySelectorAll('button');
   var textMap = {{
@@ -986,10 +1045,20 @@ function bejoNav(vista) {{
     'compatibilidad': 'compatibilidad',
     'carrito': 'carrito',
     'ofertas': 'ofertas',
-    'mayor': 'mayor'
+    'mayor': 'mayor',
+    'productos': 'productos'
   }};
   var target = textMap[vista];
   var found = false;
+  
+  // Limpiar parámetros de filtro si se va directo a catálogo
+  if (vista === 'catalogo') {{
+    var url = new URL(window.location.href);
+    url.searchParams.delete('tipo_filtro');
+    url.searchParams.delete('marca_filtro');
+    window.history.pushState({{}}, '', url.toString());
+  }}
+
   btns.forEach(function(b) {{
     var t = (b.innerText || '').toLowerCase().trim();
     if (!found && t === target) {{ b.click(); found = true; }}
@@ -1001,16 +1070,48 @@ function bejoNav(vista) {{
     }});
   }}
 }}
-function bejoNavFiltro(tipo) {{
-  sessionStorage.setItem('bejoFiltroTipo', tipo);
+function bejoNavFiltro(tipo, marca) {{
+  var url = new URL(window.location.href);
+  if (tipo) url.searchParams.set('tipo_filtro', tipo);
+  else url.searchParams.delete('tipo_filtro');
+  
+  if (marca) url.searchParams.set('marca_filtro', marca);
+  else url.searchParams.delete('marca_filtro');
+  
+  window.history.pushState({{}}, '', url.toString());
   bejoNav('catalogo');
 }}
+
+function hideBejoTriggers() {{
+  try {{
+    var doc = window.parent.document;
+    var btns = doc.querySelectorAll('button');
+    btns.forEach(function(b) {{
+      var t = (b.innerText || '').toLowerCase().trim();
+      if (['🏠 catálogo', '🔍 compatibilidad', '🛒 carrito', '🔥 ofertas', '📦 mayor', '📦 productos', 'catálogo', 'compatibilidad', 'carrito', 'ofertas', 'mayor', 'productos'].includes(t)) {{
+        var col = b.closest('div[data-testid="stColumn"]');
+        if (col) col.style.setProperty('display', 'none', 'important');
+        var row = b.closest('div[data-testid="stHorizontalBlock"]');
+        if (row) {{
+          row.style.setProperty('display', 'none', 'important');
+          row.style.setProperty('height', '0', 'important');
+          row.style.setProperty('margin', '0', 'important');
+          row.style.setProperty('padding', '0', 'important');
+        }}
+      }}
+    }});
+  }} catch(e) {{}}
+}}
+hideBejoTriggers();
+setTimeout(hideBejoTriggers, 200);
+setTimeout(hideBejoTriggers, 800);
+setTimeout(hideBejoTriggers, 2000);
 </script>
 """, unsafe_allow_html=True)
 
 # Botones ocultos para la navegación real de Streamlit
 st.markdown('<div class="bejo-nav-triggers">', unsafe_allow_html=True)
-_nb1, _nb2, _nb3, _nb4, _nb5 = st.columns(5)
+_nb1, _nb2, _nb3, _nb4, _nb5, _nb6 = st.columns(6)
 with _nb1:
     _click_home = st.button("🏠 Catálogo", key="nav_home", use_container_width=True,
                             type="primary" if _vista_actual == "catalogo" else "secondary")
@@ -1026,6 +1127,9 @@ with _nb4:
 with _nb5:
     _click_mayor = st.button("📦 Mayor", key="nav_mayor", use_container_width=True,
                               type="primary" if _vista_actual == "mayor" else "secondary")
+with _nb6:
+    _click_productos = st.button("📦 Productos", key="nav_productos", use_container_width=True,
+                                  type="primary" if _vista_actual == "productos" else "secondary")
 st.markdown('</div>', unsafe_allow_html=True)
 
 if _click_home:   st.session_state.vista = "catalogo";       st.rerun()
@@ -1033,6 +1137,57 @@ if _click_compat: st.session_state.vista = "compatibilidad"; st.rerun()
 if _click_cart:   st.session_state.vista = "carrito";        st.rerun()
 if _click_ofertas:st.session_state.vista = "ofertas";        st.rerun()
 if _click_mayor:  st.session_state.vista = "mayor";          st.rerun()
+if _click_productos: st.session_state.vista = "productos";   st.rerun()
+
+# ── VISTA PRODUCTOS (Resumen de Catálogo / Árbol) ──────────────────────────────────
+if st.session_state.vista == "productos":
+    st.markdown("""
+    <div style="background:linear-gradient(135deg,rgba(102,126,234,0.18),rgba(118,75,162,0.08));
+                border:1.5px solid #667eea; border-radius:16px; padding:1.5rem 2rem; margin-bottom:1.5rem;">
+        <div style="font-size:2rem; font-weight:900; color:#c8bfff; letter-spacing:2px;">📦 NUESTROS PRODUCTOS</div>
+        <div style="color:#a89cff; font-size:1rem; margin-top:4px;">Explorá nuestro catálogo por categoría y marca</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if df_stock.empty:
+        st.info("No hay productos cargados en el catálogo.")
+    else:
+        tipos_unicos = sorted([t for t in df_stock["Nombre del Artículo"].dropna().unique() if str(t).strip()])
+        for tipo in tipos_unicos:
+            df_tipo = df_stock[df_stock["Nombre del Artículo"] == tipo]
+            marcas_unicas = sorted([m for m in df_tipo["Marca Principal"].dropna().unique() if str(m).strip()])
+            
+            if not marcas_unicas:
+                continue
+                
+            st.markdown(f"""
+            <div class="seccion-titulo" style="font-size:1.15rem; margin-top:1.5rem; background:linear-gradient(90deg, rgba(102,126,234,0.25), rgba(102,126,234,0.05)); border-left-color:#667eea;">
+                📁 {tipo.upper()}
+            </div>
+            """, unsafe_allow_html=True)
+            
+            cols_m = st.columns(max(2, min(6, len(marcas_unicas) + 1)))
+            with cols_m[0]:
+                if st.button(f"🔍 Ver todo", key=f"tree_all_{tipo}", use_container_width=True):
+                    st.session_state.filtro_tipo_val = tipo
+                    st.session_state.filtro_marca_val = "Todas"
+                    st.session_state.vista = "catalogo"
+                    st.rerun()
+                    
+            for idx, marca in enumerate(marcas_unicas):
+                col_target = cols_m[(idx + 1) % len(cols_m)]
+                with col_target:
+                    if st.button(f"📱 {marca}", key=f"tree_btn_{tipo}_{marca}", use_container_width=True):
+                        st.session_state.filtro_tipo_val = tipo
+                        st.session_state.filtro_marca_val = marca
+                        st.session_state.vista = "catalogo"
+                        st.rerun()
+                        
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    if st.button("⬅️ Volver al Catálogo / Inicio", use_container_width=True, key="btn_volver_cat_tree", type="primary"):
+        st.session_state.vista = "catalogo"
+        st.rerun()
+    st.stop()
 
 # ── VISTA OFERTAS ──────────────────────────────────────────────────────────────
 if st.session_state.vista == "ofertas":
@@ -1043,19 +1198,101 @@ if st.session_state.vista == "ofertas":
         <div style="color:#ffa0a0; font-size:1rem; margin-top:4px;">Precios rebajados por tiempo limitado</div>
     </div>
     """, unsafe_allow_html=True)
-    st.markdown("""
-    <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,77,77,0.3);
-                border-radius:12px; padding:2rem; text-align:center;">
-        <div style="font-size:3rem;">🚧</div>
-        <div style="color:#ffa0a0; font-size:1.2rem; font-weight:700; margin-top:0.5rem;">
-            Sección de Ofertas en construcción
+    
+    df_of = df_stock[df_stock["En Oferta"] == True]
+    if df_of.empty:
+        st.markdown("""
+        <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,77,77,0.3);
+                    border-radius:12px; padding:2.5rem; text-align:center;">
+            <div style="font-size:3rem; margin-bottom:1rem;">🔥</div>
+            <div style="color:#ffa0a0; font-size:1.3rem; font-weight:700;">
+                No hay ofertas activas en este momento
+            </div>
+            <div style="color:#c8bfff; font-size:0.95rem; margin-top:0.75rem; line-height:1.6;">
+                Para activar ofertas, agregá una columna llamada <b>"Oferta"</b> en tu planilla de Excel/Google Sheets<br>
+                y escribí la palabra <b>"Oferta"</b> o <b>"si"</b> en los artículos que quieras promocionar.
+            </div>
         </div>
-        <div style="color:#c8bfff; font-size:0.95rem; margin-top:0.5rem;">
-            Pronto vas a ver acá todos nuestros productos con descuento. 
-            Mientras tanto, consultá por WhatsApp para ofertas exclusivas 💬
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <style>
+        .oferta-card {
+            background: rgba(255, 77, 77, 0.05);
+            border: 1.5px solid rgba(255, 77, 77, 0.4);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 20px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .oferta-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(255,77,77,0.25);
+        }
+        .oferta-badge {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: #ff4d4d;
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 900;
+            padding: 4px 10px;
+            border-radius: 20px;
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(255,77,77,0.5);
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        of_items = df_of.to_dict('records')
+        for i in range(0, len(of_items), 3):
+            cols = st.columns(3)
+            for col_idx in range(3):
+                item_idx = i + col_idx
+                if item_idx >= len(of_items):
+                    break
+                item = of_items[item_idx]
+                img_url = item["Imagen_URL"] if str(item["Imagen_URL"]).strip() else "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500"
+                
+                if item["Cantidad"] <= 0:
+                    cta_btn = '<div class="slide-cta-agotado" style="margin-top: 12px;">🔴 Agotado</div>'
+                else:
+                    orig_idx = df_stock[(df_stock["Nombre del Artículo"] == item["Nombre del Artículo"]) & 
+                                        (df_stock["Marca Principal"] == item["Marca Principal"]) & 
+                                        (df_stock["Modelo Exacto"] == item["Modelo Exacto"]) & 
+                                        (df_stock["Color / Diseño (Variación)"] == item["Color / Diseño (Variación)"])].index[0]
+                    cta_btn = f'<a class="slide-cta" href="?add_cart={orig_idx}" target="_self" style="margin-top: 12px; background: linear-gradient(135deg, #ff4d4d, #cc0000); box-shadow: 0 4px 12px rgba(255,77,77,0.3);">🛒 Comprar Oferta</a>'
+                
+                card_html = f"""
+                <div class="oferta-card">
+                    <span class="oferta-badge">🔥 OFERTA</span>
+                    <div style="position: relative; aspect-ratio: 1/1; overflow: hidden; background: #0f0c29;">
+                        <img src="{img_url}" style="width: 100%; height: 100%; object-fit: cover;" alt="{item['Nombre del Artículo']}">
+                    </div>
+                    <div style="padding: 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                        <div>
+                            <div style="font-size: 1rem; font-weight: 900; color: #fff; line-height: 1.3;">{item['Nombre del Artículo']} {item['Modelo Exacto']}</div>
+                            <div style="color: #c8bfff; font-size: 0.85rem; font-weight: 700; margin-top: 4px;">🎨 {item['Color / Diseño (Variación)']}</div>
+                        </div>
+                        <div>
+                            <div style="color: #ff4d4d; font-size: 1.25rem; font-weight: 900; margin-top: 8px;">${item['Precio Mercado']:,.0f}</div>
+                            {cta_btn}
+                        </div>
+                    </div>
+                </div>
+                """
+                with cols[col_idx]:
+                    st.markdown(card_html, unsafe_allow_html=True)
+                    
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    if st.button("⬅️ Volver al Catálogo / Inicio", use_container_width=True, key="btn_volver_cat_ofertas", type="primary"):
+        st.session_state.vista = "catalogo"
+        st.rerun()
     st.stop()
 
 # ── VISTA VENTA POR MAYOR ──────────────────────────────────────────────────────
@@ -1484,16 +1721,16 @@ if st.session_state.get("mostrar_banner_carrito"):
 _num_float = sum(st.session_state.carrito.values())
 if _num_float > 0:
     st.markdown(f"""
-    <a id="bejo-cart-float" href="?" onclick="return false;" title="Ver carrito">
+    <div id="bejo-cart-float" title="Ver carrito">
         🛒 <span>Mi Carrito</span>
         <span class="cart-badge">{_num_float}</span>
-    </a>
+    </div>
     <script>
     document.getElementById('bejo-cart-float').addEventListener('click', function() {{
-        // Intenta encontrar el botón de carrito en el navbar de Streamlit y simularlo
         var buttons = window.parent.document.querySelectorAll('button');
+        var clicked = false;
         buttons.forEach(function(b) {{
-            if(b.innerText.includes('Carrito')) {{ b.click(); }}
+            if (!clicked && b.innerText.includes('Carrito')) {{ b.click(); clicked = true; }}
         }});
     }});
     </script>
@@ -1506,16 +1743,48 @@ if _num_float > 0:
 if df_stock.empty:
     st.warning("No se pudieron cargar los datos de Google Sheets.")
 else:
+    # Sincronizar desde parámetros de consulta (query params)
+    if "tipo_filtro" in st.query_params:
+        st.session_state.filtro_tipo_val = st.query_params["tipo_filtro"]
+        del st.query_params["tipo_filtro"]
+    if "marca_filtro" in st.query_params:
+        st.session_state.filtro_marca_val = st.query_params["marca_filtro"]
+        del st.query_params["marca_filtro"]
+
+    # Inicializar defaults en session state si no existen
+    if "filtro_tipo_val" not in st.session_state:
+        st.session_state.filtro_tipo_val = "Todos"
+    if "filtro_marca_val" not in st.session_state:
+        st.session_state.filtro_marca_val = "Todas"
+
     st.markdown("### 🔍 Buscar Accesorios")
     cf1, cf2, cf3, cf4 = st.columns(4)
+    
     with cf1:
         tipos = ["Todos"] + sorted([t for t in df_stock["Nombre del Artículo"].dropna().unique() if str(t).strip()])
-        tipo_sel = st.selectbox("Tipo de Producto:", tipos)
+        try:
+            tipo_idx = tipos.index(st.session_state.filtro_tipo_val)
+        except ValueError:
+            tipo_idx = 0
+            st.session_state.filtro_tipo_val = "Todos"
+        tipo_sel = st.selectbox("Tipo de Producto:", tipos, index=tipo_idx)
+        st.session_state.filtro_tipo_val = tipo_sel
+        
     df_fil = df_stock if tipo_sel == "Todos" else df_stock[df_stock["Nombre del Artículo"] == tipo_sel]
     
     with cf2:
         marcas = ["Todas"] + sorted([m for m in df_fil["Marca Principal"].dropna().unique() if str(m).strip()])
-        marca_sel = st.selectbox("Marca:", marcas)
+        # Si la marca seleccionada previamente no existe en esta lista de marcas, volvemos a "Todas"
+        if st.session_state.filtro_marca_val not in marcas:
+            st.session_state.filtro_marca_val = "Todas"
+        try:
+            marca_idx = marcas.index(st.session_state.filtro_marca_val)
+        except ValueError:
+            marca_idx = 0
+            st.session_state.filtro_marca_val = "Todas"
+        marca_sel = st.selectbox("Marca:", marcas, index=marca_idx)
+        st.session_state.filtro_marca_val = marca_sel
+        
     df_fil = df_fil if marca_sel == "Todas" else df_fil[df_fil["Marca Principal"] == marca_sel]
     
     with cf3:
@@ -1529,6 +1798,65 @@ else:
     df_fil = df_fil if diseno_sel == "Todos" else df_fil[df_fil["Color / Diseño (Variación)"] == diseno_sel]
     
     st.markdown("---")
+
+    # ── DESTACADOS EN OFERTA (al inicio del Home/Catálogo) ──────────────────────────
+    # Solo se muestra si estamos en el inicio sin filtros de búsqueda activos
+    if tipo_sel == "Todos" and marca_sel == "Todas" and modelo_sel == "Todos" and diseno_sel == "Todos":
+        df_of_home = df_stock[df_stock["En Oferta"] == True]
+        if not df_of_home.empty:
+            st.markdown('<div class="seccion-titulo" style="border-left-color: #ff4d4d; background: linear-gradient(90deg, rgba(255,77,77,0.25), rgba(255,77,77,0.05)); color: #ff4d4d;">🔥 OFERTAS DESTACADAS</div>', unsafe_allow_html=True)
+            
+            st.markdown("""
+            <style>
+            .of-home-card {
+                background: rgba(255, 77, 77, 0.05);
+                border: 1px solid rgba(255, 77, 77, 0.35);
+                border-radius: 12px;
+                overflow: hidden;
+                margin-bottom: 15px;
+                display: flex;
+                flex-direction: column;
+                height: 100%;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+            
+            # Mostrar hasta 3 ofertas destacadas de manera elegante en columnas
+            of_home_items = df_of_home.head(3).to_dict('records')
+            cols_of = st.columns(3)
+            for o_idx, o_item in enumerate(of_home_items):
+                o_img = o_item["Imagen_URL"] if str(o_item["Imagen_URL"]).strip() else "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500"
+                
+                if o_item["Cantidad"] <= 0:
+                    cta_home = '<div class="slide-cta-agotado" style="padding: 6px 12px; margin-top:6px; font-size:0.8rem;">🔴 Agotado</div>'
+                else:
+                    orig_o_idx = df_stock[(df_stock["Nombre del Artículo"] == o_item["Nombre del Artículo"]) & 
+                                          (df_stock["Marca Principal"] == o_item["Marca Principal"]) & 
+                                          (df_stock["Modelo Exacto"] == o_item["Modelo Exacto"]) & 
+                                          (df_stock["Color / Diseño (Variación)"] == o_item["Color / Diseño (Variación)"])].index[0]
+                    cta_home = f'<a class="slide-cta" href="?add_cart={orig_o_idx}" target="_self" style="padding: 6px 12px; margin-top:6px; font-size:0.8rem; background: linear-gradient(135deg, #ff4d4d, #cc0000);">🛒 Agregar</a>'
+                
+                of_html = f"""
+                <div class="of-home-card">
+                    <div style="position: relative; aspect-ratio: 16/10; overflow: hidden; background: #0f0c29;">
+                        <img src="{o_img}" style="width: 100%; height: 100%; object-fit: cover;">
+                        <span style="position: absolute; top: 6px; left: 6px; background: #ff4d4d; color: white; font-size: 0.65rem; font-weight: 900; padding: 2px 6px; border-radius: 10px;">🔥 OFERTA</span>
+                    </div>
+                    <div style="padding: 10px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                        <div>
+                            <div style="font-size: 0.85rem; font-weight: 800; color: #fff; line-height: 1.2;">{o_item['Nombre del Artículo']} {o_item['Modelo Exacto']}</div>
+                            <div style="color: #c8bfff; font-size: 0.75rem; font-weight: 600; margin-top: 2px;">🎨 {o_item['Color / Diseño (Variación)']}</div>
+                        </div>
+                        <div>
+                            <div style="color: #ff4d4d; font-size: 1.05rem; font-weight: 900; margin-top: 4px;">${o_item['Precio Mercado']:,.0f}</div>
+                            {cta_home}
+                        </div>
+                    </div>
+                </div>
+                """
+                with cols_of[o_idx]:
+                    st.markdown(of_html, unsafe_allow_html=True)
+            st.markdown("---")
 
     # HASH / FILTERS TRACKING TO RESET PAGE TO 1
     filter_key = f"{tipo_sel}_{marca_sel}_{modelo_sel}_{diseno_sel}"
