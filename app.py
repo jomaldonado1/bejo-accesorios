@@ -1050,15 +1050,12 @@ function bejoNav(vista) {{
   }};
   var target = textMap[vista];
   var found = false;
-  
-  // Limpiar parámetros de filtro si se va directo a catálogo
   if (vista === 'catalogo') {{
     var url = new URL(window.location.href);
     url.searchParams.delete('tipo_filtro');
     url.searchParams.delete('marca_filtro');
     window.history.pushState({{}}, '', url.toString());
   }}
-
   btns.forEach(function(b) {{
     var t = (b.innerText || '').toLowerCase().trim();
     if (!found && t === target) {{ b.click(); found = true; }}
@@ -1074,14 +1071,11 @@ function bejoNavFiltro(tipo, marca) {{
   var url = new URL(window.location.href);
   if (tipo) url.searchParams.set('tipo_filtro', tipo);
   else url.searchParams.delete('tipo_filtro');
-  
   if (marca) url.searchParams.set('marca_filtro', marca);
   else url.searchParams.delete('marca_filtro');
-  
   window.history.pushState({{}}, '', url.toString());
   bejoNav('catalogo');
 }}
-
 function hideBejoTriggers() {{
   try {{
     var doc = window.parent.document;
