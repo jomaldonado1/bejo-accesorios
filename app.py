@@ -34,8 +34,50 @@ st.markdown("""
 html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
 
 .stApp {
-    background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+    background: linear-gradient(160deg, #0a0a14 0%, #1a0a2e 30%, #0d1f2d 60%, #0f1923 100%);
     color: #ffffff;
+}
+
+/* ── FLOATING CART ── */
+#bejo-cart-float {
+    position: fixed; bottom: 24px; right: 20px; z-index: 9999;
+    background: linear-gradient(135deg, #ff6b35, #ff3d00);
+    color: white; border-radius: 50px; padding: 12px 20px;
+    font-weight: 900; font-size: 1rem; letter-spacing: 1px;
+    box-shadow: 0 6px 28px rgba(255,107,53,0.55);
+    cursor: pointer; text-decoration: none; display: flex;
+    align-items: center; gap: 8px;
+    animation: float-bounce 2s ease-in-out infinite;
+    border: 2px solid rgba(255,200,150,0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+#bejo-cart-float:hover { transform: translateY(-3px) scale(1.05); box-shadow: 0 10px 36px rgba(255,107,53,0.7); }
+.cart-badge {
+    background: white; color: #ff3d00; border-radius: 50%;
+    width: 22px; height: 22px; display: inline-flex; align-items: center;
+    justify-content: center; font-size: 0.75rem; font-weight: 900;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+@keyframes float-bounce {
+    0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-5px); }
+}
+
+/* ── BEJO LOGO INLINE ── */
+.bejo-logo-inline {
+    display: flex; align-items: center; justify-content: center;
+    gap: 14px; padding: 1.2rem 1rem 0.2rem;
+}
+.bejo-logo-inline img {
+    width: 50px; height: 50px; object-fit: contain;
+    border-radius: 10px; border: 2px solid rgba(255,107,53,0.4);
+    filter: drop-shadow(0 0 8px rgba(255,107,53,0.4));
+}
+.bejo-logo-inline .bejo-title {
+    background: linear-gradient(135deg, #ff6b35, #f7c59f, #ff6b35);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; font-size: clamp(2rem,10vw,3.4rem);
+    font-weight: 900; letter-spacing: 6px; text-transform: uppercase;
+    filter: drop-shadow(0 0 18px #ff6b3588);
 }
 
 /* ── HEADER ── */
@@ -690,15 +732,25 @@ setTimeout(function() {{
         
     st.stop()
 
-# ── HEADER (Logo y Nombre) ───────────────────────────────────────────────────
-logo_col1, logo_col2, logo_col3 = st.columns([1.3, 1, 1.3])
-with logo_col2:
-    try:
-        st.image("logo.png", use_container_width=True)
-    except Exception:
-        pass
+# ── HEADER compacto: logo pequeño + BEJO inline ──────────────────────────────
+try:
+    import base64 as _b64
+    with open("logo.png", "rb") as _f:
+        _logo_b64 = _b64.b64encode(_f.read()).decode()
+    _logo_src = f"data:image/png;base64,{_logo_b64}"
+except Exception:
+    _logo_src = ""
 
-st.markdown('<div class="bejo-header">⚡ BEJO ⚡</div>', unsafe_allow_html=True)
+if _logo_src:
+    st.markdown(f"""
+    <div class="bejo-logo-inline">
+        <img src="{_logo_src}" alt="BEJO logo"/>
+        <span class="bejo-title">⚡ BEJO ⚡</span>
+    </div>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown('<div class="bejo-header">⚡ BEJO ⚡</div>', unsafe_allow_html=True)
+
 st.markdown('<div class="bejo-subtitle">ACCESORIOS PARA CELULARES · CALIDAD PREMIUM</div>', unsafe_allow_html=True)
 
 # ── BARRA DE NAVEGACIÓN PREMIUM ──────────────────────────────────────────────
@@ -1092,32 +1144,30 @@ if st.session_state.vista == "carrito":
 
 # ── VISTA CATÁLOGO (Default) ──────────────────────────────────────────────────
 
-# ── Consulta por WhatsApp ─────────────────────────────────────────────────────
-st.markdown(
-    f"""
-    <div style="background: rgba(37, 211, 102, 0.12); border: 1px solid rgba(37,211,102,0.4); border-radius: 12px; padding: 12px; text-align: center; margin-bottom: 1.5rem;">
-        <span style="color: #a8ffdb; font-weight: 600; font-size: 0.95rem;">💬 ¿Tenés alguna duda o consulta antes de elegir tus productos?</span><br>
-        <a href="https://wa.me/{NUMERO_WS}?text=Hola%20BEJO!%20Tengo%20una%20consulta%20antes%20de%20comprar..." target="_blank" 
-           style="display: inline-block; background: #25D366; color: white; font-weight: 800; padding: 8px 16px; border-radius: 8px; text-decoration: none; margin-top: 8px; font-size: 0.9rem; box-shadow: 0 4px 10px rgba(37,211,102,0.3);">
-           Consultar por WhatsApp 📲
-        </a>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
 # ── Banner carrito ────────────────────────────────────────────────────────────
 if st.session_state.get("mostrar_banner_carrito"):
     st.markdown('<div class="carrito-banner">🛒 ¡PRODUCTO AGREGADO AL CARRITO EXITOSAMENTE! ✅</div>', unsafe_allow_html=True)
     st.session_state.mostrar_banner_carrito = False
 
-# ── Botón de acceso directo al carrito (arriba) ───────────────────────────────
-if st.session_state.carrito:
-    num_items = sum(st.session_state.carrito.values())
-    if st.button(f"🛒 VER CARRITO DE COMPRAS ({num_items} items) ➔", type="primary", use_container_width=True, key="btn_go_cart_top"):
-        st.session_state.vista = "carrito"
-        st.rerun()
-    st.markdown("")
+# ── Carrito flotante (badge) ──────────────────────────────────────────────────
+_num_float = sum(st.session_state.carrito.values())
+if _num_float > 0:
+    st.markdown(f"""
+    <a id="bejo-cart-float" href="?" onclick="return false;" title="Ver carrito">
+        🛒 <span>Mi Carrito</span>
+        <span class="cart-badge">{_num_float}</span>
+    </a>
+    <script>
+    document.getElementById('bejo-cart-float').addEventListener('click', function() {{
+        // Intenta encontrar el botón de carrito en el navbar de Streamlit y simularlo
+        var buttons = window.parent.document.querySelectorAll('button');
+        buttons.forEach(function(b) {{
+            if(b.innerText.includes('Carrito')) {{ b.click(); }}
+        }});
+    }});
+    </script>
+    """, unsafe_allow_html=True)
+
 
 # ════════════════════════════════════════════════════════════════════════════
 # CATÁLOGO
@@ -1423,10 +1473,25 @@ else:
             st.session_state.vista = "carrito"
             st.rerun()
 
+# ── Consulta por WhatsApp (al final, no estorba al cliente) ──────────────────
+st.markdown(
+    f"""
+    <div style="background: rgba(37, 211, 102, 0.10); border: 1px solid rgba(37,211,102,0.35); border-radius: 12px; padding: 12px 20px; text-align: center; margin: 1.5rem 0 1rem 0; display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap;">
+        <span style="color: #a8ffdb; font-weight: 600; font-size: 0.95rem;">💬 ¿Tenés alguna duda antes de comprar?</span>
+        <a href="https://wa.me/{NUMERO_WS}?text=Hola%20BEJO!%20Tengo%20una%20consulta%20antes%20de%20comprar..." target="_blank"
+           style="display:inline-block; background:#25D366; color:white; font-weight:800; padding:8px 18px; border-radius:8px; text-decoration:none; font-size:0.9rem; box-shadow:0 4px 12px rgba(37,211,102,0.3); white-space:nowrap;">
+            Consultar por WhatsApp 📲
+        </a>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
 # ════════════════════════════════════════════════════════════════════════════
 # PANEL ADMINISTRADOR
 # ════════════════════════════════════════════════════════════════════════════
 st.markdown("---")
+
 st.markdown('<div class="admin-trigger"></div>', unsafe_allow_html=True)
 with st.expander("⚙️ Panel de Control – Solo Administrador"):
 
