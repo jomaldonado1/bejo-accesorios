@@ -53,10 +53,44 @@ html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
     letter-spacing: 3px; margin-top: -0.5rem; margin-bottom: 1.5rem;
 }
 
-/* ── GRILLA ── */
-.welcome-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin: 1rem 0 2rem 0; }
-.welcome-grid img { width:100%; aspect-ratio:1; object-fit:cover; border-radius:10px; border:2px solid #ff6b3566; transition:transform .3s,border-color .3s; }
-.welcome-grid img:hover { transform:scale(1.04); border-color:#ff6b35; }
+/* ── NAVBAR ── */
+.bejo-navbar {
+    display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+    background: rgba(15,12,41,0.85); backdrop-filter: blur(12px);
+    border-bottom: 2px solid rgba(255,107,53,0.35);
+    padding: 0.55rem 1rem; gap: 4px; margin-bottom: 1rem;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.35);
+    border-radius: 0 0 16px 16px;
+    position: sticky; top: 0; z-index: 100;
+}
+.bejo-nav-link {
+    color: #e0d7ff; text-decoration: none; font-weight: 700;
+    font-size: clamp(0.75rem,2vw,0.95rem); letter-spacing: 1.2px; text-transform: uppercase;
+    padding: 6px 14px; border-radius: 8px;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    border: 1px solid transparent; white-space: nowrap;
+}
+.bejo-nav-link:hover {
+    background: rgba(255,107,53,0.22); color: #ff6b35;
+    border-color: rgba(255,107,53,0.45);
+    box-shadow: 0 0 12px rgba(255,107,53,0.25);
+}
+.bejo-nav-link.active {
+    background: linear-gradient(135deg, #ff6b35, #ff3d00);
+    color: white; border-color: #ff6b35;
+    box-shadow: 0 4px 14px rgba(255,107,53,0.45);
+}
+.bejo-nav-link.ws-link {
+    background: linear-gradient(135deg, #25D366, #1da851);
+    color: white; border-color: #25D366;
+    box-shadow: 0 4px 12px rgba(37,211,102,0.3);
+}
+.bejo-nav-link.ws-link:hover {
+    box-shadow: 0 6px 20px rgba(37,211,102,0.5);
+    background: linear-gradient(135deg, #20bf5e, #158b3c);
+    color: white;
+}
+.bejo-nav-divider { width:1px; height:20px; background:rgba(255,107,53,0.3); margin: 0 4px; }
 
 /* ── BANNER CARRITO ── */
 .carrito-banner {
@@ -169,8 +203,9 @@ iframe { border-radius:14px; border:2px solid rgba(255,107,53,0.4); }
 
 /* ── RESPONSIVE ── */
 @media (max-width:600px) {
-    .welcome-grid { gap:5px; } .welcome-grid img { border-radius:7px; }
     .total-box { padding:.8rem 1rem; }
+    .bejo-navbar { padding: 0.4rem 0.5rem; gap: 2px; }
+    .bejo-nav-link { font-size: 0.7rem; padding: 5px 8px; letter-spacing: 0.5px; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -666,20 +701,32 @@ with logo_col2:
 st.markdown('<div class="bejo-header">⚡ BEJO ⚡</div>', unsafe_allow_html=True)
 st.markdown('<div class="bejo-subtitle">ACCESORIOS PARA CELULARES · CALIDAD PREMIUM</div>', unsafe_allow_html=True)
 
-# ── MENÚ DE NAVEGACIÓN PRINCIPAL ──────────────────────────────────────────────
-nav_c1, nav_c2 = st.columns(2)
-with nav_c1:
-    btn_cat_type = "primary" if st.session_state.vista == "catalogo" else "secondary"
-    if st.button("🏠 INICIO / CATÁLOGO", use_container_width=True, key="nav_home", type=btn_cat_type):
-        st.session_state.vista = "catalogo"
-        st.rerun()
-with nav_c2:
-    num_items = sum(st.session_state.carrito.values())
-    btn_car_type = "primary" if st.session_state.vista == "carrito" else "secondary"
-    if st.button(f"🛒 MI CARRITO ({num_items} items)", use_container_width=True, key="nav_cart", type=btn_car_type):
-        st.session_state.vista = "carrito"
-        st.rerun()
-st.markdown("---")
+# ── BARRA DE NAVEGACIÓN PREMIUM ──────────────────────────────────────────────
+_vista_actual = st.session_state.vista
+_num_items = sum(st.session_state.carrito.values())
+_cart_label = f"🛒 Carrito ({_num_items})" if _num_items > 0 else "🛒 Carrito"
+
+# Botones invisibles que reciben los clics del navbar HTML
+_nb1, _nb2, _nb3, _nb4 = st.columns(4)
+with _nb1:
+    _click_home = st.button("🏠 Catálogo", key="nav_home", use_container_width=True,
+                            type="primary" if _vista_actual == "catalogo" else "secondary")
+with _nb2:
+    _click_compat = st.button("🔍 Compatibilidad", key="nav_compat", use_container_width=True,
+                               type="primary" if _vista_actual == "compatibilidad" else "secondary")
+with _nb3:
+    _click_cart = st.button(_cart_label, key="nav_cart", use_container_width=True,
+                             type="primary" if _vista_actual == "carrito" else "secondary")
+with _nb4:
+    _ws_nav_url = f"https://wa.me/{NUMERO_WS}?text=Hola%20BEJO!%20Quiero%20hacer%20una%20consulta"
+    st.link_button("💬 WhatsApp", _ws_nav_url, use_container_width=True)
+
+if _click_home:
+    st.session_state.vista = "catalogo"; st.rerun()
+if _click_compat:
+    st.session_state.vista = "compatibilidad"; st.rerun()
+if _click_cart:
+    st.session_state.vista = "carrito"; st.rerun()
 
 # ── VISTA DE COMPATIBILIDAD ───────────────────────────────────────────────────
 if st.session_state.vista == "compatibilidad":
@@ -1044,29 +1091,6 @@ if st.session_state.vista == "carrito":
     st.stop()
 
 # ── VISTA CATÁLOGO (Default) ──────────────────────────────────────────────────
-# ── GRILLA DE INICIO (3 elementos) ───────────────────────────────────────────
-imgs_grilla = [
-    "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&q=80",
-    "https://images.unsplash.com/photo-1592890288564-76628a30a657?w=400&q=80",
-    "https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=400&q=80",
-]
-grid_html = '<div class="welcome-grid">' + "".join(f'<img src="{u}" alt="acc" loading="lazy"/>' for u in imgs_grilla) + '</div>'
-st.markdown(grid_html, unsafe_allow_html=True)
-st.markdown("---")
-
-# ── Comprobador de Compatibilidad (Acceso Rápido) ──────────────────────────────
-st.markdown(
-    """
-    <div style="text-align: center; margin-bottom: 0.5rem;">
-        <span style="color: #c8bfff; font-size: 0.95rem; font-weight: 600;">📱 ¿Querés saber qué fundas o vidrios templados son compatibles con tu celu?</span>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-if st.button("🔍 COMPROBÁ LA COMPATIBILIDAD (FUNDA, VIDRIO TEMPLADO, ACCESORIO)", type="primary", use_container_width=True, key="btn_go_compatibilidad"):
-    st.session_state.vista = "compatibilidad"
-    st.rerun()
-st.markdown("---")
 
 # ── Consulta por WhatsApp ─────────────────────────────────────────────────────
 st.markdown(
