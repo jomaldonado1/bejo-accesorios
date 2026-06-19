@@ -27,6 +27,25 @@ st.set_page_config(
 CLAVE_ADMIN = "BEJO2024"
 NUMERO_WS   = "5493816582851"
 
+# ── Cargar Recursos Locales (Fondo Claro) ────────────────────────────────────
+import base64 as _b64
+try:
+    with open("light_bg.png", "rb") as _f:
+        _bg_b64 = _b64.b64encode(_f.read()).decode()
+    _bg_css = f"""
+    html, body {{
+        background-image: url("data:image/png;base64,{_bg_b64}") !important;
+        background-size: cover !important;
+        background-position: center !important;
+        background-repeat: no-repeat !important;
+        background-attachment: fixed !important;
+    }}
+    """
+except Exception:
+    _bg_css = "html, body { background: #f4f5f8 !important; }"
+
+st.markdown(f"<style>{_bg_css}</style>", unsafe_allow_html=True)
+
 # ── CSS ──────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
@@ -35,18 +54,14 @@ html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
 
 /* ── FONDO + LAYOUT ANCHO ── */
 html, body {
-    background: #09070f !important;
+    background: transparent !important;
 }
 .stApp,
 [data-testid="stApp"],
 [data-testid="stAppViewContainer"] {
     background: transparent !important;
 }
-/* Canvas de fondo animado */
-#bejo-bg-canvas {
-    position: fixed; top:0; left:0; width:100%; height:100%;
-    z-index: -1; pointer-events: none;
-}
+
 /* Ancho total del contenido */
 [data-testid="stAppViewContainer"] > section,
 [data-testid="stMain"],
@@ -119,7 +134,7 @@ section.main {
     filter: drop-shadow(0 0 20px #ff6b3588);
 }
 .bejo-subtitle {
-    text-align: center; color: #a89cff;
+    text-align: center; color: #5d4d99;
     font-size: clamp(0.65rem, 2.5vw, 1rem);
     letter-spacing: 3px; margin-top: -0.5rem; margin-bottom: 1.5rem;
 }
@@ -127,10 +142,11 @@ section.main {
 /* ── NAVBAR PREMIUM ── */
 .bejo-navwrap {
     margin: 0.5rem 0 1.2rem 0;
-    background: linear-gradient(135deg, rgba(18,10,40,0.97) 0%, rgba(10,18,35,0.97) 100%);
-    border: 1px solid rgba(255,107,53,0.3);
+    background: rgba(255, 255, 255, 0.8) !important;
+    border: 1px solid rgba(255, 107, 53, 0.25) !important;
     border-radius: 14px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,107,53,0.15);
+    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.08) !important;
+    backdrop-filter: blur(8px) !important;
     overflow: visible;
     position: relative;
 }
@@ -142,7 +158,7 @@ section.main {
 .bejo-navlist li { position: relative; }
 .bejo-navitem {
     display: flex; align-items: center; gap: 5px;
-    color: #c8bfff; text-decoration: none;
+    color: #2c3e50 !important; text-decoration: none;
     font-weight: 700; font-size: 0.82rem; letter-spacing: 1px;
     text-transform: uppercase; white-space: nowrap;
     padding: 9px 14px; border-radius: 9px;
@@ -151,48 +167,48 @@ section.main {
     background: none;
 }
 .bejo-navitem:hover {
-    background: rgba(255,107,53,0.18);
-    color: #ff8c5a;
-    border-color: rgba(255,107,53,0.35);
+    background: rgba(255, 107, 53, 0.08) !important;
+    color: #ff6b35 !important;
+    border-color: rgba(255, 107, 53, 0.15) !important;
 }
 .bejo-navitem.nav-active {
-    background: linear-gradient(135deg, #ff6b35 0%, #e03500 100%);
-    color: #fff;
-    border-color: #ff6b35;
-    box-shadow: 0 3px 14px rgba(255,107,53,0.45);
+    background: linear-gradient(135deg, #ff6b35 0%, #e03500 100%) !important;
+    color: #fff !important;
+    border-color: #ff6b35 !important;
+    box-shadow: 0 3px 14px rgba(255,107,53,0.45) !important;
 }
 .bejo-navitem.nav-oferta {
-    color: #ff4d4d;
-    border-color: rgba(255,77,77,0.3);
+    color: #ff3d00 !important;
+    border-color: rgba(255,61,0,0.2) !important;
 }
 .bejo-navitem.nav-oferta:hover {
-    background: rgba(255,77,77,0.18);
-    border-color: #ff4d4d;
-    color: #ff6666;
+    background: rgba(255,61,0,0.08) !important;
+    border-color: #ff3d00 !important;
+    color: #ff3d00 !important;
 }
 .bejo-navitem.nav-mayor {
-    color: #ffd200;
-    border-color: rgba(255,210,0,0.25);
+    color: #cc9900 !important;
+    border-color: rgba(204,153,0,0.2) !important;
 }
 .bejo-navitem.nav-mayor:hover {
-    background: rgba(255,210,0,0.15);
-    border-color: #ffd200;
-    color: #ffe566;
+    background: rgba(204,153,0,0.08) !important;
+    border-color: #cc9900 !important;
+    color: #cc9900 !important;
 }
 .bejo-navitem.nav-ws {
-    background: linear-gradient(135deg, #25D366, #1aab50);
-    color: white;
-    border-color: #25D366;
-    box-shadow: 0 3px 12px rgba(37,211,102,0.35);
+    background: linear-gradient(135deg, #25D366, #1aab50) !important;
+    color: white !important;
+    border-color: #25D366 !important;
+    box-shadow: 0 3px 12px rgba(37,211,102,0.35) !important;
 }
 .bejo-navitem.nav-ws:hover {
-    background: linear-gradient(135deg, #20bf5e, #148d3e);
-    color: white;
-    box-shadow: 0 5px 18px rgba(37,211,102,0.5);
+    background: linear-gradient(135deg, #20bf5e, #148d3e) !important;
+    color: white !important;
+    box-shadow: 0 5px 18px rgba(37,211,102,0.5) !important;
 }
 .nav-divider {
     width: 1px; height: 22px;
-    background: rgba(255,107,53,0.25);
+    background: rgba(255,107,53,0.15) !important;
     margin: 0 4px; flex-shrink: 0;
 }
 /* Dropdown */
@@ -201,19 +217,19 @@ section.main {
 .nav-dropdown {
     display: none;
     position: absolute; top: calc(100% + 6px); left: 0;
-    background: linear-gradient(180deg, #120a28 0%, #0c1522 100%);
-    border: 1px solid rgba(255,107,53,0.3);
+    background: rgba(255, 255, 255, 0.98) !important;
+    border: 1px solid rgba(255, 107, 53, 0.25) !important;
     border-radius: 12px;
     padding: 8px;
     min-width: 190px;
-    box-shadow: 0 12px 36px rgba(0,0,0,0.6);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1) !important;
     z-index: 9999;
     animation: ddFadeIn .15s ease;
 }
 @keyframes ddFadeIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:none} }
 .nav-dd-item {
     display: flex; align-items: center; gap: 8px;
-    color: #e0d7ff; text-decoration: none; font-size: 0.82rem;
+    color: #2c3e50 !important; text-decoration: none; font-size: 0.82rem;
     font-weight: 700; letter-spacing: 0.5px;
     padding: 8px 12px; border-radius: 8px;
     transition: background 0.15s, color 0.15s;
@@ -221,10 +237,10 @@ section.main {
     border: none; background: none; width: 100%; text-align: left;
 }
 .nav-dd-item:hover {
-    background: rgba(255,107,53,0.2);
-    color: #ff8c5a;
+    background: rgba(255, 107, 53, 0.08) !important;
+    color: #ff6b35 !important;
 }
-.nav-dd-sep { height:1px; background:rgba(255,107,53,0.2); margin:4px 0; }
+.nav-dd-sep { height: 1px; background: rgba(255, 107, 53, 0.15) !important; margin: 4px 0; }
 .nav-cart-badge {
     background: white; color: #ff3d00; border-radius: 50%;
     width:18px; height:18px; font-size:0.65rem; font-weight:900;
@@ -232,24 +248,30 @@ section.main {
     box-shadow: 0 2px 6px rgba(0,0,0,0.3);
 }
 .nav-arrow { font-size:0.6rem; opacity:0.7; margin-left:2px; }
-/* Ocultar botones de Streamlit usados solo como triggers */
+/* Ocultar botones de Streamlit de forma segura sin romper funcionalidad de click */
 .bejo-nav-triggers,
 .bejo-nav-triggers * {
-    display: none !important;
-    height: 0 !important;
-    overflow: hidden !important;
-    pointer-events: none !important;
     position: absolute !important;
+    top: -9999px !important;
+    left: -9999px !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
     opacity: 0 !important;
+    pointer-events: none !important;
 }
-/* Ocultar el contenedor de columnas que le sigue al disparador */
+/* Ocultar el contenedor de columnas enviándolo fuera de pantalla */
 div:has(> div.bejo-nav-triggers) + div,
 div.element-container:has(> div.bejo-nav-triggers) + div.element-container,
 div.element-container:has(> div.bejo-nav-triggers) + div {
-    display: none !important;
-    height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
+    position: absolute !important;
+    top: -9999px !important;
+    left: -9999px !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
 /* ── BANNER CARRITO ── */
@@ -278,9 +300,9 @@ div.element-container:has(> div.bejo-nav-triggers) + div {
 
 /* ── SECCIÓN TITULO ── */
 .seccion-titulo {
-    background: linear-gradient(90deg, rgba(255,107,53,0.25), rgba(255,107,53,0.05));
+    background: linear-gradient(90deg, rgba(255,107,53,0.18), rgba(255,107,53,0.05));
     border-left:4px solid #ff6b35; padding:.7rem 1.2rem; border-radius:0 10px 10px 0;
-    color:#fff; font-size:clamp(1rem,4vw,1.2rem); font-weight:800;
+    color:#2c3e50; font-size:clamp(1rem,4vw,1.2rem); font-weight:800;
     margin:1.5rem 0 .8rem 0; letter-spacing:1px;
 }
 
@@ -289,71 +311,72 @@ div.element-container:has(> div.bejo-nav-triggers) + div {
     background: linear-gradient(135deg, #ff6b35, #ff3d00) !important; color:white !important;
     font-weight:700 !important; font-size:clamp(.9rem,3vw,1.1rem) !important;
     border:none !important; border-radius:12px !important; padding:.75rem 2rem !important;
-    box-shadow:0 4px 20px #ff6b3566 !important; transition:transform .2s,box-shadow .2s !important; width:100% !important;
+    box-shadow:0 4px 20px rgba(255,107,53,0.35) !important; transition:transform .2s,box-shadow .2s !important; width:100% !important;
 }
-.stButton > button[kind="primary"]:hover { transform:translateY(-2px) !important; box-shadow:0 8px 30px #ff6b3599 !important; }
+.stButton > button[kind="primary"]:hover { transform:translateY(-2px) !important; box-shadow:0 8px 30px rgba(255,107,53,0.5) !important; }
 
 /* ── BOTONES SECUNDARIOS ── */
 .stButton > button:not([kind="primary"]) {
-    background:rgba(255,107,53,0.15) !important; color:#ff6b35 !important;
-    border:1px solid #ff6b35 !important; border-radius:10px !important;
+    background:rgba(255,107,53,0.08) !important; color:#ff6b35 !important;
+    border:1px solid rgba(255,107,53,0.5) !important; border-radius:10px !important;
     font-weight:600 !important; transition:background .2s !important;
 }
-.stButton > button:not([kind="primary"]):hover { background:rgba(255,107,53,0.35) !important; }
+.stButton > button:not([kind="primary"]):hover { background:rgba(255,107,53,0.18) !important; }
 
 /* ── RADIO ── */
-div[data-testid="stRadio"] > label { color:#fff !important; font-size:1.1rem !important; font-weight:700 !important; }
+div[data-testid="stRadio"] > label { color:#2c3e50 !important; font-size:1.1rem !important; font-weight:700 !important; }
 div[data-testid="stRadio"] div[role="radiogroup"] {
-    background:rgba(255,255,255,0.05); border-radius:14px;
-    padding:.8rem 1rem; border:1px solid rgba(255,107,53,0.4);
+    background:rgba(255,255,255,0.7); border-radius:14px;
+    padding:.8rem 1rem; border:1px solid rgba(255,107,53,0.25);
     display:flex; flex-direction:column; gap:.4rem;
 }
 div[data-testid="stRadio"] label[data-baseweb="radio"] {
-    background:rgba(255,255,255,0.07); border-radius:10px;
-    padding:.7rem 1rem; border:1px solid rgba(255,107,53,0.2); transition:all .2s; cursor:pointer;
+    background:rgba(255,255,255,0.9); border-radius:10px;
+    padding:.7rem 1rem; border:1px solid rgba(255,107,53,0.15); transition:all .2s; cursor:pointer;
 }
-div[data-testid="stRadio"] label[data-baseweb="radio"]:hover { background:rgba(255,107,53,0.2); border-color:#ff6b35; }
-div[data-testid="stRadio"] label[data-baseweb="radio"] > div:last-child { color:#fff !important; font-size:1rem !important; font-weight:600 !important; }
+div[data-testid="stRadio"] label[data-baseweb="radio"]:hover { background:rgba(255,107,53,0.08); border-color:#ff6b35; }
+div[data-testid="stRadio"] label[data-baseweb="radio"] > div:last-child { color:#2c3e50 !important; font-size:1rem !important; font-weight:600 !important; }
 
 /* ── INPUTS ── */
 .stSelectbox > div > div,
 .stTextInput > div > div > input,
 .stNumberInput > div > div > input,
 .stTextArea textarea {
-    background:rgba(40,30,70,0.85) !important; border-radius:10px !important;
-    border:1.5px solid rgba(255,107,53,0.5) !important; color:#ffffff !important;
+    background:rgba(255,255,255,0.85) !important; border-radius:10px !important;
+    border:1.5px solid rgba(255,107,53,0.3) !important; color:#2c3e50 !important;
     font-size:1rem !important; font-weight:500 !important;
 }
-.stTextInput > div > div > input::placeholder, .stTextArea textarea::placeholder { color:#a89cff !important; opacity:.7 !important; }
-.stTextInput > div > div > input:focus, .stTextArea textarea:focus { border-color:#ff6b35 !important; box-shadow:0 0 0 2px rgba(255,107,53,0.3) !important; }
-[data-baseweb="select"] li, [data-baseweb="popover"] li { background:#1e1a3a !important; color:#fff !important; }
+.stTextInput > div > div > input::placeholder, .stTextArea textarea::placeholder { color:#7f8c8d !important; opacity:.7 !important; }
+.stTextInput > div > div > input:focus, .stTextArea textarea:focus { border-color:#ff6b35 !important; box-shadow:0 0 0 2px rgba(255,107,53,0.2) !important; }
+[data-baseweb="select"] li, [data-baseweb="popover"] li { background:#ffffff !important; color:#2c3e50 !important; }
+[data-baseweb="select"] li:hover, [data-baseweb="popover"] li:hover { background:rgba(255,107,53,0.08) !important; color:#ff6b35 !important; }
 
 /* ── LABELS ── */
 label, .stSelectbox label, .stTextInput label, .stNumberInput label, .stTextArea label {
-    color:#e0d7ff !important; font-weight:600 !important; font-size:.95rem !important;
+    color:#2c3e50 !important; font-weight:600 !important; font-size:.95rem !important;
 }
 
 /* ── FILE UPLOADER ── */
 div[data-testid="stFileUploader"] {
-    background:rgba(40,30,70,0.6) !important; border:2px dashed rgba(255,107,53,0.5) !important;
+    background:rgba(255,255,255,0.7) !important; border:2px dashed rgba(255,107,53,0.35) !important;
     border-radius:14px !important; padding:.5rem !important;
 }
-div[data-testid="stFileUploader"] label { color:#e0d7ff !important; }
+div[data-testid="stFileUploader"] label { color:#2c3e50 !important; }
 div[data-testid="stFileUploader"] button { color:#ff6b35 !important; border-color:#ff6b35 !important; }
 
 /* ── INFO BOXES ── */
-.info-ws { background:rgba(0,168,107,0.18); border:1px solid #00a86b; border-radius:12px; padding:1rem 1.5rem; color:#a8ffdb; margin:.5rem 0; }
-.info-transfer { background:rgba(255,200,0,0.12); border:2px solid #ffd200; border-radius:12px; padding:1.2rem 1.5rem; color:#ffe94d; margin:.5rem 0; font-weight:600; }
-.info-transfer b { font-size:1.3rem; color:#ffd200; }
-.error-validacion { background:rgba(255,50,50,0.18); border:2px solid #ff4444; border-radius:12px; padding:.9rem 1.5rem; color:#ff9999; font-weight:700; margin:.5rem 0; text-align:center; }
+.info-ws { background:rgba(40,167,69,0.1); border:1px solid #28a745; border-radius:12px; padding:1rem 1.5rem; color:#1e7e34; margin:.5rem 0; }
+.info-transfer { background:rgba(255,193,7,0.12); border:2px solid #ffc107; border-radius:12px; padding:1.2rem 1.5rem; color:#856404; margin:.5rem 0; font-weight:600; }
+.info-transfer b { font-size:1.3rem; color:#856404; }
+.error-validacion { background:rgba(220,53,69,0.12); border:2px solid #dc3545; border-radius:12px; padding:.9rem 1.5rem; color:#721c24; font-weight:700; margin:.5rem 0; text-align:center; }
 
 /* ── ADMIN ── */
-.admin-filtros { background:rgba(255,107,53,0.07); border:1px solid rgba(255,107,53,0.25); border-radius:14px; padding:1rem 1.2rem; margin-bottom:1rem; }
-.prod-card { background:rgba(255,255,255,0.06); border:1.5px solid rgba(255,107,53,0.4); border-radius:14px; padding:1.2rem 1.5rem; margin:.8rem 0; }
-.prod-card-titulo { color:#ff6b35; font-size:1.1rem; font-weight:800; margin-bottom:.5rem; }
-.nuevo-prod-banner { background:linear-gradient(90deg,rgba(102,126,234,0.3),rgba(118,75,162,0.15)); border:1px solid #667eea; border-radius:14px; padding:1rem 1.5rem; margin:.8rem 0; color:#c8bfff; }
-.tag-stock { display:inline-block; background:rgba(0,200,81,0.2); border:1px solid #00c851; border-radius:20px; padding:.2rem .7rem; color:#00ff6a; font-size:.85rem; font-weight:700; }
-.tag-sin-stock { display:inline-block; background:rgba(255,68,68,0.2); border:1px solid #ff4444; border-radius:20px; padding:.2rem .7rem; color:#ff9999; font-size:.85rem; font-weight:700; }
+.admin-filtros { background:rgba(255,107,53,0.04); border:1px solid rgba(255,107,53,0.15); border-radius:14px; padding:1rem 1.2rem; margin-bottom:1rem; }
+.prod-card { background:rgba(255,255,255,0.7); border:1.5px solid rgba(255,107,53,0.2); border-radius:14px; padding:1.2rem 1.5rem; margin:.8rem 0; }
+.prod-card-titulo { color:#e03500; font-size:1.1rem; font-weight:800; margin-bottom:.5rem; }
+.nuevo-prod-banner { background:linear-gradient(90deg,rgba(255,107,53,0.15),rgba(255,107,53,0.05)); border:1px solid rgba(255,107,53,0.3); border-radius:14px; padding:1rem 1.5rem; margin:.8rem 0; color:#2c3e50; }
+.tag-stock { display:inline-block; background:rgba(40,167,69,0.15); border:1px solid #28a745; border-radius:20px; padding:.2rem .7rem; color:#1e7e34; font-size:.85rem; font-weight:700; }
+.tag-sin-stock { display:inline-block; background:rgba(220,53,69,0.15); border:1px solid #dc3545; border-radius:20px; padding:.2rem .7rem; color:#721c24; font-size:.85rem; font-weight:700; }
 
 /* ── DIVISOR ── */
 hr { border-color:rgba(255,107,53,0.2) !important; }
@@ -907,47 +930,7 @@ try:
 except Exception:
     _logo_src = ""
 
-# Inyectar canvas animado de fondo (mesh gradient en movimiento)
-st.markdown("""
-<canvas id="bejo-bg-canvas"></canvas>
-<script>
-(function(){
-  var c = document.getElementById('bejo-bg-canvas');
-  if(!c) return;
-  var ctx = c.getContext('2d');
-  var W, H;
-  function resize() {
-    W = c.width  = window.innerWidth;
-    H = c.height = window.innerHeight;
-  }
-  resize();
-  window.addEventListener('resize', resize);
-  var blobs = [
-    { x:0.15, y:0.4, r:0.45, color:'rgba(120,20,180,0.55)', dx:0.0003, dy:0.0002 },
-    { x:0.8,  y:0.2, r:0.38, color:'rgba(20,80,180,0.45)',  dx:-0.0002,dy:0.0003 },
-    { x:0.5,  y:0.9, r:0.42, color:'rgba(180,40,60,0.3)',   dx:0.0002, dy:-0.0003 },
-    { x:0.65, y:0.6, r:0.3,  color:'rgba(20,140,180,0.3)',  dx:-0.0003,dy:-0.0002 },
-  ];
-  function draw() {
-    ctx.clearRect(0,0,W,H);
-    ctx.fillStyle='#09070f';
-    ctx.fillRect(0,0,W,H);
-    blobs.forEach(function(b){
-      b.x += b.dx; b.y += b.dy;
-      if(b.x<0||b.x>1) b.dx*=-1;
-      if(b.y<0||b.y>1) b.dy*=-1;
-      var g = ctx.createRadialGradient(b.x*W,b.y*H,0,b.x*W,b.y*H,b.r*Math.max(W,H));
-      g.addColorStop(0, b.color);
-      g.addColorStop(1,'transparent');
-      ctx.fillStyle = g;
-      ctx.fillRect(0,0,W,H);
-    });
-    requestAnimationFrame(draw);
-  }
-  draw();
-})();
-</script>
-""", unsafe_allow_html=True)
+
 
 if _logo_src:
     st.markdown(f"""
@@ -976,6 +959,20 @@ _ws_url = f"https://wa.me/{NUMERO_WS}?text=Hola%20BEJO!%20Quiero%20hacer%20una%2
 # Handler para el click en el carrito: si está vacío muestra un alert
 _cart_click_action = "alert('No hay nada cargado aún')" if _num_items == 0 else "bejoNav('carrito')"
 
+# Generar dinámicamente los items del dropdown de Productos
+_dd_items_html = ""
+if not df_stock.empty:
+    _tipos_unicos = sorted([t for t in df_stock["Nombre del Artículo"].dropna().unique() if str(t).strip()])
+    for _t in _tipos_unicos:
+        _t_display = str(_t).capitalize()
+        _t_js = str(_t).replace("'", "\\'")
+        _dd_items_html += f'        <button class="nav-dd-item" onclick="bejoNavFiltro(\'{_t_js}\')">{_t_display}</button>\n'
+else:
+    _dd_items_html += '        <button class="nav-dd-item">Sin categorías</button>\n'
+
+_dd_items_html += '        <div class="nav-dd-sep"></div>\n'
+_dd_items_html += '        <button class="nav-dd-item" onclick="bejoNav(\'catalogo\')">Ver Todo el Catálogo</button>\n'
+
 st.markdown(f"""
 <div class="bejo-navwrap">
   <ul class="bejo-navlist">
@@ -991,15 +988,7 @@ st.markdown(f"""
         Productos <span class="nav-arrow">▼</span>
       </button>
       <div class="nav-dropdown">
-        <button class="nav-dd-item" onclick="bejoNavFiltro('Funda')">Fundas</button>
-        <button class="nav-dd-item" onclick="bejoNavFiltro('Vidrio')">Vidrios Templados</button>
-        <button class="nav-dd-item" onclick="bejoNavFiltro('Auricular')">Auriculares</button>
-        <button class="nav-dd-item" onclick="bejoNavFiltro('Cable')">Cables</button>
-        <button class="nav-dd-item" onclick="bejoNavFiltro('Cargador')">Cargadores</button>
-        <button class="nav-dd-item" onclick="bejoNavFiltro('Soporte')">Soportes</button>
-        <div class="nav-dd-sep"></div>
-        <button class="nav-dd-item" onclick="bejoNav('catalogo')">Ver Todo el Catálogo</button>
-      </div>
+{_dd_items_html}      </div>
     </li>
     <li><div class="nav-divider"></div></li>
     <!-- Ofertas -->
@@ -1136,10 +1125,10 @@ if _click_productos: st.session_state.vista = "productos";   st.rerun()
 # ── VISTA PRODUCTOS (Resumen de Catálogo / Árbol) ──────────────────────────────────
 if st.session_state.vista == "productos":
     st.markdown("""
-    <div style="background:linear-gradient(135deg,rgba(102,126,234,0.18),rgba(118,75,162,0.08));
-                border:1.5px solid #667eea; border-radius:16px; padding:1.5rem 2rem; margin-bottom:1.5rem;">
-        <div style="font-size:2rem; font-weight:900; color:#c8bfff; letter-spacing:2px;">📦 NUESTROS PRODUCTOS</div>
-        <div style="color:#a89cff; font-size:1rem; margin-top:4px;">Explorá nuestro catálogo por categoría y marca</div>
+    <div style="background:linear-gradient(135deg,rgba(255,107,53,0.15),rgba(255,107,53,0.05));
+                border:1.5px solid rgba(255,107,53,0.3); border-radius:16px; padding:1.5rem 2rem; margin-bottom:1.5rem;">
+        <div style="font-size:2rem; font-weight:900; color:#2c3e50; letter-spacing:2px;">📦 NUESTROS PRODUCTOS</div>
+        <div style="color:#5d6d7e; font-size:1rem; margin-top:4px;">Explorá nuestro catálogo por categoría y marca</div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -1155,7 +1144,7 @@ if st.session_state.vista == "productos":
                 continue
                 
             st.markdown(f"""
-            <div class="seccion-titulo" style="font-size:1.15rem; margin-top:1.5rem; background:linear-gradient(90deg, rgba(102,126,234,0.25), rgba(102,126,234,0.05)); border-left-color:#667eea;">
+            <div class="seccion-titulo" style="font-size:1.15rem; margin-top:1.5rem; background:linear-gradient(90deg, rgba(255,107,53,0.15), rgba(255,107,53,0.05)); border-left-color:#ff6b35; color:#2c3e50 !important;">
                 📁 {tipo.upper()}
             </div>
             """, unsafe_allow_html=True)
@@ -1186,23 +1175,23 @@ if st.session_state.vista == "productos":
 # ── VISTA OFERTAS ──────────────────────────────────────────────────────────────
 if st.session_state.vista == "ofertas":
     st.markdown("""
-    <div style="background:linear-gradient(135deg,rgba(255,77,77,0.2),rgba(255,107,53,0.1));
-                border:1.5px solid #ff4d4d; border-radius:16px; padding:1.5rem 2rem; margin-bottom:1.5rem;">
-        <div style="font-size:2rem; font-weight:900; color:#ff4d4d; letter-spacing:2px;">🔥 OFERTAS ESPECIALES</div>
-        <div style="color:#ffa0a0; font-size:1rem; margin-top:4px;">Precios rebajados por tiempo limitado</div>
+    <div style="background:linear-gradient(135deg,rgba(255,77,77,0.15),rgba(255,107,53,0.05));
+                border:1.5px solid rgba(255,77,77,0.3); border-radius:16px; padding:1.5rem 2rem; margin-bottom:1.5rem;">
+        <div style="font-size:2rem; font-weight:900; color:#c026d3; background:linear-gradient(135deg, #cc2200, #ff4d4d); -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:2px;">🔥 OFERTAS ESPECIALES</div>
+        <div style="color:#7f8c8d; font-size:1rem; margin-top:4px;">Precios rebajados por tiempo limitado</div>
     </div>
     """, unsafe_allow_html=True)
     
     df_of = df_stock[df_stock["En Oferta"] == True]
     if df_of.empty:
         st.markdown("""
-        <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,77,77,0.3);
+        <div style="background:rgba(255,255,255,0.7); border:1px solid rgba(255,77,77,0.2);
                     border-radius:12px; padding:2.5rem; text-align:center;">
             <div style="font-size:3rem; margin-bottom:1rem;">🔥</div>
-            <div style="color:#ffa0a0; font-size:1.3rem; font-weight:700;">
+            <div style="color:#cc2200; font-size:1.3rem; font-weight:700;">
                 No hay ofertas activas en este momento
             </div>
-            <div style="color:#c8bfff; font-size:0.95rem; margin-top:0.75rem; line-height:1.6;">
+            <div style="color:#5d6d7e; font-size:0.95rem; margin-top:0.75rem; line-height:1.6;">
                 Para activar ofertas, agregá una columna llamada <b>"Oferta"</b> en tu planilla de Excel/Google Sheets<br>
                 y escribí la palabra <b>"Oferta"</b> o <b>"si"</b> en los artículos que quieras promocionar.
             </div>
@@ -1212,8 +1201,8 @@ if st.session_state.vista == "ofertas":
         st.markdown("""
         <style>
         .oferta-card {
-            background: rgba(255, 77, 77, 0.05);
-            border: 1.5px solid rgba(255, 77, 77, 0.4);
+            background: rgba(255, 255, 255, 0.8) !important;
+            border: 1.5px solid rgba(255, 77, 77, 0.25) !important;
             border-radius: 16px;
             overflow: hidden;
             transition: transform 0.2s, box-shadow 0.2s;
@@ -1222,10 +1211,11 @@ if st.session_state.vista == "ofertas":
             display: flex;
             flex-direction: column;
             height: 100%;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.04) !important;
         }
         .oferta-card:hover {
             transform: translateY(-4px);
-            box-shadow: 0 8px 24px rgba(255,77,77,0.25);
+            box-shadow: 0 8px 24px rgba(255,77,77,0.18) !important;
         }
         .oferta-badge {
             position: absolute;
@@ -1238,7 +1228,7 @@ if st.session_state.vista == "ofertas":
             padding: 4px 10px;
             border-radius: 20px;
             z-index: 10;
-            box-shadow: 0 2px 8px rgba(255,77,77,0.5);
+            box-shadow: 0 2px 8px rgba(255,77,77,0.3);
         }
         </style>
         """, unsafe_allow_html=True)
@@ -1265,16 +1255,16 @@ if st.session_state.vista == "ofertas":
                 card_html = f"""
                 <div class="oferta-card">
                     <span class="oferta-badge">🔥 OFERTA</span>
-                    <div style="position: relative; aspect-ratio: 1/1; overflow: hidden; background: #0f0c29;">
+                    <div style="position: relative; aspect-ratio: 1/1; overflow: hidden; background: #f8f9fa;">
                         <img src="{img_url}" style="width: 100%; height: 100%; object-fit: cover;" alt="{item['Nombre del Artículo']}">
                     </div>
                     <div style="padding: 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
                         <div>
-                            <div style="font-size: 1rem; font-weight: 900; color: #fff; line-height: 1.3;">{item['Nombre del Artículo']} {item['Modelo Exacto']}</div>
-                            <div style="color: #c8bfff; font-size: 0.85rem; font-weight: 700; margin-top: 4px;">🎨 {item['Color / Diseño (Variación)']}</div>
+                            <div style="font-size: 1rem; font-weight: 900; color: #2c3e50; line-height: 1.3;">{item['Nombre del Artículo']} {item['Modelo Exacto']}</div>
+                            <div style="color: #5d4d99; font-size: 0.85rem; font-weight: 700; margin-top: 4px;">🎨 {item['Color / Diseño (Variación)']}</div>
                         </div>
                         <div>
-                            <div style="color: #ff4d4d; font-size: 1.25rem; font-weight: 900; margin-top: 8px;">${item['Precio Mercado']:,.0f}</div>
+                            <div style="color: #cc2200; font-size: 1.25rem; font-weight: 900; margin-top: 8px;">${item['Precio Mercado']:,.0f}</div>
                             {cta_btn}
                         </div>
                     </div>
@@ -1293,19 +1283,19 @@ if st.session_state.vista == "ofertas":
 if st.session_state.vista == "mayor":
     _ws_mayor = f"https://wa.me/{NUMERO_WS}?text={urllib.parse.quote('Hola BEJO! Quiero consultar sobre precios mayoristas y cantidades disponibles 📦')}"
     st.markdown("""
-    <div style="background:linear-gradient(135deg,rgba(255,210,0,0.18),rgba(255,165,0,0.08));
-                border:1.5px solid #ffd200; border-radius:16px; padding:1.5rem 2rem; margin-bottom:1.5rem;">
-        <div style="font-size:2rem; font-weight:900; color:#ffd200; letter-spacing:2px;">📦 VENTA POR MAYOR</div>
-        <div style="color:#ffe566; font-size:1rem; margin-top:4px;">Precios especiales para revendedores y comercios</div>
+    <div style="background:linear-gradient(135deg,rgba(255,210,0,0.15),rgba(255,165,0,0.05));
+                border:1.5px solid rgba(255,165,0,0.3); border-radius:16px; padding:1.5rem 2rem; margin-bottom:1.5rem;">
+        <div style="font-size:2rem; font-weight:900; color:#b38600; letter-spacing:2px;">📦 VENTA POR MAYOR</div>
+        <div style="color:#7f8c8d; font-size:1rem; margin-top:4px;">Precios especiales para revendedores y comercios</div>
     </div>
     """, unsafe_allow_html=True)
     mc1, mc2 = st.columns(2)
     with mc1:
         st.markdown("""
-        <div style="background:rgba(255,210,0,0.08); border:1px solid rgba(255,210,0,0.3);
-                    border-radius:14px; padding:1.5rem; height:100%;">
-            <div style="font-size:1.3rem; font-weight:800; color:#ffd200; margin-bottom:1rem;">✅ Beneficios</div>
-            <ul style="color:#e0d7ff; font-size:0.95rem; line-height:2; padding-left:1.2rem;">
+        <div style="background:rgba(255,255,255,0.7); border:1px solid rgba(255,165,0,0.25);
+                    border-radius:14px; padding:1.5rem; height:100%; box-shadow:0 4px 16px rgba(0,0,0,0.03);">
+            <div style="font-size:1.3rem; font-weight:800; color:#b38600; margin-bottom:1rem;">✅ Beneficios</div>
+            <ul style="color:#2c3e50; font-size:0.95rem; line-height:2; padding-left:1.2rem;">
                 <li>Precios mayoristas exclusivos</li>
                 <li>Stock reservado para clientes frecuentes</li>
                 <li>Envío sin cargo a partir de cierta cantidad</li>
@@ -1316,14 +1306,14 @@ if st.session_state.vista == "mayor":
         """, unsafe_allow_html=True)
     with mc2:
         st.markdown("""
-        <div style="background:rgba(255,210,0,0.08); border:1px solid rgba(255,210,0,0.3);
-                    border-radius:14px; padding:1.5rem; height:100%;">
-            <div style="font-size:1.3rem; font-weight:800; color:#ffd200; margin-bottom:1rem;">📋 ¿Cómo funciona?</div>
-            <div style="color:#e0d7ff; font-size:0.95rem; line-height:1.8;">
+        <div style="background:rgba(255,255,255,0.7); border:1px solid rgba(255,165,0,0.25);
+                    border-radius:14px; padding:1.5rem; height:100%; box-shadow:0 4px 16px rgba(0,0,0,0.03);">
+            <div style="font-size:1.3rem; font-weight:800; color:#b38600; margin-bottom:1rem;">📋 ¿Cómo funciona?</div>
+            <div style="color:#2c3e50; font-size:0.95rem; line-height:1.8;">
                 <p><b>1.</b> Consultá por WhatsApp con la lista de productos que te interesan.</p>
                 <p><b>2.</b> Te enviamos una cotización mayorista en el día.</p>
                 <p><b>3.</b> Coordinamos pago y envío o retiro personal.</p>
-                <p style="color:#ffd200; font-weight:700; margin-top:1rem;">📍 San Miguel de Tucumán</p>
+                <p style="color:#b38600; font-weight:700; margin-top:1rem;">📍 San Miguel de Tucumán</p>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -1358,8 +1348,8 @@ if st.session_state.vista == "compatibilidad":
     else:
         st.markdown("""
         <div style="background: rgba(255, 107, 53, 0.12); border-left: 4px solid #ff6b35; padding: 15px; border-radius: 0 10px 10px 0; margin-bottom: 20px;">
-            <span style="color: #fff; font-weight: 600; font-size: 1rem;">📱 Averiguá qué accesorios son compatibles con otros modelos</span><br>
-            <span style="color: #c8bfff; font-size: 0.9rem;">Elegí el tipo de artículo, la marca y el modelo de tu teléfono para ver las compatibilidades en nuestro stock.</span>
+            <span style="color: #2c3e50; font-weight: 600; font-size: 1rem;">📱 Averiguá qué accesorios son compatibles con otros modelos</span><br>
+            <span style="color: #5d6d7e; font-size: 0.9rem;">Elegí el tipo de artículo, la marca y el modelo de tu teléfono para ver las compatibilidades en nuestro stock.</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1406,15 +1396,15 @@ if st.session_state.vista == "compatibilidad":
                             lista_compat = [item.strip() for item in str(compat_value).split(",") if item.strip()]
                             
                             st.markdown(f"""
-                            <div class="prod-card" style="border-color: #ff6b35; background: rgba(255, 107, 53, 0.05);">
+                            <div class="prod-card" style="border-color: #ff6b35; background: rgba(255, 255, 255, 0.7); box-shadow:0 4px 16px rgba(0,0,0,0.03);">
                                 <div style="color: #ff6b35; font-size: 1.25rem; font-weight: 900; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
                                     <span>✅ COMPATIBILIDADES ENCONTRADAS</span>
                                 </div>
-                                <p style="font-size: 1.05rem; color: #fff; margin-bottom: 12px;">
+                                <p style="font-size: 1.05rem; color: #2c3e50; margin-bottom: 12px;">
                                     Para tu <b>{tipo_sel}</b> de <b>{marca_sel} {modelo_sel}</b>, también podés usar las de estos modelos:
                                 </p>
                                 <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
-                                    {"".join(f'<span style="background: rgba(255,107,53,0.15); border: 1.5px solid #ff6b35; border-radius: 20px; padding: 6px 16px; color: #fff; font-size: 0.95rem; font-weight: 700; box-shadow: 0 2px 8px rgba(255,107,53,0.2);">{item}</span>' for item in lista_compat)}
+                                    {"".join(f'<span style="background: rgba(255,107,53,0.08); border: 1.5px solid #ff6b35; border-radius: 20px; padding: 6px 16px; color: #2c3e50; font-size: 0.95rem; font-weight: 700; box-shadow: 0 2px 8px rgba(255,107,53,0.1);">{item}</span>' for item in lista_compat)}
                                 </div>
                             </div>
                             """, unsafe_allow_html=True)
@@ -1501,7 +1491,7 @@ if st.session_state.vista == "carrito":
 
         elif metodo_entrega == "🏠  Envío a domicilio":
             st.markdown(f"""
-            <div style="background: rgba(255, 107, 53, 0.12); border-left: 4px solid #ff6b35; padding: 12px; border-radius: 0 10px 10px 0; margin-bottom: 15px; font-size: 0.9rem; color: #fff;">
+            <div style="background: rgba(255, 107, 53, 0.12); border-left: 4px solid #ff6b35; padding: 12px; border-radius: 0 10px 10px 0; margin-bottom: 15px; font-size: 0.9rem; color: #2c3e50;">
                 🛵 <b>Información sobre Envíos:</b><br>
                 • Realizamos envíos en <b>San Miguel de Tucumán</b> (consultar por envíos fuera de S.M.T.).<br>
                 • <b>Envío GRATIS</b> dentro de las 4 Avenidas.<br>
@@ -1537,7 +1527,7 @@ if st.session_state.vista == "carrito":
             if st.session_state.get("geo_error"):
                 st.warning(st.session_state.geo_error)
             
-            st.markdown("<p style='font-size:0.85rem; color:#a89cff; margin-bottom:8px;'>📍 También podés hacer clic o tocar directamente en el mapa para mover el pin a tu ubicación exacta:</p>", unsafe_allow_html=True)
+            st.markdown("<p style='font-size:0.85rem; color:#5d6d7e; margin-bottom:8px;'>📍 También podés hacer clic o tocar directamente en el mapa para mover el pin a tu ubicación exacta:</p>", unsafe_allow_html=True)
             
             map_coords = st.session_state.map_coords
             m = folium.Map(location=map_coords, zoom_start=16, control_scale=True)
@@ -1666,9 +1656,9 @@ if st.session_state.vista == "carrito":
                 # Redirección automática / Botones finales
                 if mp_url:
                     st.markdown(f"""
-                        <div style="background: rgba(37, 211, 102, 0.15); border: 1px solid #25D366; border-radius: 12px; padding: 20px; text-align: center; margin-top: 1.5rem;">
-                            <h3 style="color: #a8ffdb; margin: 0 0 15px 0;">🎉 ¡Pedido {id_pedido} confirmado!</h3>
-                            <p style="color: #fff; margin-bottom: 20px; font-size: 1.05rem;">
+                        <div style="background: rgba(40, 167, 69, 0.12); border: 1px solid #25D366; border-radius: 12px; padding: 20px; text-align: center; margin-top: 1.5rem;">
+                            <h3 style="color: #1e7e34; margin: 0 0 15px 0;">🎉 ¡Pedido {id_pedido} confirmado!</h3>
+                            <p style="color: #2c3e50; margin-bottom: 20px; font-size: 1.05rem;">
                                 Por favor, realizá el pago en Mercado Pago y enviá el pedido por WhatsApp.
                             </p>
                             <div style="display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center;">
@@ -1679,7 +1669,7 @@ if st.session_state.vista == "carrito":
                                     📲 ENVIAR POR WHATSAPP
                                 </a>
                             </div>
-                            <p style="color: #a89cff; font-size: 0.85rem; margin-top: 20px;">
+                            <p style="color: #5d6d7e; font-size: 0.85rem; margin-top: 20px;">
                                 En 5 segundos te redirigiremos automáticamente a WhatsApp para que envíes el detalle y el link al vendedor.
                             </p>
                         </div>
@@ -1691,10 +1681,10 @@ if st.session_state.vista == "carrito":
                     """, unsafe_allow_html=True)
                 else:
                     st.markdown(f"""
-                        <div style="background: rgba(37, 211, 102, 0.15); border: 1px solid #25D366; border-radius: 12px; padding: 15px; text-align: center; margin-top: 1.5rem;">
-                            <h3 style="color: #a8ffdb; margin: 0 0 10px 0;">📲 Redirigiendo a WhatsApp...</h3>
-                            <p style="color: #fff; margin: 0; font-size: 1rem;">Estamos abriendo tu chat para enviar los detalles del pedido <b>{id_pedido}</b>.</p>
-                            <p style="color: #a89cff; font-size: 0.85rem; margin: 10px 0 0 0;">Si la aplicación no se abre automáticamente, <a href="{ws_url}" target="_self" style="color: #ffd200; font-weight: 700; text-decoration: underline;">hacé clic acá para enviar</a>.</p>
+                        <div style="background: rgba(40, 167, 69, 0.12); border: 1px solid #25D366; border-radius: 12px; padding: 15px; text-align: center; margin-top: 1.5rem;">
+                            <h3 style="color: #1e7e34; margin: 0 0 10px 0;">📲 Redirigiendo a WhatsApp...</h3>
+                            <p style="color: #2c3e50; margin: 0; font-size: 1rem;">Estamos abriendo tu chat para enviar los detalles del pedido <b>{id_pedido}</b>.</p>
+                            <p style="color: #5d6d7e; font-size: 0.85rem; margin: 10px 0 0 0;">Si la aplicación no se abre automáticamente, <a href="{ws_url}" target="_self" style="color: #ff6b35; font-weight: 700; text-decoration: underline;">hacé clic acá para enviar</a>.</p>
                         </div>
                         <script>
                             setTimeout(function() {{
@@ -1798,19 +1788,20 @@ else:
     if tipo_sel == "Todos" and marca_sel == "Todas" and modelo_sel == "Todos" and diseno_sel == "Todos":
         df_of_home = df_stock[df_stock["En Oferta"] == True]
         if not df_of_home.empty:
-            st.markdown('<div class="seccion-titulo" style="border-left-color: #ff4d4d; background: linear-gradient(90deg, rgba(255,77,77,0.25), rgba(255,77,77,0.05)); color: #ff4d4d;">🔥 OFERTAS DESTACADAS</div>', unsafe_allow_html=True)
+            st.markdown('<div class="seccion-titulo" style="border-left-color: #ff4d4d; background: linear-gradient(90deg, rgba(255,77,77,0.15), rgba(255,77,77,0.05)); color: #cc2200 !important;">🔥 OFERTAS DESTACADAS</div>', unsafe_allow_html=True)
             
             st.markdown("""
             <style>
             .of-home-card {
-                background: rgba(255, 77, 77, 0.05);
-                border: 1px solid rgba(255, 77, 77, 0.35);
+                background: rgba(255, 255, 255, 0.8) !important;
+                border: 1px solid rgba(255, 77, 77, 0.25) !important;
                 border-radius: 12px;
                 overflow: hidden;
                 margin-bottom: 15px;
                 display: flex;
                 flex-direction: column;
                 height: 100%;
+                box-shadow: 0 4px 16px rgba(0,0,0,0.04) !important;
             }
             </style>
             """, unsafe_allow_html=True)
@@ -1832,17 +1823,17 @@ else:
                 
                 of_html = f"""
                 <div class="of-home-card">
-                    <div style="position: relative; aspect-ratio: 16/10; overflow: hidden; background: #0f0c29;">
+                    <div style="position: relative; aspect-ratio: 16/10; overflow: hidden; background: #f8f9fa;">
                         <img src="{o_img}" style="width: 100%; height: 100%; object-fit: cover;">
                         <span style="position: absolute; top: 6px; left: 6px; background: #ff4d4d; color: white; font-size: 0.65rem; font-weight: 900; padding: 2px 6px; border-radius: 10px;">🔥 OFERTA</span>
                     </div>
                     <div style="padding: 10px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
                         <div>
-                            <div style="font-size: 0.85rem; font-weight: 800; color: #fff; line-height: 1.2;">{o_item['Nombre del Artículo']} {o_item['Modelo Exacto']}</div>
-                            <div style="color: #c8bfff; font-size: 0.75rem; font-weight: 600; margin-top: 2px;">🎨 {o_item['Color / Diseño (Variación)']}</div>
+                            <div style="font-size: 0.85rem; font-weight: 800; color: #2c3e50; line-height: 1.2;">{o_item['Nombre del Artículo']} {o_item['Modelo Exacto']}</div>
+                            <div style="color: #5d4d99; font-size: 0.75rem; font-weight: 600; margin-top: 2px;">🎨 {o_item['Color / Diseño (Variación)']}</div>
                         </div>
                         <div>
-                            <div style="color: #ff4d4d; font-size: 1.05rem; font-weight: 900; margin-top: 4px;">${o_item['Precio Mercado']:,.0f}</div>
+                            <div style="color: #cc2200; font-size: 1.05rem; font-weight: 900; margin-top: 4px;">${o_item['Precio Mercado']:,.0f}</div>
                             {cta_home}
                         </div>
                     </div>
@@ -1891,19 +1882,19 @@ else:
         st.markdown("""
 <style>
 /* ── Card ── */
-.bejo-card { background:rgba(255,255,255,0.05); border:1.5px solid rgba(255,107,53,0.35);
-    border-radius:16px; overflow:hidden; transition:box-shadow .3s; margin-bottom:6px; }
-.bejo-card:hover { box-shadow:0 0 22px rgba(255,107,53,0.35); }
+.bejo-card { background:rgba(255,255,255,0.8) !important; border:1.5px solid rgba(255,107,53,0.22) !important;
+    border-radius:16px; overflow:hidden; transition:box-shadow .3s; margin-bottom:6px; box-shadow: 0 4px 16px rgba(0,0,0,0.04) !important; }
+.bejo-card:hover { box-shadow:0 8px 24px rgba(255,107,53,0.15) !important; }
 /* ── Título del producto (cabecera de la card) ── */
-.card-header { padding:10px 14px 7px; background:rgba(255,107,53,0.12);
-    border-bottom:1px solid rgba(255,107,53,0.25); }
-.card-title { font-weight:900; font-size:0.97rem; color:#fff; margin:0; line-height:1.3;
-    letter-spacing:0.01em; text-shadow:0 1px 6px rgba(0,0,0,0.4); }
+.card-header { padding:10px 14px 7px; background:rgba(255,107,53,0.08);
+    border-bottom:1px solid rgba(255,107,53,0.15); }
+.card-title { font-weight:900; font-size:0.97rem; color:#2c3e50 !important; margin:0; line-height:1.3;
+    letter-spacing:0.01em; text-shadow:none !important; }
 /* ── Ocultar radios y checkboxes de zoom ── */
 .bejo-card input[type=radio],
 .bejo-card input.zoom-cb { position:absolute; opacity:0; width:0; height:0; pointer-events:none; }
 /* ── Slides ── */
-.cslides { list-style:none; margin:0 !important; padding:0 !important; position:relative; background:#0f0c29; width:100% !important; }
+.cslides { list-style:none; margin:0 !important; padding:0 !important; position:relative; background:#ffffff; width:100% !important; }
 .cslides > li {
     position: absolute;
     top: 0;
@@ -1921,28 +1912,29 @@ else:
 .img-lbl img { width:100% !important; max-width:100% !important; height:auto !important; aspect-ratio:1/1 !important; object-fit:cover !important; display:block !important;
     transition:transform .3s; }
 .img-lbl:hover img { transform:scale(1.03); }
-.zoom-hint { position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.55);
-    border-radius:50%; width:30px; height:30px; display:flex; align-items:center;
+.zoom-hint { position:absolute; top:8px; right:8px; background:rgba(255,255,255,0.7);
+    color: #2c3e50; border-radius:50%; width:30px; height:30px; display:flex; align-items:center;
     justify-content:center; font-size:0.9rem; pointer-events:none; opacity:0.8; }
 /* ── Lightbox overlay ── */
 .zoom-ov { display:none; position:fixed; inset:0; z-index:99999;
-    background:rgba(0,0,0,0.93); align-items:center; justify-content:center;
+    background:rgba(255,255,255,0.95) !important; align-items:center; justify-content:center;
     cursor:zoom-out; flex-direction:column; gap:10px; }
 .zoom-ov > img { max-width:92vw; max-height:86vh; object-fit:contain; border-radius:12px;
-    box-shadow:0 0 60px rgba(255,107,53,0.25); }
-.zoom-close { color:rgba(255,255,255,0.55); font-size:0.8rem; user-select:none; }
+    box-shadow:0 8px 32px rgba(0,0,0,0.15) !important; }
+.zoom-close { color:#2c3e50 !important; font-size:0.8rem; user-select:none; }
 /* ── Flechas ── */
 .cprev,.cnext { position:absolute; top:42%; transform:translateY(-50%);
-    background:rgba(0,0,0,0.55); color:#fff; cursor:pointer; border-radius:50%;
+    background:rgba(255,255,255,0.7) !important; color:#ff6b35 !important; cursor:pointer; border-radius:50%;
     width:32px; height:32px; visibility:hidden; opacity:0; pointer-events:none;
     display:flex; align-items:center; justify-content:center;
-    font-size:1.5rem; z-index:10; user-select:none; text-decoration:none; transition:background .2s, opacity .2s; }
-.cprev:hover,.cnext:hover { background:rgba(255,107,53,0.9); }
+    font-size:1.5rem; z-index:10; user-select:none; text-decoration:none; transition:background .2s, opacity .2s;
+    border: 1px solid rgba(255,107,53,0.3) !important; }
+.cprev:hover,.cnext:hover { background:#ff6b35 !important; color:#fff !important; }
 .cprev { left:6px; } .cnext { right:6px; }
 /* ── Descripción del slide ── */
-.slide-info { padding:7px 12px 9px; background:rgba(15,12,41,0.9); width:100% !important; box-sizing:border-box !important; }
-.slide-color { color:#c8bfff; font-size:0.83rem; font-weight:700; margin-bottom:2px; }
-.slide-price { color:#ffd200; font-size:1.05rem; font-weight:900; }
+.slide-info { padding:7px 12px 9px; background:rgba(255,255,255,0.94) !important; border-top:1px solid rgba(255,107,53,0.12) !important; width:100% !important; box-sizing:border-box !important; }
+.slide-color { color:#5d4d99 !important; font-size:0.83rem; font-weight:700; margin-bottom:2px; }
+.slide-price { color:#e03500 !important; font-size:1.05rem; font-weight:900; }
 /* ── Botones Agregar al Carrito en Slide ── */
 .slide-cta {
     display: block !important;
@@ -2109,7 +2101,7 @@ else:
                     st.session_state.catalog_page -= 1
                     st.rerun()
             with p_col2:
-                st.markdown(f"<p style='text-align:center;font-weight:700;font-size:1.1rem;color:#fff;'>"
+                st.markdown(f"<p style='text-align:center;font-weight:700;font-size:1.1rem;color:#2c3e50;'>"
                             f"Página {curr_page} de {total_pages}</p>", unsafe_allow_html=True)
             with p_col3:
                 if st.button("Siguiente ➡️", disabled=(curr_page == total_pages),
@@ -2129,8 +2121,8 @@ else:
 # ── Consulta por WhatsApp (al final, no estorba al cliente) ──────────────────
 st.markdown(
     f"""
-    <div style="background: rgba(37, 211, 102, 0.10); border: 1px solid rgba(37,211,102,0.35); border-radius: 12px; padding: 12px 20px; text-align: center; margin: 1.5rem 0 1rem 0; display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap;">
-        <span style="color: #a8ffdb; font-weight: 600; font-size: 0.95rem;">💬 ¿Tenés alguna duda antes de comprar?</span>
+    <div style="background: rgba(37, 211, 102, 0.08); border: 1px solid rgba(37,211,102,0.35); border-radius: 12px; padding: 12px 20px; text-align: center; margin: 1.5rem 0 1rem 0; display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap;">
+        <span style="color: #1e7e34; font-weight: 600; font-size: 0.95rem;">💬 ¿Tenés alguna duda antes de comprar?</span>
         <a href="https://wa.me/{NUMERO_WS}?text=Hola%20BEJO!%20Tengo%20una%20consulta%20antes%20de%20comprar..." target="_blank"
            style="display:inline-block; background:#25D366; color:white; font-weight:800; padding:8px 18px; border-radius:8px; text-decoration:none; font-size:0.9rem; box-shadow:0 4px 12px rgba(37,211,102,0.3); white-space:nowrap;">
             Consultar por WhatsApp 📲
