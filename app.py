@@ -21,7 +21,7 @@ except ImportError:
 st.set_page_config(
     page_title="BEJO – Accesorios para Celulares",
     page_icon="🔥",
-    layout="centered"
+    layout="wide"
 )
 
 CLAVE_ADMIN = "BEJO2024"
@@ -33,21 +33,34 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&display=swap');
 html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
 
-/* ── FONDO TOTAL (todos los selectores de Streamlit) ── */
+/* ── FONDO + LAYOUT ANCHO ── */
+html, body {
+    background: #09070f !important;
+}
 .stApp,
 [data-testid="stApp"],
-[data-testid="stAppViewContainer"],
-[data-testid="stMain"] > div,
-section.main,
-.main .block-container {
-    background: radial-gradient(ellipse at 20% 50%, #1a0533 0%, transparent 60%),
-                radial-gradient(ellipse at 80% 20%, #0d2137 0%, transparent 55%),
-                radial-gradient(ellipse at 50% 100%, #150824 0%, transparent 60%),
-                linear-gradient(180deg, #08060f 0%, #100818 50%, #060d18 100%) !important;
-    color: #ffffff;
+[data-testid="stAppViewContainer"] {
+    background: transparent !important;
+}
+/* Canvas de fondo animado */
+#bejo-bg-canvas {
+    position: fixed; top:0; left:0; width:100%; height:100%;
+    z-index: -1; pointer-events: none;
+}
+/* Ancho total del contenido */
+[data-testid="stAppViewContainer"] > section,
+[data-testid="stMain"],
+section.main {
+    padding: 0 !important;
+    max-width: 100% !important;
+}
+.block-container {
+    max-width: 1400px !important;
+    padding: 1rem 2.5rem 3rem 2.5rem !important;
+    margin: 0 auto !important;
 }
 [data-testid="stHeader"] { background: transparent !important; }
-[data-testid="stToolbar"] { background: transparent !important; }
+[data-testid="stToolbar"] { display: none !important; }
 
 /* ── FLOATING CART ── */
 #bejo-cart-float {
@@ -215,8 +228,15 @@ section.main,
 }
 .nav-arrow { font-size:0.6rem; opacity:0.7; margin-left:2px; }
 /* Ocultar botones de Streamlit usados solo como triggers */
-.bejo-nav-triggers { visibility: hidden; height: 0; overflow: hidden; padding: 0; margin: 0; }
-.bejo-nav-triggers > div { height: 0 !important; overflow: hidden !important; }
+.bejo-nav-triggers,
+.bejo-nav-triggers * {
+    display: none !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+    position: absolute !important;
+    opacity: 0 !important;
+}
 
 /* ── BANNER CARRITO ── */
 .carrito-banner {
@@ -328,10 +348,14 @@ iframe { border-radius:14px; border:2px solid rgba(255,107,53,0.4); }
 
 
 /* ── RESPONSIVE ── */
-@media (max-width:600px) {
+@media (max-width: 900px) {
+    .block-container { padding: 1rem 1.2rem 3rem 1.2rem !important; }
+}
+@media (max-width: 600px) {
+    .block-container { padding: 0.8rem 0.7rem 3rem 0.7rem !important; }
     .total-box { padding:.8rem 1rem; }
-    .bejo-navbar { padding: 0.4rem 0.5rem; gap: 2px; }
-    .bejo-nav-link { font-size: 0.7rem; padding: 5px 8px; letter-spacing: 0.5px; }
+    .bejo-navlist { padding: 4px 6px; gap: 1px; }
+    .bejo-navitem { font-size: 0.72rem; padding: 7px 8px; letter-spacing: 0.3px; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -816,7 +840,7 @@ setTimeout(function() {{
         
     st.stop()
 
-# ── HEADER compacto: logo pequeño + BEJO inline ──────────────────────────────
+# ── FONDO ANIMADO (canvas JS) + HEADER compacto ─────────────────────────
 try:
     import base64 as _b64
     with open("logo.png", "rb") as _f:
@@ -824,6 +848,50 @@ try:
     _logo_src = f"data:image/png;base64,{_logo_b64}"
 except Exception:
     _logo_src = ""
+
+# Inyectar canvas animado de fondo (mesh gradient en movimiento)
+st.markdown("""
+<canvas id="bejo-bg-canvas"></canvas>
+<script>
+(function(){
+  var c = document.getElementById('bejo-bg-canvas');
+  if(!c) return;
+  // Mover canvas al body del parent
+  try { window.parent.document.body.appendChild(c); } catch(e) {}
+  var ctx = c.getContext('2d');
+  var W, H;
+  function resize() {
+    W = c.width  = window.parent.innerWidth  || window.innerWidth;
+    H = c.height = window.parent.innerHeight || window.innerHeight;
+  }
+  resize();
+  (window.parent || window).addEventListener('resize', resize);
+  var blobs = [
+    { x:0.15, y:0.4, r:0.45, color:'rgba(120,20,180,0.55)', dx:0.0003, dy:0.0002 },
+    { x:0.8,  y:0.2, r:0.38, color:'rgba(20,80,180,0.45)',  dx:-0.0002,dy:0.0003 },
+    { x:0.5,  y:0.9, r:0.42, color:'rgba(180,40,60,0.3)',   dx:0.0002, dy:-0.0003 },
+    { x:0.65, y:0.6, r:0.3,  color:'rgba(20,140,180,0.3)',  dx:-0.0003,dy:-0.0002 },
+  ];
+  function draw() {
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='#09070f';
+    ctx.fillRect(0,0,W,H);
+    blobs.forEach(function(b){
+      b.x += b.dx; b.y += b.dy;
+      if(b.x<0||b.x>1) b.dx*=-1;
+      if(b.y<0||b.y>1) b.dy*=-1;
+      var g = ctx.createRadialGradient(b.x*W,b.y*H,0,b.x*W,b.y*H,b.r*Math.max(W,H));
+      g.addColorStop(0, b.color);
+      g.addColorStop(1,'transparent');
+      ctx.fillStyle = g;
+      ctx.fillRect(0,0,W,H);
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+</script>
+""", unsafe_allow_html=True)
 
 if _logo_src:
     st.markdown(f"""
@@ -854,23 +922,23 @@ st.markdown(f"""
     <!-- Catálogo -->
     <li>
       <button class="bejo-navitem{_act_cat}" onclick="bejoNav('catalogo')">
-        🏠 Catálogo
+        Catálogo
       </button>
     </li>
     <!-- Productos con dropdown -->
     <li class="nav-has-dd" style="position:relative">
-      <button class="bejo-navitem" style="{'background:rgba(255,107,53,0.18);color:#ff8c5a;border-color:rgba(255,107,53,0.35)' if _vista_actual == 'catalogo' else ''}">
-        📦 Productos <span class="nav-arrow">▼</span>
+      <button class="bejo-navitem">
+        Productos <span class="nav-arrow">▼</span>
       </button>
       <div class="nav-dropdown">
-        <button class="nav-dd-item" onclick="bejoNavFiltro('Funda')">📱 Fundas</button>
-        <button class="nav-dd-item" onclick="bejoNavFiltro('Vidrio Templado')">🔲 Vidrios Templados</button>
-        <button class="nav-dd-item" onclick="bejoNavFiltro('Auricular')">🎧 Auriculares</button>
-        <button class="nav-dd-item" onclick="bejoNavFiltro('Cable')">🔌 Cables</button>
-        <button class="nav-dd-item" onclick="bejoNavFiltro('Cargador')">⚡ Cargadores</button>
-        <button class="nav-dd-item" onclick="bejoNavFiltro('Soporte')">🔧 Soportes</button>
+        <button class="nav-dd-item" onclick="bejoNavFiltro('Funda')">Fundas</button>
+        <button class="nav-dd-item" onclick="bejoNavFiltro('Vidrio Templado')">Vidrios Templados</button>
+        <button class="nav-dd-item" onclick="bejoNavFiltro('Auricular')">Auriculares</button>
+        <button class="nav-dd-item" onclick="bejoNavFiltro('Cable')">Cables</button>
+        <button class="nav-dd-item" onclick="bejoNavFiltro('Cargador')">Cargadores</button>
+        <button class="nav-dd-item" onclick="bejoNavFiltro('Soporte')">Soportes</button>
         <div class="nav-dd-sep"></div>
-        <button class="nav-dd-item" onclick="bejoNav('catalogo')">📋 Ver Todo</button>
+        <button class="nav-dd-item" onclick="bejoNav('catalogo')">Ver Todo el Catálogo</button>
       </div>
     </li>
     <li><div class="nav-divider"></div></li>
@@ -883,47 +951,57 @@ st.markdown(f"""
     <!-- Venta x Mayor -->
     <li>
       <button class="bejo-navitem nav-mayor{_act_mayor}" onclick="bejoNav('mayor')">
-        📦 Venta x Mayor
+        Venta x Mayor
       </button>
     </li>
     <li><div class="nav-divider"></div></li>
     <!-- Compatibilidad -->
     <li>
       <button class="bejo-navitem{_act_compat}" onclick="bejoNav('compatibilidad')">
-        🔍 Compatibilidad
+        Compatibilidad
       </button>
     </li>
     <li><div class="nav-divider"></div></li>
     <!-- Carrito -->
     <li>
-      <button class="bejo-navitem{_act_cart}" onclick="bejoNav('carrito')" style="{'background:linear-gradient(135deg,#ff6b35,#e03500);color:#fff;border-color:#ff6b35;box-shadow:0 3px 14px rgba(255,107,53,.45)' if _vista_actual=='carrito' else ''}">
+      <button class="bejo-navitem{_act_cart}" onclick="bejoNav('carrito')" {"style='background:linear-gradient(135deg,#ff6b35,#e03500);color:#fff;border-color:#ff6b35;box-shadow:0 3px 14px rgba(255,107,53,.45)' " if _vista_actual=='carrito' else ''}>
         🛒 Carrito {_cart_badge}
       </button>
     </li>
     <!-- WhatsApp -->
     <li>
       <a class="bejo-navitem nav-ws" href="{_ws_url}" target="_blank">
-        💬 WhatsApp
+        WhatsApp
       </a>
     </li>
   </ul>
 </div>
 <script>
 function bejoNav(vista) {{
-  var btns = window.parent.document.querySelectorAll('button');
-  var map = {{
-    'catalogo': 'nav_home', 'compatibilidad': 'nav_compat',
-    'carrito': 'nav_cart', 'ofertas': 'nav_ofertas', 'mayor': 'nav_mayor'
+  var iframe = document.querySelector('iframe[title="streamlit_component"]');
+  var doc = window.parent.document;
+  var btns = doc.querySelectorAll('button');
+  var textMap = {{
+    'catalogo': 'catálogo',
+    'compatibilidad': 'compatibilidad',
+    'carrito': 'carrito',
+    'ofertas': 'ofertas',
+    'mayor': 'mayor'
   }};
-  var key = map[vista];
+  var target = textMap[vista];
+  var found = false;
   btns.forEach(function(b) {{
-    if (b.getAttribute('data-testid') === key || (b.innerText && b.innerText.toLowerCase().includes(key))) {{ b.click(); }}
+    var t = (b.innerText || '').toLowerCase().trim();
+    if (!found && t === target) {{ b.click(); found = true; }}
   }});
-  // fallback: buscar por aria-label o texto
-  window.parent.postMessage({{type:'bejoNav', vista:vista}}, '*');
+  if (!found) {{
+    btns.forEach(function(b) {{
+      var t = (b.innerText || '').toLowerCase();
+      if (!found && t.includes(target)) {{ b.click(); found = true; }}
+    }});
+  }}
 }}
 function bejoNavFiltro(tipo) {{
-  // Primero navegar al catálogo, luego setear el filtro via sessionStorage
   sessionStorage.setItem('bejoFiltroTipo', tipo);
   bejoNav('catalogo');
 }}
