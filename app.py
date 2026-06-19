@@ -307,6 +307,42 @@ def geocodificar_inversa_nominatim(lat, lon):
     except Exception:
         return None
 
+def geocodificar_directa_nominatim(query):
+    import requests as _req
+    import urllib.parse
+    query_clean = query.strip()
+    if not query_clean:
+        return None
+    search_q = query_clean
+    if "tucuman" not in query_clean.lower():
+        search_q += ", San Miguel de Tucumán, Tucumán, Argentina"
+    else:
+        if "argentina" not in query_clean.lower():
+            search_q += ", Argentina"
+            
+    url = f"https://nominatim.openstreetmap.org/search?format=json&q={urllib.parse.quote(search_q)}&limit=1"
+    headers = {
+        'User-Agent': 'BEJO_Accesorios_App/1.0 (tienda_accesorios_agent)'
+    }
+    try:
+        r = _req.get(url, headers=headers, timeout=5)
+        if r.status_code == 200:
+            data = r.json()
+            if data:
+                lat = float(data[0]["lat"])
+                lon = float(data[0]["lon"])
+                address_parts = data[0].get("display_name", "")
+                partes = [p.strip() for p in address_parts.split(",")]
+                if len(partes) > 4:
+                    clean_display = ", ".join(partes[:4])
+                else:
+                    clean_display = ", ".join(partes)
+                return lat, lon, clean_display
+        return None
+    except Exception:
+        return None
+
+
 
 
 def descontar_stock(carrito: dict, df_ref: pd.DataFrame):
@@ -506,6 +542,7 @@ for k, v in {
     "map_coords": [-26.8306, -65.2201], # Centro de San Miguel de Tucumán
     "last_clicked_tracked": None,
     "inp_dir": "",
+    "geo_error": None,
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -812,10 +849,37 @@ if st.session_state.vista == "carrito":
             """, unsafe_allow_html=True)
             st.markdown("#### 📍 Tu dirección de entrega")
 
-            st.markdown("<p style='font-size:0.85rem; color:#a89cff; margin-bottom:8px;'>📍 Hacé clic o tocá en el mapa para ubicar tu dirección con el pin. Luego podés completar o corregir los detalles abajo:</p>", unsafe_allow_html=True)
+            # Buscador y campo de dirección única
+            addr_col1, addr_col2 = st.columns([3, 1])
+            with addr_col1:
+                direccion = st.text_input(
+                    "Dirección de entrega (calle y número):",
+                    value=st.session_state.inp_dir,
+                    placeholder="Ej: Marcos Paz 987, San Miguel de Tucumán",
+                )
+                st.session_state.inp_dir = direccion
+            with addr_col2:
+                st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)
+                buscar_btn = st.button("Buscar 🔍", use_container_width=True, help="Busca esta dirección en el mapa y mueve el pin")
+
+            if buscar_btn and direccion.strip():
+                res_geo = geocodificar_directa_nominatim(direccion)
+                if res_geo:
+                    lat, lon, display_addr = res_geo
+                    st.session_state.map_coords = [lat, lon]
+                    st.session_state.inp_dir = display_addr
+                    st.session_state.geo_error = None
+                    st.rerun()
+                else:
+                    st.session_state.geo_error = f"⚠️ No se encontró la dirección '{direccion}' en San Miguel de Tucumán. Verificá que esté bien escrita o hacé clic directamente en el mapa."
+            
+            if st.session_state.get("geo_error"):
+                st.warning(st.session_state.geo_error)
+            
+            st.markdown("<p style='font-size:0.85rem; color:#a89cff; margin-bottom:8px;'>📍 También podés hacer clic o tocar directamente en el mapa para mover el pin a tu ubicación exacta:</p>", unsafe_allow_html=True)
             
             map_coords = st.session_state.map_coords
-            m = folium.Map(location=map_coords, zoom_start=15, control_scale=True)
+            m = folium.Map(location=map_coords, zoom_start=16, control_scale=True)
             folium.Marker(
                 map_coords,
                 popup="Tu ubicación seleccionada",
@@ -838,18 +902,12 @@ if st.session_state.vista == "carrito":
                     st.session_state.last_clicked_tracked = last_clicked
                     lat, lon = last_clicked["lat"], last_clicked["lng"]
                     st.session_state.map_coords = [lat, lon]
+                    st.session_state.geo_error = None  # Limpiar error
                     with st.spinner("Buscando dirección..."):
                         dir_geocodificada = geocodificar_inversa_nominatim(lat, lon)
                         if dir_geocodificada:
                             st.session_state.inp_dir = dir_geocodificada
                     st.rerun()
-            
-            st.caption("Agrega el número de puerta, piso, depto u observaciones:")
-            direccion = st.text_input(
-                "Dirección completa:",
-                placeholder="Ej: San Martin 456, piso 2, Tucuman",
-                key="inp_dir",
-            )
 
         st.markdown('<div class="seccion-titulo">💳 Método de Pago</div>', unsafe_allow_html=True)
         metodo_pago = st.radio("pago_r", ["💵  Efectivo", "🏦  Transferencia Bancaria", "💳  Mercado Pago (Tarjeta, Dinero en cuenta)"],
