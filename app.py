@@ -1467,78 +1467,67 @@ if st.session_state.vista == "carrito":
             st.markdown("""
             <div class="info-envio">
                 🛵 <b>Información sobre Envíos:</b><br>
-                • Realizamos envíos en <b>San Miguel de Tucumán</b> (consultar por envíos fuera de S.M.T.).<br>
-                • <b>Envío GRATIS</b> dentro de las 4 Avenidas.<br>
-                • Fuera de las 4 Avenidas, coordinamos el costo por WhatsApp según tu dirección.
+                • Realizamos envíos en <b>San Miguel de Tucumán, Yerba Buena, Alderetes y zonas cercanas</b>.<br>
+                • <b>Envío GRATIS</b> dentro de las 4 Avenidas de S.M.T.<br>
+                • Fuera de las 4 Avenidas, coordinamos el costo por WhatsApp según tu dirección.<br>
+                📞 En caso de cualquier duda con la dirección, <b>el administrador se comunicará con vos por teléfono</b>.
             </div>
             """, unsafe_allow_html=True)
-            st.markdown("#### 📍 Tu dirección de entrega")
 
-            # Buscador y campo de dirección
-            # Usamos key con versión para que Streamlit re-renderice el widget cuando cambia desde el mapa
-            _inp_key = f"inp_dir_widget_{st.session_state.inp_dir_version}"
-            addr_col1, addr_col2 = st.columns([3, 1])
-            with addr_col1:
-                direccion = st.text_input(
-                    "Dirección de entrega (calle y número):",
-                    value=st.session_state.inp_dir,
-                    placeholder="Ej: Haiti 650, San Miguel de Tucumán",
-                    key=_inp_key,
+            st.markdown("#### 📍 Datos de entrega")
+
+            _dc1, _dc2 = st.columns([2, 1])
+            with _dc1:
+                dir_calle = st.text_input(
+                    "🏠 Calle y número *",
+                    placeholder="Ej: Haiti 650",
+                    key="dir_calle"
                 )
-                st.session_state.inp_dir = direccion
-            with addr_col2:
-                st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)
-                buscar_btn = st.button("Buscar 🔍", use_container_width=True, help="Busca esta dirección en el mapa y mueve el pin")
+            with _dc2:
+                dir_barrio = st.text_input(
+                    "🌿 Barrio",
+                    placeholder="Ej: Villa Carmela",
+                    key="dir_barrio"
+                )
 
-            if buscar_btn and direccion.strip():
-                with st.spinner("Buscando en el mapa..."):
-                    res_geo = geocodificar_directa_nominatim(direccion)
-                if res_geo:
-                    lat, lon, display_addr = res_geo
-                    st.session_state.map_coords = [lat, lon]
-                    st.session_state.inp_dir = display_addr
-                    st.session_state.inp_dir_version += 1
-                    st.session_state.geo_error = None
-                    st.rerun()
-                else:
-                    st.session_state.geo_error = f"No se encontró '{direccion}' en Tucumán. Probá escribir el nombre completo de la calle o hacé clic directamente en el mapa."
-            
-            if st.session_state.get("geo_error"):
-                st.warning(f"⚠️ {st.session_state.geo_error}")
-            
-            st.markdown("<p style='font-size:0.85rem; color:#c0b8e8; margin-bottom:8px;'>📍 También podés tocar directamente en el mapa para mover el pin a tu ubicación exacta:</p>", unsafe_allow_html=True)
-            
-            map_coords = st.session_state.map_coords
-            m = folium.Map(location=map_coords, zoom_start=16, control_scale=True)
-            folium.Marker(
-                map_coords,
-                popup="Tu ubicación seleccionada",
-                tooltip="Tocá el mapa para mover este pin",
-                icon=folium.Icon(color="red", icon="info-sign")
-            ).add_to(m)
-            
-            map_data = st_folium(
-                m,
-                height=290,
-                use_container_width=True,
-                key="direccion_map_picker",
-                returned_objects=["last_clicked"]
+            _dc3, _dc4 = st.columns([2, 1])
+            with _dc3:
+                dir_localidad = st.selectbox(
+                    "📍 Localidad *",
+                    ["— Seleccioná tu localidad —",
+                     "San Miguel de Tucumán",
+                     "Yerba Buena",
+                     "Alderetes",
+                     "Banda del Río Salí",
+                     "Las Talitas",
+                     "El Manantial",
+                     "Otra localidad"],
+                    key="dir_localidad"
+                )
+            with _dc4:
+                dir_telefono = st.text_input(
+                    "📞 Teléfono de contacto *",
+                    placeholder="Ej: 381 4123456",
+                    key="dir_telefono"
+                )
+
+            dir_observacion = st.text_area(
+                "📝 Observaciones / Referencias de la dirección",
+                placeholder="Ej: Casa azul, portero eléctrico, entre calles Av. Mate de Luna y Marcos Paz, piso 3 dpto B...",
+                height=90,
+                key="dir_observacion"
             )
-            
-            if map_data and map_data.get("last_clicked"):
-                last_clicked = map_data["last_clicked"]
-                last_clicked_tracked = st.session_state.get("last_clicked_tracked")
-                if last_clicked != last_clicked_tracked:
-                    st.session_state.last_clicked_tracked = last_clicked
-                    lat, lon = last_clicked["lat"], last_clicked["lng"]
-                    st.session_state.map_coords = [lat, lon]
-                    st.session_state.geo_error = None
-                    with st.spinner("Detectando dirección del punto seleccionado..."):
-                        dir_geocodificada = geocodificar_inversa_nominatim(lat, lon)
-                        if dir_geocodificada:
-                            st.session_state.inp_dir = dir_geocodificada
-                            st.session_state.inp_dir_version += 1  # fuerza re-render del text_input
-                    st.rerun()
+
+            # Armar dirección completa para el mensaje de WhatsApp
+            _loc = dir_localidad if dir_localidad != "— Seleccioná tu localidad —" else ""
+            direccion = " | ".join(filter(None, [
+                dir_calle.strip(),
+                f"Barrio {dir_barrio.strip()}" if dir_barrio.strip() else "",
+                _loc,
+                f"Tel: {dir_telefono.strip()}" if dir_telefono.strip() else "",
+            ]))
+            observacion = dir_observacion.strip()
+
 
         st.markdown('<div class="seccion-titulo">💳 Método de Pago</div>', unsafe_allow_html=True)
         metodo_pago = st.radio("pago_r", ["💵  Efectivo", "🏦  Transferencia Bancaria", "💳  Mercado Pago (Tarjeta, Dinero en cuenta)"],
@@ -1594,8 +1583,7 @@ if st.session_state.vista == "carrito":
                 msg += f"📍 *Entrega:* {le}\n"
                 if metodo_entrega == "🏠  Envío a domicilio":
                     msg += f"🏠 *Dirección:* {direccion}\n"
-                    if observacion.strip(): msg += f"📝 *Observación:* {observacion}\n"
-                    msg += f"🕐 *Horario preferible:* {horario}\n"
+                    if observacion: msg += f"📝 *Observación / Referencia:* {observacion}\n"
                 if metodo_entrega == "🏪  Retiro en punto de venta":
                     msg += "\n🤝 ¡Coordino el retiro con ustedes por WhatsApp!\n"
                 msg += "\n✨ ¡Gracias por elegir BEJO! 🙌"
@@ -1633,9 +1621,8 @@ if st.session_state.vista == "carrito":
                 else:
                     st.success(f"✅ ¡Pedido **{id_pedido}** generado! Revisá el stock manualmente.")
 
-                # ── Redirigir automáticamente a WhatsApp (o mostrar botones) ──────────
+                # ── Confirmar y abrir WhatsApp ──────────────────────────────────
                 if mp_url:
-                    # Con Mercado Pago: mostramos ambos botones y abrimos WA automáticamente en nueva pestaña
                     st.markdown(f"""
                         <div style="background:linear-gradient(135deg,rgba(0,200,80,0.15),rgba(37,211,102,0.08));
                                     border:2px solid #25D366; border-radius:16px; padding:22px;
@@ -1644,8 +1631,7 @@ if st.session_state.vista == "carrito":
                                 🎉 ¡Pedido {id_pedido} confirmado!
                             </h3>
                             <p style="color:#c8ffd4; margin-bottom:18px; font-size:0.97rem;">
-                                Se está abriendo WhatsApp automáticamente.
-                                Si no abre, tocá los botones de abajo.
+                                Tocá los botones para <b>pagar</b> y <b>avisar al vendedor</b>.
                             </p>
                             <div style="display:flex; flex-direction:column; gap:12px; align-items:center;">
                                 <a href="{mp_url}" target="_blank"
@@ -1664,21 +1650,18 @@ if st.session_state.vista == "carrito":
                                     📲 AVISAR POR WHATSAPP
                                 </a>
                             </div>
-                            <p style="color:#a8e6bc; font-size:0.82rem; margin-top:14px;">
-                                Priméro pagá con Mercado Pago, luego WhatsApp se abre automáticamente.
-                            </p>
                         </div>
                     """, unsafe_allow_html=True)
-                    # Abrir WhatsApp automáticamente en nueva pestaña (1.5 seg de delay)
+                    # Auto-click WhatsApp en nueva pestaña
                     st_components.html(f"""
                     <script>
                     setTimeout(function() {{
                         window.open('{ws_url}', '_blank');
                     }}, 1500);
                     </script>
-                    """, height=0)
+                    """, height=1)
                 else:
-                    # Sin Mercado Pago: cuenta regresiva de 3 seg y redirige a WhatsApp
+                    # Sin MP: mostrar boton grande + auto-abrir WhatsApp con target=_top
                     st.markdown(f"""
                         <div style="background:linear-gradient(135deg,rgba(0,200,80,0.15),rgba(37,211,102,0.08));
                                     border:2px solid #25D366; border-radius:16px; padding:22px;
@@ -1687,10 +1670,9 @@ if st.session_state.vista == "carrito":
                                 🎉 ¡Pedido {id_pedido} confirmado!
                             </h3>
                             <p style="color:#c8ffd4; margin-bottom:14px; font-size:0.97rem;">
-                                Abriendo WhatsApp en <b id="ws-cnt" style="font-size:1.3rem; color:#fff;">3</b> segundos...
+                                Se está abriendo WhatsApp automáticamente con los datos del pedido...
                             </p>
                             <a href="{ws_url}" target="_blank"
-                               id="ws-btn-auto"
                                style="display:inline-block;
                                       background:linear-gradient(135deg,#25D366,#1aab50);
                                       color:white; font-weight:900; font-size:1.1rem;
@@ -1704,23 +1686,18 @@ if st.session_state.vista == "carrito":
                             </p>
                         </div>
                     """, unsafe_allow_html=True)
-                    # Auto-redirect via st_components (corre fuera del sandbox de Streamlit)
+                    # Auto-abrir: link con target=_top se auto-cliquea (funciona en Streamlit)
                     st_components.html(f"""
+                    <!DOCTYPE html>
+                    <html><body style="margin:0;background:transparent;">
+                    <a href="{ws_url}" target="_top" id="wsauto" style="opacity:0;position:absolute;">WA</a>
                     <script>
-                    var sec = 3;
-                    function tick() {{
-                        sec--;
-                        var el = window.parent.document.getElementById('ws-cnt');
-                        if(el) el.innerText = sec;
-                        if(sec <= 0) {{
-                            window.top.location.href = '{ws_url}';
-                        }} else {{
-                            setTimeout(tick, 1000);
-                        }}
-                    }}
-                    setTimeout(tick, 1000);
+                    setTimeout(function() {{
+                        document.getElementById('wsauto').click();
+                    }}, 1500);
                     </script>
-                    """, height=0)
+                    </body></html>
+                    """, height=1)
     st.stop()
 
 # ── VISTA CATÁLOGO (Default) ──────────────────────────────────────────────────
