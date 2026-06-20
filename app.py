@@ -105,28 +105,25 @@ section.main {
 [data-testid="stHeader"] { background: transparent !important; }
 [data-testid="stToolbar"] { display: none !important; }
 
-/* ── FLOATING CART ── */
-#bejo-cart-float {
-    position: fixed; bottom: 24px; right: 20px; z-index: 9999;
+/* ── CARRITO EN NAVBAR (badge en botón) ── */
+.nav-cart-btn {
+    position: fixed; top: 12px; right: 12px; z-index: 99999;
     background: linear-gradient(135deg, #ff6b35, #ff3d00);
-    color: white; border-radius: 50px; padding: 12px 20px;
-    font-weight: 900; font-size: 1rem; letter-spacing: 1px;
-    box-shadow: 0 6px 28px rgba(255,107,53,0.55);
-    cursor: pointer; text-decoration: none; display: flex;
-    align-items: center; gap: 8px;
-    animation: float-bounce 2s ease-in-out infinite;
-    border: 2px solid rgba(255,200,150,0.4);
+    color: white !important; border-radius: 50px; padding: 9px 18px;
+    font-weight: 900; font-size: 0.9rem; letter-spacing: 0.5px;
+    box-shadow: 0 4px 18px rgba(255,107,53,0.5);
+    cursor: pointer; text-decoration: none !important; display: inline-flex;
+    align-items: center; gap: 7px;
+    border: 2px solid rgba(255,200,150,0.35);
     transition: transform 0.2s, box-shadow 0.2s;
+    white-space: nowrap;
 }
-#bejo-cart-float:hover { transform: translateY(-3px) scale(1.05); box-shadow: 0 10px 36px rgba(255,107,53,0.7); }
+.nav-cart-btn:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 8px 28px rgba(255,107,53,0.7); }
 .cart-badge {
     background: white; color: #ff3d00; border-radius: 50%;
-    width: 22px; height: 22px; display: inline-flex; align-items: center;
-    justify-content: center; font-size: 0.75rem; font-weight: 900;
+    width: 20px; height: 20px; display: inline-flex; align-items: center;
+    justify-content: center; font-size: 0.72rem; font-weight: 900;
     box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-}
-@keyframes float-bounce {
-    0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-5px); }
 }
 
 /* ── BEJO LOGO INLINE ── */
@@ -556,52 +553,94 @@ def geocodificar_inversa_nominatim(lat, lon):
         return None
 
 def geocodificar_directa_nominatim(query):
+    """Busca dirección en Tucumán Argentina usando Georef Argentina + Nominatim como fallback."""
     import requests as _req
-    import urllib.parse
+    import urllib.parse as _up
     import re as _re
+
     query_clean = query.strip()
     if not query_clean:
         return None
 
-    headers = {'User-Agent': 'BEJO_Accesorios_App/1.0 (tienda_accesorios_agent)'}
+    headers_nom = {'User-Agent': 'BEJO_Accesorios_App/1.0'}
 
-    def _buscar(q):
-        url = f"https://nominatim.openstreetmap.org/search?format=json&q={urllib.parse.quote(q)}&limit=1&countrycodes=ar"
-        try:
-            r = _req.get(url, headers=headers, timeout=6)
+    # ── 1. Extraer calle y altura ────────────────────────────────────────────
+    m = _re.match(r'^([\D]+?)\s*(\d+)\s*$', query_clean)
+    calle = m.group(1).strip() if m else query_clean
+    altura = m.group(2).strip() if m else None
+
+    # ── 2. Georef Argentina API (callejero oficial argentino) ────────────────
+    try:
+        municipios = ["San Miguel de Tucum%C3%A1n", "Yerba Buena", "Banda del R%C3%ADo Sal%C3%AD", "Alderetes", "Tucum%C3%A1n"]
+        for municipio in municipios:
+            params = f"nombre={_up.quote(calle)}&provincia=tucuman&max=1&campos=basico"
+            if altura:
+                params += f"&altura={altura}"
+            georef_url = f"https://apis.datos.gob.ar/georef/api/direcciones?{params}&localidad_censal={municipio}"
+            r = _req.get(georef_url, timeout=6)
             if r.status_code == 200:
                 data = r.json()
-                if data:
-                    lat = float(data[0]["lat"])
-                    lon = float(data[0]["lon"])
-                    partes = [p.strip() for p in data[0].get("display_name", "").split(",")]
-                    clean_display = ", ".join(partes[:4]) if len(partes) > 4 else ", ".join(partes)
-                    return lat, lon, clean_display
+                dirs = data.get("direcciones", [])
+                if dirs:
+                    d = dirs[0]
+                    lat = d.get("ubicacion", {}).get("lat")
+                    lon = d.get("ubicacion", {}).get("lon")
+                    if lat and lon:
+                        nombre_calle = d.get("nomenclatura", calle)
+                        display = f"{nombre_calle}, Tucumán, Argentina"
+                        return float(lat), float(lon), display
+    except Exception:
+        pass
+
+    # ── 3. Georef calles (sin altura, para encontrar la calle sola) ─────────
+    try:
+        r2 = _req.get(
+            f"https://apis.datos.gob.ar/georef/api/calles?nombre={_up.quote(calle)}&provincia=tucuman&max=1&campos=basico",
+            timeout=6
+        )
+        if r2.status_code == 200:
+            calles = r2.json().get("calles", [])
+            if calles:
+                # Tenemos la calle, ahora buscar coordenadas con Nominatim estructurado
+                nombre_georef = calles[0].get("nombre", calle)
+                q_struct = f"{nombre_georef} {altura if altura else ''}, Tucumán, Argentina".strip()
+                r3 = _req.get(
+                    f"https://nominatim.openstreetmap.org/search?format=json&q={_up.quote(q_struct)}&limit=1&countrycodes=ar",
+                    headers=headers_nom, timeout=6
+                )
+                if r3.status_code == 200 and r3.json():
+                    d3 = r3.json()[0]
+                    partes = [p.strip() for p in d3.get("display_name", "").split(",")]
+                    display = ", ".join(partes[:4]) if len(partes) > 4 else ", ".join(partes)
+                    return float(d3["lat"]), float(d3["lon"]), display
+    except Exception:
+        pass
+
+    # ── 4. Nominatim con múltiples variantes ────────────────────────────────
+    def _nominatim(q):
+        try:
+            url = f"https://nominatim.openstreetmap.org/search?format=json&q={_up.quote(q)}&limit=1&countrycodes=ar"
+            r = _req.get(url, headers=headers_nom, timeout=6)
+            if r.status_code == 200 and r.json():
+                d = r.json()[0]
+                partes = [p.strip() for p in d.get("display_name", "").split(",")]
+                return float(d["lat"]), float(d["lon"]), ", ".join(partes[:4])
         except Exception:
             pass
         return None
 
     base = "San Miguel de Tucumán, Tucumán, Argentina"
-
-    # Intentos en orden: directo, con ciudad, variante sin numero, solo calle+ciudad
-    intentos = []
-    intentos.append(f"{query_clean}, {base}")
-
-    # Separar posible calle y número (ej: "Haiti 6" → calle="Haiti", num="6")
-    m = _re.match(r'^([\D]+?)\s*(\d+)\s*$', query_clean)
-    if m:
-        calle, numero = m.group(1).strip(), m.group(2).strip()
-        intentos.append(f"{calle} {numero}, San Miguel de Tucumán, Argentina")
-        intentos.append(f"Calle {calle} {numero}, San Miguel de Tucumán, Argentina")
-        intentos.append(f"{calle}, San Miguel de Tucumán, Argentina")
-
-    if "tucuman" in query_clean.lower():
-        intentos.insert(0, query_clean if "argentina" in query_clean.lower() else query_clean + ", Argentina")
-
+    intentos = [
+        f"{query_clean}, {base}",
+        f"{calle} {altura or ''}, {base}".strip(),
+        f"Calle {calle} {altura or ''}, {base}".strip(),
+        f"{calle}, {base}",
+    ]
     for intento in intentos:
-        res = _buscar(intento)
+        res = _nominatim(intento)
         if res:
             return res
+
     return None
 
 
@@ -995,32 +1034,12 @@ else:
 
 st.markdown('<div class="bejo-subtitle">ACCESORIOS PARA CELULARES · CALIDAD PREMIUM</div>', unsafe_allow_html=True)
 
-# ── BARRA DE NAVEGACIÓN PREMIUM con dropdown ─────────────────────────────────
+# ── BARRA DE NAVEGACIÓN PREMIUM ──────────────────────────────────────────
 _vista_actual = st.session_state.vista
 _num_items = sum(st.session_state.carrito.values())
-_cart_badge = f'<span class="nav-cart-badge">{_num_items}</span>' if _num_items > 0 else ""
-_act_cat   = ' nav-active' if _vista_actual == 'catalogo' else ''
-_act_compat = ' nav-active' if _vista_actual == 'compatibilidad' else ''
-_act_cart  = ' nav-active' if _vista_actual == 'carrito' else ''
-_act_oferta = ' nav-active' if _vista_actual == 'ofertas' else ''
-_act_mayor = ' nav-active' if _vista_actual == 'mayor' else ''
-_act_prod  = ' nav-active' if _vista_actual == 'productos' else ''
-_ws_url = f"https://wa.me/{NUMERO_WS}?text=Hola%20BEJO!%20Quiero%20hacer%20una%20consulta"
 
-# Handler para el click en el carrito: si está vacío muestra un alert
-_cart_click_action = "alert('No hay nada cargado aún')" if _num_items == 0 else "bejoNav('carrito')"
-
-# Generar dinámicamente los items del dropdown de Productos
-_dd_items_html = ""
-if not df_stock.empty:
-    _tipos_unicos = sorted([t for t in df_stock["Nombre del Artículo"].dropna().unique() if str(t).strip()])
-    for _t in _tipos_unicos:
-        _t_display = str(_t).capitalize()
-        _t_js = str(_t).replace("'", "\\'")
-        _dd_items_html += f'        <button class="nav-dd-item" onclick="bejoNavFiltro(\'{_t_js}\')">{_t_display}</button>\n'
-# ── NAVIGACIÓN UNIFICADA ────────────────────────────────────────────────
 st.markdown('<div class="bejo-nav-triggers">', unsafe_allow_html=True)
-_nb1, _nb2, _nb3, _nb4, _nb5, _nb6 = st.columns(6)
+_nb1, _nb2, _nb3, _nb4, _nb5, _nb6, _nb_cart = st.columns([1,1,1,1,1,0.2,1.3])
 with _nb1:
     if st.button("🏠 Catálogo", key="nav_home", use_container_width=True,
                  type="primary" if _vista_actual == "catalogo" else "secondary"):
@@ -1032,30 +1051,48 @@ with _nb2:
         st.session_state.vista = "compatibilidad"
         st.rerun()
 with _nb3:
-    if st.button(f"🛒 Carrito ({len(st.session_state.carrito) if st.session_state.carrito else 0})",
-                 key="nav_cart", use_container_width=True,
-                 type="primary" if _vista_actual == "carrito" else "secondary"):
-        if not st.session_state.carrito:
-            st.warning("🛒 No hay nada cargado aún.")
-        else:
-            st.session_state.vista = "carrito"
-            st.rerun()
-with _nb4:
     if st.button("🔥 Ofertas", key="nav_ofertas", use_container_width=True,
                  type="primary" if _vista_actual == "ofertas" else "secondary"):
         st.session_state.vista = "ofertas"
         st.rerun()
-with _nb5:
+with _nb4:
     if st.button("📦 Mayor", key="nav_mayor", use_container_width=True,
                  type="primary" if _vista_actual == "mayor" else "secondary"):
         st.session_state.vista = "mayor"
         st.rerun()
-with _nb6:
+with _nb5:
     if st.button("📦 Productos", key="nav_productos", use_container_width=True,
                  type="primary" if _vista_actual == "productos" else "secondary"):
         st.session_state.vista = "productos"
         st.rerun()
+with _nb6:
+    pass  # separador
+with _nb_cart:
+    _badge_txt = f" ({_num_items})" if _num_items > 0 else ""
+    if st.button(f"🛒 Carrito{_badge_txt}", key="nav_cart", use_container_width=True,
+                 type="primary" if _vista_actual == "carrito" else "secondary"):
+        if not st.session_state.carrito:
+            st.toast("🛒 El carrito está vacío. ¡Agrega productos primero!", icon="⚠️")
+        else:
+            st.session_state.vista = "carrito"
+            st.rerun()
 st.markdown('</div>', unsafe_allow_html=True)
+
+# ── Carrito fijo en esquina superior derecha ──────────────────────────────────
+if _num_items > 0:
+    st.markdown(f"""
+    <div class="nav-cart-btn" onclick="
+        var btns = window.parent.document.querySelectorAll('button');
+        for(var i=0;i<btns.length;i++){{
+            var t = (btns[i].innerText||'').replace(/\\s/g,'');
+            if(t.indexOf('Carrito')>=0){{ btns[i].click(); break; }}
+        }}
+    ">
+        🛒 Mi Carrito
+        <span class="cart-badge">{_num_items}</span>
+    </div>
+    """, unsafe_allow_html=True)
+
 
 
 # ── VISTA PRODUCTOS (Resumen de Catálogo / Árbol) ──────────────────────────────────
@@ -1651,16 +1688,7 @@ if st.session_state.get("mostrar_banner_carrito"):
     st.markdown('<div class="carrito-banner">🛒 ¡PRODUCTO AGREGADO AL CARRITO EXITOSAMENTE! ✅</div>', unsafe_allow_html=True)
     st.session_state.mostrar_banner_carrito = False
 
-# ── Carrito flotante (badge) ──────────────────────────────────────────────────
-_num_float = sum(st.session_state.carrito.values())
-if _num_float > 0:
-    # El carrito flotante navega via window.parent.location para salir del iframe de Streamlit
-    st.markdown(f"""
-    <div id="bejo-cart-float" title="Ver carrito" onclick="window.parent.location.href=window.parent.location.pathname+'?go=carrito'" style="cursor:pointer;">
-        🛒 <span>Mi Carrito</span>
-        <span class="cart-badge">{_num_float}</span>
-    </div>
-    """, unsafe_allow_html=True)
+# (carrito flotante eliminado - ahora está fijo en la barra de navegación superior derecha)
 
 
 # ════════════════════════════════════════════════════════════════════════════
