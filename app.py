@@ -10,6 +10,7 @@ import urllib.parse
 import base64
 from io import BytesIO
 import time
+import streamlit.components.v1 as st_components
 
 try:
     from PIL import Image
@@ -1632,53 +1633,94 @@ if st.session_state.vista == "carrito":
                 else:
                     st.success(f"✅ ¡Pedido **{id_pedido}** generado! Revisá el stock manualmente.")
 
-                # Redirección automática / Botones finales
+                # ── Redirigir automáticamente a WhatsApp (o mostrar botones) ──────────
                 if mp_url:
+                    # Con Mercado Pago: mostramos ambos botones y abrimos WA automáticamente en nueva pestaña
                     st.markdown(f"""
-                        <div style="background: rgba(40, 167, 69, 0.12); border: 1px solid #25D366; border-radius: 12px; padding: 20px; text-align: center; margin-top: 1.5rem;">
-                            <h3 style="color: #1e7e34; margin: 0 0 12px 0;">🎉 ¡Pedido {id_pedido} confirmado!</h3>
-                            <p style="color: #2c3e50; margin-bottom: 16px; font-size: 1rem;">
-                                Tocá los botones de abajo para <b>pagar</b> y luego <b>avisar al vendedor por WhatsApp</b>.
+                        <div style="background:linear-gradient(135deg,rgba(0,200,80,0.15),rgba(37,211,102,0.08));
+                                    border:2px solid #25D366; border-radius:16px; padding:22px;
+                                    text-align:center; margin-top:1.5rem;">
+                            <h3 style="color:#ffffff; margin:0 0 10px 0; font-size:1.4rem;">
+                                🎉 ¡Pedido {id_pedido} confirmado!
+                            </h3>
+                            <p style="color:#c8ffd4; margin-bottom:18px; font-size:0.97rem;">
+                                Se está abriendo WhatsApp automáticamente.
+                                Si no abre, tocá los botones de abajo.
                             </p>
-                            <div style="display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center;">
+                            <div style="display:flex; flex-direction:column; gap:12px; align-items:center;">
                                 <a href="{mp_url}" target="_blank"
-                                   style="display:inline-block; background: #009EE3; color:white; font-weight:900;
-                                          padding:14px 32px; border-radius:14px; text-decoration:none;
-                                          font-size:1.1rem; box-shadow:0 4px 15px rgba(0,158,227,0.4); width:80%; max-width:320px;">
+                                   style="display:inline-block; background:#009EE3; color:white;
+                                          font-weight:900; padding:14px 32px; border-radius:14px;
+                                          text-decoration:none; font-size:1.05rem;
+                                          box-shadow:0 4px 15px rgba(0,158,227,0.4); width:80%; max-width:320px;">
                                     💳 PAGAR CON MERCADO PAGO
                                 </a>
                                 <a href="{ws_url}" target="_blank"
-                                   style="display:inline-block; background: linear-gradient(135deg,#25D366,#1aab50);
-                                          color:white; font-weight:900; padding:14px 32px; border-radius:14px;
-                                          text-decoration:none; font-size:1.1rem;
+                                   style="display:inline-block;
+                                          background:linear-gradient(135deg,#25D366,#1aab50);
+                                          color:white; font-weight:900; padding:14px 32px;
+                                          border-radius:14px; text-decoration:none; font-size:1.05rem;
                                           box-shadow:0 6px 24px rgba(37,211,102,0.45); width:80%; max-width:320px;">
                                     📲 AVISAR POR WHATSAPP
                                 </a>
                             </div>
-                            <p style="color:#5d6d7e; font-size:0.82rem; margin-top:14px;">
-                                Primero pagá con Mercado Pago y luego enviá el detalle al vendedor por WhatsApp.
+                            <p style="color:#a8e6bc; font-size:0.82rem; margin-top:14px;">
+                                Priméro pagá con Mercado Pago, luego WhatsApp se abre automáticamente.
                             </p>
                         </div>
                     """, unsafe_allow_html=True)
+                    # Abrir WhatsApp automáticamente en nueva pestaña (1.5 seg de delay)
+                    st_components.html(f"""
+                    <script>
+                    setTimeout(function() {{
+                        window.open('{ws_url}', '_blank');
+                    }}, 1500);
+                    </script>
+                    """, height=0)
                 else:
+                    # Sin Mercado Pago: cuenta regresiva de 3 seg y redirige a WhatsApp
                     st.markdown(f"""
-                        <div style="background: rgba(40, 167, 69, 0.12); border: 1px solid #25D366; border-radius: 12px; padding: 20px; text-align: center; margin-top: 1.5rem;">
-                            <h3 style="color: #1e7e34; margin: 0 0 12px 0;">🎉 ¡Pedido {id_pedido} confirmado!</h3>
-                            <p style="color: #2c3e50; margin-bottom: 18px; font-size: 1rem;">
-                                Tu pedido fue registrado en el sistema. Ahora <b>tocá el botón de abajo</b> para enviar los detalles por WhatsApp al vendedor.
+                        <div style="background:linear-gradient(135deg,rgba(0,200,80,0.15),rgba(37,211,102,0.08));
+                                    border:2px solid #25D366; border-radius:16px; padding:22px;
+                                    text-align:center; margin-top:1.5rem;">
+                            <h3 style="color:#ffffff; margin:0 0 10px 0; font-size:1.4rem;">
+                                🎉 ¡Pedido {id_pedido} confirmado!
+                            </h3>
+                            <p style="color:#c8ffd4; margin-bottom:14px; font-size:0.97rem;">
+                                Abriendo WhatsApp en <b id="ws-cnt" style="font-size:1.3rem; color:#fff;">3</b> segundos...
                             </p>
                             <a href="{ws_url}" target="_blank"
-                               style="display:inline-block; background: linear-gradient(135deg,#25D366,#1aab50);
-                                      color:white; font-weight:900; font-size:1.15rem; padding:14px 32px;
-                                      border-radius:14px; text-decoration:none; letter-spacing:1px;
-                                      box-shadow:0 6px 24px rgba(37,211,102,0.45); margin-bottom:12px;">
+                               id="ws-btn-auto"
+                               style="display:inline-block;
+                                      background:linear-gradient(135deg,#25D366,#1aab50);
+                                      color:white; font-weight:900; font-size:1.1rem;
+                                      padding:14px 36px; border-radius:14px;
+                                      text-decoration:none; letter-spacing:1px;
+                                      box-shadow:0 6px 24px rgba(37,211,102,0.5);">
                                 📲 ENVIAR PEDIDO POR WHATSAPP
                             </a>
-                            <p style="color:#5d6d7e; font-size:0.82rem; margin:8px 0 0 0;">
-                                (Se abrirá WhatsApp con todos los datos del pedido listos para enviar)
+                            <p style="color:#a8e6bc; font-size:0.82rem; margin:12px 0 0 0;">
+                                Si no abre solo, tocá el botón verde.
                             </p>
                         </div>
                     """, unsafe_allow_html=True)
+                    # Auto-redirect via st_components (corre fuera del sandbox de Streamlit)
+                    st_components.html(f"""
+                    <script>
+                    var sec = 3;
+                    function tick() {{
+                        sec--;
+                        var el = window.parent.document.getElementById('ws-cnt');
+                        if(el) el.innerText = sec;
+                        if(sec <= 0) {{
+                            window.top.location.href = '{ws_url}';
+                        }} else {{
+                            setTimeout(tick, 1000);
+                        }}
+                    }}
+                    setTimeout(tick, 1000);
+                    </script>
+                    """, height=0)
     st.stop()
 
 # ── VISTA CATÁLOGO (Default) ──────────────────────────────────────────────────
