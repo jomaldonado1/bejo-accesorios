@@ -388,10 +388,13 @@ div[data-testid="stFileUploader"] label { color:#2c3e50 !important; }
 div[data-testid="stFileUploader"] button { color:#ff6b35 !important; border-color:#ff6b35 !important; }
 
 /* ── INFO BOXES ── */
-.info-ws { background:rgba(40,167,69,0.1); border:1px solid #28a745; border-radius:12px; padding:1rem 1.5rem; color:#1e7e34; margin:.5rem 0; }
-.info-transfer { background:rgba(255,193,7,0.12); border:2px solid #ffc107; border-radius:12px; padding:1.2rem 1.5rem; color:#856404; margin:.5rem 0; font-weight:600; }
-.info-transfer b { font-size:1.3rem; color:#856404; }
-.error-validacion { background:rgba(220,53,69,0.12); border:2px solid #dc3545; border-radius:12px; padding:.9rem 1.5rem; color:#721c24; font-weight:700; margin:.5rem 0; text-align:center; }
+.info-ws { background:rgba(37,211,102,0.15); border:2px solid #25D366; border-radius:12px; padding:1rem 1.5rem; color:#ffffff; margin:.5rem 0; font-weight:600; text-shadow:0 1px 2px rgba(0,0,0,0.5); }
+.info-ws b { color:#a0ffb8; }
+.info-envio { background:rgba(255,107,53,0.18); border:2px solid #ff6b35; border-radius:12px; padding:1rem 1.5rem; color:#ffffff; margin:.5rem 0; font-size:0.92rem; font-weight:600; text-shadow:0 1px 2px rgba(0,0,0,0.5); line-height:1.7; }
+.info-envio b { color:#ffd0b0; }
+.info-transfer { background:rgba(255,193,7,0.2); border:2px solid #ffc107; border-radius:12px; padding:1.2rem 1.5rem; color:#ffffff; margin:.5rem 0; font-weight:600; text-shadow:0 1px 2px rgba(0,0,0,0.5); }
+.info-transfer b { font-size:1.3rem; color:#ffe066; }
+.error-validacion { background:rgba(220,53,69,0.2); border:2px solid #dc3545; border-radius:12px; padding:.9rem 1.5rem; color:#ffffff; font-weight:700; margin:.5rem 0; text-align:center; text-shadow:0 1px 2px rgba(0,0,0,0.4); }
 
 /* ── ADMIN ── */
 .admin-filtros { background:rgba(255,107,53,0.04); border:1px solid rgba(255,107,53,0.15); border-radius:14px; padding:1rem 1.2rem; margin-bottom:1rem; }
@@ -555,37 +558,51 @@ def geocodificar_inversa_nominatim(lat, lon):
 def geocodificar_directa_nominatim(query):
     import requests as _req
     import urllib.parse
+    import re as _re
     query_clean = query.strip()
     if not query_clean:
         return None
-    search_q = query_clean
-    if "tucuman" not in query_clean.lower():
-        search_q += ", San Miguel de Tucumán, Tucumán, Argentina"
-    else:
-        if "argentina" not in query_clean.lower():
-            search_q += ", Argentina"
-            
-    url = f"https://nominatim.openstreetmap.org/search?format=json&q={urllib.parse.quote(search_q)}&limit=1"
-    headers = {
-        'User-Agent': 'BEJO_Accesorios_App/1.0 (tienda_accesorios_agent)'
-    }
-    try:
-        r = _req.get(url, headers=headers, timeout=5)
-        if r.status_code == 200:
-            data = r.json()
-            if data:
-                lat = float(data[0]["lat"])
-                lon = float(data[0]["lon"])
-                address_parts = data[0].get("display_name", "")
-                partes = [p.strip() for p in address_parts.split(",")]
-                if len(partes) > 4:
-                    clean_display = ", ".join(partes[:4])
-                else:
-                    clean_display = ", ".join(partes)
-                return lat, lon, clean_display
+
+    headers = {'User-Agent': 'BEJO_Accesorios_App/1.0 (tienda_accesorios_agent)'}
+
+    def _buscar(q):
+        url = f"https://nominatim.openstreetmap.org/search?format=json&q={urllib.parse.quote(q)}&limit=1&countrycodes=ar"
+        try:
+            r = _req.get(url, headers=headers, timeout=6)
+            if r.status_code == 200:
+                data = r.json()
+                if data:
+                    lat = float(data[0]["lat"])
+                    lon = float(data[0]["lon"])
+                    partes = [p.strip() for p in data[0].get("display_name", "").split(",")]
+                    clean_display = ", ".join(partes[:4]) if len(partes) > 4 else ", ".join(partes)
+                    return lat, lon, clean_display
+        except Exception:
+            pass
         return None
-    except Exception:
-        return None
+
+    base = "San Miguel de Tucumán, Tucumán, Argentina"
+
+    # Intentos en orden: directo, con ciudad, variante sin numero, solo calle+ciudad
+    intentos = []
+    intentos.append(f"{query_clean}, {base}")
+
+    # Separar posible calle y número (ej: "Haiti 6" → calle="Haiti", num="6")
+    m = _re.match(r'^([\D]+?)\s*(\d+)\s*$', query_clean)
+    if m:
+        calle, numero = m.group(1).strip(), m.group(2).strip()
+        intentos.append(f"{calle} {numero}, San Miguel de Tucumán, Argentina")
+        intentos.append(f"Calle {calle} {numero}, San Miguel de Tucumán, Argentina")
+        intentos.append(f"{calle}, San Miguel de Tucumán, Argentina")
+
+    if "tucuman" in query_clean.lower():
+        intentos.insert(0, query_clean if "argentina" in query_clean.lower() else query_clean + ", Argentina")
+
+    for intento in intentos:
+        res = _buscar(intento)
+        if res:
+            return res
+    return None
 
 
 
@@ -832,6 +849,7 @@ for k, v in {
     "last_clicked_tracked": None,
     "inp_dir": "",
     "geo_error": None,
+    "inp_dir_version": 0,         # contador para forzar re-render del input
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -856,6 +874,16 @@ if _add_idx:
     _qp = dict(st.query_params)
     _qp.pop("add_cart", None)
     st.query_params.from_dict(_qp)
+    st.rerun()
+
+# ── PROCESAR NAVEGACIÓN DESDE QUERY PARAMS (?go=carrito) ──
+_go_param = st.query_params.get("go", "")
+if _go_param == "carrito":
+    _qp2 = dict(st.query_params)
+    _qp2.pop("go", None)
+    st.query_params.from_dict(_qp2)
+    if st.session_state.carrito:
+        st.session_state.vista = "carrito"
     st.rerun()
 
 # ── CONDITIONAL CSS FOR ADMIN PANEL HOVER ──
@@ -1398,23 +1426,26 @@ if st.session_state.vista == "carrito":
             unsafe_allow_html=True)
 
         elif metodo_entrega == "🏠  Envío a domicilio":
-            st.markdown(f"""
-            <div style="background: rgba(255, 107, 53, 0.12); border-left: 4px solid #ff6b35; padding: 12px; border-radius: 0 10px 10px 0; margin-bottom: 15px; font-size: 0.9rem; color: #2c3e50;">
+            st.markdown("""
+            <div class="info-envio">
                 🛵 <b>Información sobre Envíos:</b><br>
                 • Realizamos envíos en <b>San Miguel de Tucumán</b> (consultar por envíos fuera de S.M.T.).<br>
                 • <b>Envío GRATIS</b> dentro de las 4 Avenidas.<br>
-                • Fuera de las 4 Avenidas, se coordinará el costo por WhatsApp de acuerdo a tu dirección.
+                • Fuera de las 4 Avenidas, coordinamos el costo por WhatsApp según tu dirección.
             </div>
             """, unsafe_allow_html=True)
             st.markdown("#### 📍 Tu dirección de entrega")
 
-            # Buscador y campo de dirección única
+            # Buscador y campo de dirección
+            # Usamos key con versión para que Streamlit re-renderice el widget cuando cambia desde el mapa
+            _inp_key = f"inp_dir_widget_{st.session_state.inp_dir_version}"
             addr_col1, addr_col2 = st.columns([3, 1])
             with addr_col1:
                 direccion = st.text_input(
                     "Dirección de entrega (calle y número):",
                     value=st.session_state.inp_dir,
-                    placeholder="Ej: Marcos Paz 987, San Miguel de Tucumán",
+                    placeholder="Ej: Haiti 650, San Miguel de Tucumán",
+                    key=_inp_key,
                 )
                 st.session_state.inp_dir = direccion
             with addr_col2:
@@ -1422,33 +1453,35 @@ if st.session_state.vista == "carrito":
                 buscar_btn = st.button("Buscar 🔍", use_container_width=True, help="Busca esta dirección en el mapa y mueve el pin")
 
             if buscar_btn and direccion.strip():
-                res_geo = geocodificar_directa_nominatim(direccion)
+                with st.spinner("Buscando en el mapa..."):
+                    res_geo = geocodificar_directa_nominatim(direccion)
                 if res_geo:
                     lat, lon, display_addr = res_geo
                     st.session_state.map_coords = [lat, lon]
                     st.session_state.inp_dir = display_addr
+                    st.session_state.inp_dir_version += 1
                     st.session_state.geo_error = None
                     st.rerun()
                 else:
-                    st.session_state.geo_error = f"⚠️ No se encontró la dirección '{direccion}' en San Miguel de Tucumán. Verificá que esté bien escrita o hacé clic directamente en el mapa."
+                    st.session_state.geo_error = f"No se encontró '{direccion}' en Tucumán. Probá escribir el nombre completo de la calle o hacé clic directamente en el mapa."
             
             if st.session_state.get("geo_error"):
-                st.warning(st.session_state.geo_error)
+                st.warning(f"⚠️ {st.session_state.geo_error}")
             
-            st.markdown("<p style='font-size:0.85rem; color:#5d6d7e; margin-bottom:8px;'>📍 También podés hacer clic o tocar directamente en el mapa para mover el pin a tu ubicación exacta:</p>", unsafe_allow_html=True)
+            st.markdown("<p style='font-size:0.85rem; color:#c0b8e8; margin-bottom:8px;'>📍 También podés tocar directamente en el mapa para mover el pin a tu ubicación exacta:</p>", unsafe_allow_html=True)
             
             map_coords = st.session_state.map_coords
             m = folium.Map(location=map_coords, zoom_start=16, control_scale=True)
             folium.Marker(
                 map_coords,
                 popup="Tu ubicación seleccionada",
-                tooltip="Hacé clic en el mapa para mover este pin",
+                tooltip="Tocá el mapa para mover este pin",
                 icon=folium.Icon(color="red", icon="info-sign")
             ).add_to(m)
             
             map_data = st_folium(
                 m,
-                height=280,
+                height=290,
                 use_container_width=True,
                 key="direccion_map_picker",
                 returned_objects=["last_clicked"]
@@ -1461,11 +1494,12 @@ if st.session_state.vista == "carrito":
                     st.session_state.last_clicked_tracked = last_clicked
                     lat, lon = last_clicked["lat"], last_clicked["lng"]
                     st.session_state.map_coords = [lat, lon]
-                    st.session_state.geo_error = None  # Limpiar error
-                    with st.spinner("Buscando dirección..."):
+                    st.session_state.geo_error = None
+                    with st.spinner("Detectando dirección del punto seleccionado..."):
                         dir_geocodificada = geocodificar_inversa_nominatim(lat, lon)
                         if dir_geocodificada:
                             st.session_state.inp_dir = dir_geocodificada
+                            st.session_state.inp_dir_version += 1  # fuerza re-render del text_input
                     st.rerun()
 
         st.markdown('<div class="seccion-titulo">💳 Método de Pago</div>', unsafe_allow_html=True)
@@ -1565,40 +1599,48 @@ if st.session_state.vista == "carrito":
                 if mp_url:
                     st.markdown(f"""
                         <div style="background: rgba(40, 167, 69, 0.12); border: 1px solid #25D366; border-radius: 12px; padding: 20px; text-align: center; margin-top: 1.5rem;">
-                            <h3 style="color: #1e7e34; margin: 0 0 15px 0;">🎉 ¡Pedido {id_pedido} confirmado!</h3>
-                            <p style="color: #2c3e50; margin-bottom: 20px; font-size: 1.05rem;">
-                                Por favor, realizá el pago en Mercado Pago y enviá el pedido por WhatsApp.
+                            <h3 style="color: #1e7e34; margin: 0 0 12px 0;">🎉 ¡Pedido {id_pedido} confirmado!</h3>
+                            <p style="color: #2c3e50; margin-bottom: 16px; font-size: 1rem;">
+                                Tocá los botones de abajo para <b>pagar</b> y luego <b>avisar al vendedor por WhatsApp</b>.
                             </p>
                             <div style="display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center;">
-                                <a href="{mp_url}" target="_blank" style="display: inline-block; background: #009EE3; color: white; font-weight: 800; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(0,158,227,0.4); border: none; width: 80%; max-width: 320px;">
+                                <a href="{mp_url}" target="_blank"
+                                   style="display:inline-block; background: #009EE3; color:white; font-weight:900;
+                                          padding:14px 32px; border-radius:14px; text-decoration:none;
+                                          font-size:1.1rem; box-shadow:0 4px 15px rgba(0,158,227,0.4); width:80%; max-width:320px;">
                                     💳 PAGAR CON MERCADO PAGO
                                 </a>
-                                <a href="{ws_url}" target="_self" style="display: inline-block; background: #25D366; color: white; font-weight: 800; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(37,211,102,0.4); border: none; width: 80%; max-width: 320px;">
-                                    📲 ENVIAR POR WHATSAPP
+                                <a href="{ws_url}" target="_blank"
+                                   style="display:inline-block; background: linear-gradient(135deg,#25D366,#1aab50);
+                                          color:white; font-weight:900; padding:14px 32px; border-radius:14px;
+                                          text-decoration:none; font-size:1.1rem;
+                                          box-shadow:0 6px 24px rgba(37,211,102,0.45); width:80%; max-width:320px;">
+                                    📲 AVISAR POR WHATSAPP
                                 </a>
                             </div>
-                            <p style="color: #5d6d7e; font-size: 0.85rem; margin-top: 20px;">
-                                En 5 segundos te redirigiremos automáticamente a WhatsApp para que envíes el detalle y el link al vendedor.
+                            <p style="color:#5d6d7e; font-size:0.82rem; margin-top:14px;">
+                                Primero pagá con Mercado Pago y luego enviá el detalle al vendedor por WhatsApp.
                             </p>
                         </div>
-                        <script>
-                            setTimeout(function() {{
-                                window.location.href = "{ws_url}";
-                            }}, 5000);
-                        </script>
                     """, unsafe_allow_html=True)
                 else:
                     st.markdown(f"""
-                        <div style="background: rgba(40, 167, 69, 0.12); border: 1px solid #25D366; border-radius: 12px; padding: 15px; text-align: center; margin-top: 1.5rem;">
-                            <h3 style="color: #1e7e34; margin: 0 0 10px 0;">📲 Redirigiendo a WhatsApp...</h3>
-                            <p style="color: #2c3e50; margin: 0; font-size: 1rem;">Estamos abriendo tu chat para enviar los detalles del pedido <b>{id_pedido}</b>.</p>
-                            <p style="color: #5d6d7e; font-size: 0.85rem; margin: 10px 0 0 0;">Si la aplicación no se abre automáticamente, <a href="{ws_url}" target="_self" style="color: #ff6b35; font-weight: 700; text-decoration: underline;">hacé clic acá para enviar</a>.</p>
+                        <div style="background: rgba(40, 167, 69, 0.12); border: 1px solid #25D366; border-radius: 12px; padding: 20px; text-align: center; margin-top: 1.5rem;">
+                            <h3 style="color: #1e7e34; margin: 0 0 12px 0;">🎉 ¡Pedido {id_pedido} confirmado!</h3>
+                            <p style="color: #2c3e50; margin-bottom: 18px; font-size: 1rem;">
+                                Tu pedido fue registrado en el sistema. Ahora <b>tocá el botón de abajo</b> para enviar los detalles por WhatsApp al vendedor.
+                            </p>
+                            <a href="{ws_url}" target="_blank"
+                               style="display:inline-block; background: linear-gradient(135deg,#25D366,#1aab50);
+                                      color:white; font-weight:900; font-size:1.15rem; padding:14px 32px;
+                                      border-radius:14px; text-decoration:none; letter-spacing:1px;
+                                      box-shadow:0 6px 24px rgba(37,211,102,0.45); margin-bottom:12px;">
+                                📲 ENVIAR PEDIDO POR WHATSAPP
+                            </a>
+                            <p style="color:#5d6d7e; font-size:0.82rem; margin:8px 0 0 0;">
+                                (Se abrirá WhatsApp con todos los datos del pedido listos para enviar)
+                            </p>
                         </div>
-                        <script>
-                            setTimeout(function() {{
-                                window.location.href = "{ws_url}";
-                            }}, 2000);
-                        </script>
                     """, unsafe_allow_html=True)
     st.stop()
 
@@ -1612,20 +1654,12 @@ if st.session_state.get("mostrar_banner_carrito"):
 # ── Carrito flotante (badge) ──────────────────────────────────────────────────
 _num_float = sum(st.session_state.carrito.values())
 if _num_float > 0:
+    # El carrito flotante navega via window.parent.location para salir del iframe de Streamlit
     st.markdown(f"""
-    <div id="bejo-cart-float" title="Ver carrito">
+    <div id="bejo-cart-float" title="Ver carrito" onclick="window.parent.location.href=window.parent.location.pathname+'?go=carrito'" style="cursor:pointer;">
         🛒 <span>Mi Carrito</span>
         <span class="cart-badge">{_num_float}</span>
     </div>
-    <script>
-    document.getElementById('bejo-cart-float').addEventListener('click', function() {{
-        var buttons = window.parent.document.querySelectorAll('button');
-        var clicked = false;
-        buttons.forEach(function(b) {{
-            if (!clicked && b.innerText.includes('Carrito')) {{ b.click(); clicked = true; }}
-        }});
-    }});
-    </script>
     """, unsafe_allow_html=True)
 
 
