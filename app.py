@@ -27,24 +27,50 @@ st.set_page_config(
 CLAVE_ADMIN = "BEJO2024"
 NUMERO_WS   = "5493816582851"
 
-# ── Cargar Recursos Locales (Fondo Claro) ────────────────────────────────────
+# ── Fondo Moderno ──────────────────────────────────────────────────────────────
 import base64 as _b64
+_MODERN_BG_CSS = """
+    html, body,
+    [data-testid="stAppViewContainer"],
+    [data-testid="stApp"],
+    .stApp {
+        background: linear-gradient(160deg,
+            #0f0c29 0%,
+            #1a1a4e 30%,
+            #24243e 60%,
+            #0f3460 100%) !important;
+        background-attachment: fixed !important;
+    }
+    /* Patrón de puntos sutiles sobre el gradiente */
+    [data-testid="stAppViewContainer"]::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background-image:
+            radial-gradient(circle at 25% 25%, rgba(255,107,53,0.08) 0%, transparent 50%),
+            radial-gradient(circle at 75% 75%, rgba(100,149,237,0.06) 0%, transparent 50%),
+            url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        pointer-events: none;
+        z-index: 0;
+    }
+"""
 try:
-    with open("light_bg.png", "rb") as _f:
+    with open("modern_bg.png", "rb") as _f:
         _bg_b64 = _b64.b64encode(_f.read()).decode()
-    _bg_css = f"""
-    html, body {{
+    _MODERN_BG_CSS += f"""
+    [data-testid="stAppViewContainer"] {{
         background-image: url("data:image/png;base64,{_bg_b64}") !important;
         background-size: cover !important;
         background-position: center !important;
         background-repeat: no-repeat !important;
         background-attachment: fixed !important;
+        background-blend-mode: overlay !important;
     }}
     """
 except Exception:
-    _bg_css = "html, body { background: #f4f5f8 !important; }"
+    pass  # usa el gradiente oscuro definido arriba
 
-st.markdown(f"<style>{_bg_css}</style>", unsafe_allow_html=True)
+st.markdown(f"<style>{_MODERN_BG_CSS}</style>", unsafe_allow_html=True)
 
 # ── CSS ──────────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -134,7 +160,7 @@ section.main {
     filter: drop-shadow(0 0 20px #ff6b3588);
 }
 .bejo-subtitle {
-    text-align: center; color: #5d4d99;
+    text-align: center; color: rgba(200,190,255,0.85);
     font-size: clamp(0.65rem, 2.5vw, 1rem);
     letter-spacing: 3px; margin-top: -0.5rem; margin-bottom: 1.5rem;
 }
@@ -142,11 +168,11 @@ section.main {
 /* ── NAVBAR PREMIUM ── */
 .bejo-navwrap {
     margin: 0.5rem 0 1.2rem 0;
-    background: rgba(255, 255, 255, 0.8) !important;
-    border: 1px solid rgba(255, 107, 53, 0.25) !important;
+    background: rgba(15, 12, 41, 0.75) !important;
+    border: 1px solid rgba(255, 107, 53, 0.35) !important;
     border-radius: 14px;
-    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.08) !important;
-    backdrop-filter: blur(8px) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+    backdrop-filter: blur(12px) !important;
     overflow: visible;
     position: relative;
 }
@@ -967,160 +993,45 @@ if not df_stock.empty:
         _t_display = str(_t).capitalize()
         _t_js = str(_t).replace("'", "\\'")
         _dd_items_html += f'        <button class="nav-dd-item" onclick="bejoNavFiltro(\'{_t_js}\')">{_t_display}</button>\n'
-else:
-    _dd_items_html += '        <button class="nav-dd-item">Sin categorías</button>\n'
-
-_dd_items_html += '        <div class="nav-dd-sep"></div>\n'
-_dd_items_html += '        <button class="nav-dd-item" onclick="bejoNav(\'catalogo\')">Ver Todo el Catálogo</button>\n'
-
-st.markdown(f"""
-<div class="bejo-navwrap">
-  <ul class="bejo-navlist">
-    <!-- Catálogo -->
-    <li>
-      <button class="bejo-navitem{_act_cat}" onclick="bejoNav('catalogo')">
-        Catálogo
-      </button>
-    </li>
-    <!-- Productos con dropdown -->
-    <li class="nav-has-dd" style="position:relative">
-      <button class="bejo-navitem{_act_prod}" onclick="bejoNav('productos')">
-        Productos <span class="nav-arrow">▼</span>
-      </button>
-      <div class="nav-dropdown">
-{_dd_items_html}      </div>
-    </li>
-    <li><div class="nav-divider"></div></li>
-    <!-- Ofertas -->
-    <li>
-      <button class="bejo-navitem nav-oferta{_act_oferta}" onclick="bejoNav('ofertas')">
-        🔥 Ofertas
-      </button>
-    </li>
-    <!-- Venta x Mayor -->
-    <li>
-      <button class="bejo-navitem nav-mayor{_act_mayor}" onclick="bejoNav('mayor')">
-        Venta x Mayor
-      </button>
-    </li>
-    <li><div class="nav-divider"></div></li>
-    <!-- Compatibilidad -->
-    <li>
-      <button class="bejo-navitem{_act_compat}" onclick="bejoNav('compatibilidad')">
-        Compatibilidad
-      </button>
-    </li>
-    <li><div class="nav-divider"></div></li>
-    <!-- Carrito -->
-    <li>
-      <button class="bejo-navitem{_act_cart}" onclick="{_cart_click_action}" {"style='background:linear-gradient(135deg,#ff6b35,#e03500);color:#fff;border-color:#ff6b35;box-shadow:0 3px 14px rgba(255,107,53,.45)' " if _vista_actual=='carrito' else ''}>
-        🛒 Carrito {_cart_badge}
-      </button>
-    </li>
-    <!-- WhatsApp -->
-    <li>
-      <a class="bejo-navitem nav-ws" href="{_ws_url}" target="_blank">
-        WhatsApp
-      </a>
-    </li>
-  </ul>
-</div>
-<script>
-function bejoNav(vista) {{
-  var doc = window.parent.document;
-  var btns = doc.querySelectorAll('button');
-  var textMap = {{
-    'catalogo': 'catálogo',
-    'compatibilidad': 'compatibilidad',
-    'carrito': 'carrito',
-    'ofertas': 'ofertas',
-    'mayor': 'mayor',
-    'productos': 'productos'
-  }};
-  var target = textMap[vista];
-  var found = false;
-  if (vista === 'catalogo') {{
-    var url = new URL(window.location.href);
-    url.searchParams.delete('tipo_filtro');
-    url.searchParams.delete('marca_filtro');
-    window.history.pushState({{}}, '', url.toString());
-  }}
-  btns.forEach(function(b) {{
-    var t = (b.innerText || '').toLowerCase().trim();
-    if (!found && t === target) {{ b.click(); found = true; }}
-  }});
-  if (!found) {{
-    btns.forEach(function(b) {{
-      var t = (b.innerText || '').toLowerCase();
-      if (!found && t.includes(target)) {{ b.click(); found = true; }}
-    }});
-  }}
-}}
-function bejoNavFiltro(tipo, marca) {{
-  var url = new URL(window.location.href);
-  if (tipo) url.searchParams.set('tipo_filtro', tipo);
-  else url.searchParams.delete('tipo_filtro');
-  if (marca) url.searchParams.set('marca_filtro', marca);
-  else url.searchParams.delete('marca_filtro');
-  window.history.pushState({{}}, '', url.toString());
-  bejoNav('catalogo');
-}}
-function hideBejoTriggers() {{
-  try {{
-    var doc = window.parent.document;
-    var btns = doc.querySelectorAll('button');
-    btns.forEach(function(b) {{
-      var t = (b.innerText || '').toLowerCase().trim();
-      if (['🏠 catálogo', '🔍 compatibilidad', '🛒 carrito', '🔥 ofertas', '📦 mayor', '📦 productos', 'catálogo', 'compatibilidad', 'carrito', 'ofertas', 'mayor', 'productos'].includes(t)) {{
-        var col = b.closest('div[data-testid="stColumn"]');
-        if (col) col.style.setProperty('display', 'none', 'important');
-        var row = b.closest('div[data-testid="stHorizontalBlock"]');
-        if (row) {{
-          row.style.setProperty('display', 'none', 'important');
-          row.style.setProperty('height', '0', 'important');
-          row.style.setProperty('margin', '0', 'important');
-          row.style.setProperty('padding', '0', 'important');
-        }}
-      }}
-    }});
-  }} catch(e) {{}}
-}}
-hideBejoTriggers();
-setTimeout(hideBejoTriggers, 200);
-setTimeout(hideBejoTriggers, 800);
-setTimeout(hideBejoTriggers, 2000);
-</script>
-""", unsafe_allow_html=True)
-
-# Botones ocultos para la navegación real de Streamlit
+# ── NAVIGACIÓN UNIFICADA ────────────────────────────────────────────────
 st.markdown('<div class="bejo-nav-triggers">', unsafe_allow_html=True)
 _nb1, _nb2, _nb3, _nb4, _nb5, _nb6 = st.columns(6)
 with _nb1:
-    _click_home = st.button("🏠 Catálogo", key="nav_home", use_container_width=True,
-                            type="primary" if _vista_actual == "catalogo" else "secondary")
+    if st.button("🏠 Catálogo", key="nav_home", use_container_width=True,
+                 type="primary" if _vista_actual == "catalogo" else "secondary"):
+        st.session_state.vista = "catalogo"
+        st.rerun()
 with _nb2:
-    _click_compat = st.button("🔍 Compatibilidad", key="nav_compat", use_container_width=True,
-                               type="primary" if _vista_actual == "compatibilidad" else "secondary")
+    if st.button("🔍 Compatibilidad", key="nav_compat", use_container_width=True,
+                 type="primary" if _vista_actual == "compatibilidad" else "secondary"):
+        st.session_state.vista = "compatibilidad"
+        st.rerun()
 with _nb3:
-    _click_cart = st.button(f"🛒 Carrito", key="nav_cart", use_container_width=True,
-                             type="primary" if _vista_actual == "carrito" else "secondary")
+    if st.button(f"🛒 Carrito ({len(st.session_state.carrito) if st.session_state.carrito else 0})",
+                 key="nav_cart", use_container_width=True,
+                 type="primary" if _vista_actual == "carrito" else "secondary"):
+        if not st.session_state.carrito:
+            st.warning("🛒 No hay nada cargado aún.")
+        else:
+            st.session_state.vista = "carrito"
+            st.rerun()
 with _nb4:
-    _click_ofertas = st.button("🔥 Ofertas", key="nav_ofertas", use_container_width=True,
-                                type="primary" if _vista_actual == "ofertas" else "secondary")
+    if st.button("🔥 Ofertas", key="nav_ofertas", use_container_width=True,
+                 type="primary" if _vista_actual == "ofertas" else "secondary"):
+        st.session_state.vista = "ofertas"
+        st.rerun()
 with _nb5:
-    _click_mayor = st.button("📦 Mayor", key="nav_mayor", use_container_width=True,
-                              type="primary" if _vista_actual == "mayor" else "secondary")
+    if st.button("📦 Mayor", key="nav_mayor", use_container_width=True,
+                 type="primary" if _vista_actual == "mayor" else "secondary"):
+        st.session_state.vista = "mayor"
+        st.rerun()
 with _nb6:
-    _click_productos = st.button("📦 Productos", key="nav_productos", use_container_width=True,
-                                  type="primary" if _vista_actual == "productos" else "secondary")
+    if st.button("📦 Productos", key="nav_productos", use_container_width=True,
+                 type="primary" if _vista_actual == "productos" else "secondary"):
+        st.session_state.vista = "productos"
+        st.rerun()
 st.markdown('</div>', unsafe_allow_html=True)
 
-if _click_home:   st.session_state.vista = "catalogo";       st.rerun()
-if _click_compat: st.session_state.vista = "compatibilidad"; st.rerun()
-if _click_cart:   st.session_state.vista = "carrito";        st.rerun()
-if _click_ofertas:st.session_state.vista = "ofertas";        st.rerun()
-if _click_mayor:  st.session_state.vista = "mayor";          st.rerun()
-if _click_productos: st.session_state.vista = "productos";   st.rerun()
 
 # ── VISTA PRODUCTOS (Resumen de Catálogo / Árbol) ──────────────────────────────────
 if st.session_state.vista == "productos":
@@ -2189,6 +2100,8 @@ with st.expander("⚙️ Panel de Control – Solo Administrador"):
             with dc2:
                 # Descargar pedidos
                 df_pedidos_all = cargar_pedidos_sheets()
+                # descargar pedidos sigue abajo
+
                 if not df_pedidos_all.empty:
                     buffer_ped = BytesIO()
                     with pd.ExcelWriter(buffer_ped, engine='openpyxl') as writer:
