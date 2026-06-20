@@ -27,50 +27,51 @@ st.set_page_config(
 CLAVE_ADMIN = "BEJO2024"
 NUMERO_WS   = "5493816582851"
 
-# ── Fondo Moderno ──────────────────────────────────────────────────────────────
-import base64 as _b64
-_MODERN_BG_CSS = """
-    html, body,
-    [data-testid="stAppViewContainer"],
-    [data-testid="stApp"],
-    .stApp {
-        background: linear-gradient(160deg,
-            #0f0c29 0%,
-            #1a1a4e 30%,
-            #24243e 60%,
-            #0f3460 100%) !important;
-        background-attachment: fixed !important;
-    }
-    /* Patrón de puntos sutiles sobre el gradiente */
-    [data-testid="stAppViewContainer"]::before {
-        content: '';
-        position: fixed;
-        inset: 0;
-        background-image:
-            radial-gradient(circle at 25% 25%, rgba(255,107,53,0.08) 0%, transparent 50%),
-            radial-gradient(circle at 75% 75%, rgba(100,149,237,0.06) 0%, transparent 50%),
-            url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-        pointer-events: none;
-        z-index: 0;
-    }
-"""
-try:
-    with open("modern_bg.png", "rb") as _f:
-        _bg_b64 = _b64.b64encode(_f.read()).decode()
-    _MODERN_BG_CSS += f"""
-    [data-testid="stAppViewContainer"] {{
-        background-image: url("data:image/png;base64,{_bg_b64}") !important;
-        background-size: cover !important;
-        background-position: center !important;
-        background-repeat: no-repeat !important;
-        background-attachment: fixed !important;
-        background-blend-mode: overlay !important;
-    }}
-    """
-except Exception:
-    pass  # usa el gradiente oscuro definido arriba
+# ── Fondo Moderno (dark premium) ──────────────────────────────────────────────
+st.markdown("""
+<style>
+/* =====================================================
+   FONDO OSCURO PREMIUM - BEJO
+   Targets every element Streamlit uses as the root
+   ===================================================== */
+.stApp,
+[data-testid="stApp"],
+[data-testid="stAppViewContainer"],
+[data-testid="stAppViewContainer"] > .main,
+.main,
+body,
+html {
+    background: linear-gradient(135deg,
+        #0d0221 0%,
+        #1a0533 25%,
+        #0f2460 55%,
+        #1a0533 80%,
+        #0d0221 100%) fixed !important;
+    background-attachment: fixed !important;
+    color: #f0f0f0 !important;
+}
 
-st.markdown(f"<style>{_MODERN_BG_CSS}</style>", unsafe_allow_html=True)
+/* Capa de luz naranja/violeta para dar profundidad */
+.stApp::before,
+[data-testid="stApp"]::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+        radial-gradient(ellipse 60% 40% at 15% 15%, rgba(255,107,53,0.22) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 50% at 85% 80%, rgba(90,60,200,0.18) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 50% 50%, rgba(0,120,255,0.10) 0%, transparent 70%);
+}
+
+/* Texto general — asegurar legibilidad sobre fondo oscuro */
+.stApp p, .stApp label, .stApp span,
+.stApp div, .stApp h1, .stApp h2, .stApp h3 {
+    color: inherit;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ── CSS ──────────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -78,13 +79,9 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&display=swap');
 html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
 
-/* ── FONDO + LAYOUT ANCHO ── */
+
+/* ── LAYOUT ANCHO ── */
 html, body {
-    background: transparent !important;
-}
-.stApp,
-[data-testid="stApp"],
-[data-testid="stAppViewContainer"] {
     background: transparent !important;
 }
 
