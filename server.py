@@ -350,6 +350,21 @@ def cargar_compatibilidad_sheets_cached(force=False):
 @app.route('/api/debug/sheets', methods=['GET'])
 def debug_sheets():
     import traceback
+    parse_error = None
+    parsed_dict_keys = None
+    try:
+        gcp_env = os.environ.get("GCP_SERVICE_ACCOUNT")
+        if gcp_env:
+            gcp_env = gcp_env.strip()
+            if gcp_env.startswith('"') and gcp_env.endswith('"'):
+                gcp_env = gcp_env[1:-1]
+            elif gcp_env.startswith("'") and gcp_env.endswith("'"):
+                gcp_env = gcp_env[1:-1]
+            creds_dict = json.loads(gcp_env)
+            parsed_dict_keys = list(creds_dict.keys())
+    except Exception as parse_ex:
+        parse_error = f"{type(parse_ex).__name__}: {str(parse_ex)}"
+        
     try:
         sheet = get_sheet()
         data  = sheet.get_all_records(head=4)
@@ -365,7 +380,9 @@ def debug_sheets():
             "error": str(e),
             "traceback": traceback.format_exc(),
             "gcp_env_exists": "GCP_SERVICE_ACCOUNT" in os.environ,
-            "gcp_env_len": len(os.environ.get("GCP_SERVICE_ACCOUNT", ""))
+            "gcp_env_len": len(os.environ.get("GCP_SERVICE_ACCOUNT", "")),
+            "parse_error": parse_error,
+            "parsed_dict_keys": parsed_dict_keys
         })
 
 @app.route('/api/productos', methods=['GET'])
