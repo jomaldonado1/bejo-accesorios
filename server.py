@@ -43,22 +43,35 @@ def get_creds():
     # 1. Look for env var GCP_SERVICE_ACCOUNT (helpful for Render/Railway)
     gcp_env = os.environ.get("GCP_SERVICE_ACCOUNT")
     if gcp_env:
+        gcp_env = gcp_env.strip()
+        # Strip wrapping quotes if accidentally added by Render or user
+        if gcp_env.startswith('"') and gcp_env.endswith('"'):
+            gcp_env = gcp_env[1:-1]
+        elif gcp_env.startswith("'") and gcp_env.endswith("'"):
+            gcp_env = gcp_env[1:-1]
+            
         try:
-            gcp_env = gcp_env.strip()
-            # Strip wrapping quotes if accidentally added by Render or user
-            if gcp_env.startswith('"') and gcp_env.endswith('"'):
-                gcp_env = gcp_env[1:-1]
-            elif gcp_env.startswith("'") and gcp_env.endswith("'"):
-                gcp_env = gcp_env[1:-1]
-                
             creds_dict = json.loads(gcp_env)
-            # Robustness: replace escaped newlines in the private key
-            if "private_key" in creds_dict:
-                creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+        except Exception as first_err:
+            print(f"Direct GCP_SERVICE_ACCOUNT JSON load failed: {first_err}. Attempting recovery...")
+            try:
+                import re
+                # Replace any single backslash not followed by valid JSON escape character with \n
+                repaired = re.sub(r'\\(?![nrtbf"\\/u])', r'\\n', gcp_env)
+                creds_dict = json.loads(repaired)
+            except Exception as recovery_err:
+                print(f"GCP_SERVICE_ACCOUNT recovery parsing failed: {recovery_err}")
+                creds_dict = None
                 
-            return ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-        except Exception as e:
-            print(f"Error parsing GCP_SERVICE_ACCOUNT env var: {e}")
+        if creds_dict:
+            try:
+                # Robustness: replace escaped newlines in the private key
+                if "private_key" in creds_dict:
+                    creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+                    
+                return ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+            except Exception as e:
+                print(f"Error creating credentials from dict: {e}")
             
     # 2. Look for local claves.json
     if os.path.exists("claves.json"):
