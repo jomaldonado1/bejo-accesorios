@@ -44,7 +44,18 @@ def get_creds():
     gcp_env = os.environ.get("GCP_SERVICE_ACCOUNT")
     if gcp_env:
         try:
+            gcp_env = gcp_env.strip()
+            # Strip wrapping quotes if accidentally added by Render or user
+            if gcp_env.startswith('"') and gcp_env.endswith('"'):
+                gcp_env = gcp_env[1:-1]
+            elif gcp_env.startswith("'") and gcp_env.endswith("'"):
+                gcp_env = gcp_env[1:-1]
+                
             creds_dict = json.loads(gcp_env)
+            # Robustness: replace escaped newlines in the private key
+            if "private_key" in creds_dict:
+                creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+                
             return ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         except Exception as e:
             print(f"Error parsing GCP_SERVICE_ACCOUNT env var: {e}")
