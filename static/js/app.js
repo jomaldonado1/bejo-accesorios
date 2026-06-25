@@ -5,6 +5,7 @@ let compatState = [];
 let cartState = {}; // { index: qty }
 let adminAuthenticated = false;
 let adminToken = "";
+let activeMainTab = "catalog"; // "catalog", "offers", "wholesale"
 
 // ── DOM ELEMENTS ──
 const searchInput = document.getElementById("searchInput");
@@ -218,6 +219,9 @@ function renderCatalog() {
     
     // Filter product state
     let filtered = productsState.filter(p => {
+        // Active Tab filter
+        if (activeMainTab === "offers" && !p.en_oferta) return false;
+        
         // Search text matching
         if (query !== "") {
             const searchable = `${p.nombre} ${p.marca} ${p.modelo} ${p.color}`.toLowerCase();
@@ -238,22 +242,35 @@ function renderCatalog() {
     // Clear grid
     productosGrid.innerHTML = "";
     
-    // Handle results counts and visibility of clear button
-    if (isFiltered) {
-        clearFiltersBtn.classList.remove("hidden");
+    const catalogTitle = document.getElementById("catalogTitle");
+    const catalogSubtitle = document.getElementById("catalogSubtitle");
+    
+    if (activeMainTab === "offers") {
+        catalogTitle.textContent = "🔥 Ofertas Exclusivas";
+        catalogSubtitle.textContent = "Productos en Oferta";
         ofertasSection.classList.add("hidden");
-        resultsCount.textContent = `${filtered.length} artículo(s) encontrado(s)`;
-    } else {
         clearFiltersBtn.classList.add("hidden");
-        resultsCount.textContent = `Catálogo completo (${productsState.length})`;
+        resultsCount.textContent = `${filtered.length} ofertas disponibles`;
+    } else {
+        catalogTitle.textContent = "Encontrá tu accesorio";
+        catalogSubtitle.textContent = isFiltered ? "Resultados de búsqueda" : "Catálogo Completo";
         
-        // Show featured offers in separate grid
-        const offers = productsState.filter(p => p.en_oferta);
-        if (offers.length > 0) {
-            ofertasSection.classList.remove("hidden");
-            renderOffersGrid(offers.slice(0, 3));
-        } else {
+        if (isFiltered) {
+            clearFiltersBtn.classList.remove("hidden");
             ofertasSection.classList.add("hidden");
+            resultsCount.textContent = `${filtered.length} artículo(s) encontrado(s)`;
+        } else {
+            clearFiltersBtn.classList.add("hidden");
+            resultsCount.textContent = `Catálogo completo (${productsState.length})`;
+            
+            // Show featured offers in separate grid
+            const offers = productsState.filter(p => p.en_oferta);
+            if (offers.length > 0) {
+                ofertasSection.classList.remove("hidden");
+                renderOffersGrid(offers.slice(0, 3));
+            } else {
+                ofertasSection.classList.add("hidden");
+            }
         }
     }
     
@@ -281,6 +298,31 @@ function renderOffersGrid(offers) {
     });
 }
 
+// Global function to toggle image inside product card
+window.switchCardImage = function(prodIndex, imgIndex, totalImgs) {
+    for (let i = 0; i < totalImgs; i++) {
+        const img = document.getElementById(`img-${prodIndex}-${i}`);
+        if (img) {
+            if (i === imgIndex) {
+                img.classList.remove("opacity-0", "z-0");
+                img.classList.add("opacity-100", "z-10");
+            } else {
+                img.classList.remove("opacity-100", "z-10");
+                img.classList.add("opacity-0", "z-0");
+            }
+        }
+    }
+    // update dots class
+    const dotEls = document.querySelectorAll(`#dots-${prodIndex} .carousel-dot`);
+    dotEls.forEach((dot, idx) => {
+        if (idx === imgIndex) {
+            dot.classList.add("active");
+        } else {
+            dot.classList.remove("active");
+        }
+    });
+};
+
 // Create Card element for products
 function createProductCard(p, isOfferCard = false) {
     const card = document.createElement("div");
@@ -289,13 +331,13 @@ function createProductCard(p, isOfferCard = false) {
     // Offer Badge
     let offerBadge = "";
     if (p.en_oferta) {
-        offerBadge = `<span class="absolute top-3 left-3 z-10 text-[10px] font-black uppercase bg-offerRed text-white px-2 py-0.5 rounded-md shadow-sm">🔥 Oferta</span>`;
+        offerBadge = `<span class="absolute top-3 left-3 z-30 text-[10px] font-black uppercase bg-offerRed text-white px-2 py-0.5 rounded-md shadow-sm">🔥 Oferta</span>`;
     }
     
-    // Image placeholder check
-    const imgUrl = p.imagen_url && p.imagen_url.trim() !== "" 
-        ? p.imagen_url 
-        : "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500";
+    // Split comma-separated multiple images
+    const imgUrls = p.imagen_url && p.imagen_url.trim() !== ""
+        ? p.imagen_url.split(",").map(url => url.trim()).filter(url => url !== "")
+        : ["https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500"];
         
     // Stock badge styling
     let stockBadge = "";
@@ -304,11 +346,8 @@ function createProductCard(p, isOfferCard = false) {
     if (p.cantidad <= 0) {
         stockBadge = `<span class="inline-flex items-center gap-1.5 text-xs text-offerRed font-semibold mt-1">● Agotado</span>`;
         buttonHtml = `<button disabled class="w-full mt-auto py-3 bg-black/[0.04] text-textMuted text-xs font-bold rounded-xl cursor-not-allowed">Sin Stock</button>`;
-    } else if (p.cantidad <= 2) {
-        stockBadge = `<span class="inline-flex items-center gap-1.5 text-xs text-warningOrange font-semibold mt-1">● ¡Últimas ${p.cantidad} unidades!</span>`;
-        buttonHtml = `<button onclick="addToCart(${p.index})" class="w-full mt-auto py-3 bg-accentBlue hover:bg-accentBlueHover text-white text-xs font-bold rounded-xl transition-all shadow-sm transform active:scale-95">🛒 Agregar al Carrito</button>`;
     } else {
-        stockBadge = `<span class="inline-flex items-center gap-1.5 text-xs text-successGreen font-semibold mt-1">● Stock disponible (${p.cantidad})</span>`;
+        stockBadge = `<span class="inline-flex items-center gap-1.5 text-xs text-successGreen font-semibold mt-1">● Stock disponible</span>`;
         buttonHtml = `<button onclick="addToCart(${p.index})" class="w-full mt-auto py-3 bg-accentBlue hover:bg-accentBlueHover text-white text-xs font-bold rounded-xl transition-all shadow-sm transform active:scale-95">🛒 Agregar al Carrito</button>`;
     }
     
@@ -319,11 +358,33 @@ function createProductCard(p, isOfferCard = false) {
         compatText = `<div class="text-[10px] text-textMuted mt-1 bg-black/[0.02] py-1 px-1.5 rounded-md inline-block">🔗 Compatible: ${matches[0].compatibilidad}</div>`;
     }
 
-    card.innerHTML = `
-        <div class="relative w-full aspect-square overflow-hidden bg-bgLight">
+    // Build Image Area HTML with carousel and zoom overlay
+    let imageAreaHtml = `
+        <div class="relative w-full aspect-square overflow-hidden bg-bgLight product-card-img-container">
             ${offerBadge}
-            <img src="${imgUrl}" alt="${p.nombre}" class="product-card-img w-full h-full object-cover" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500'">
+            <div class="zoom-overlay">🔍</div>
+            ${imgUrls.map((url, idx) => `
+                <img src="${url}" alt="${p.nombre}" 
+                     id="img-${p.index}-${idx}"
+                     class="product-card-img w-full h-full object-cover absolute inset-0 transition-all duration-300 ${idx === 0 ? 'opacity-100 z-10' : 'opacity-0 z-0'}" 
+                     loading="lazy" 
+                     onerror="this.src='https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500'">
+            `).join('')}
+            
+            ${imgUrls.length > 1 ? `
+                <div id="dots-${p.index}" class="carousel-dots">
+                    ${imgUrls.map((_, idx) => `
+                        <span class="carousel-dot ${idx === 0 ? 'active' : ''}" 
+                              onclick="event.stopPropagation(); switchCardImage(${p.index}, ${idx}, ${imgUrls.length})">
+                        </span>
+                    `).join('')}
+                </div>
+            ` : ''}
         </div>
+    `;
+
+    card.innerHTML = `
+        ${imageAreaHtml}
         <div class="p-4 flex-1 flex flex-col gap-1.5">
             <span class="text-[10px] font-bold text-accentBlue uppercase tracking-wider">${p.marca}</span>
             <h4 class="font-bold text-sm text-textDark leading-tight">${p.nombre} ${p.modelo}</h4>
@@ -514,6 +575,8 @@ function openCheckoutModal() {
     checkoutTotal.textContent = `$${sumTotal.toLocaleString('es-AR')}`;
     
     // Clear delivery input values
+    const devNombre = document.getElementById("devNombre");
+    if (devNombre) devNombre.value = "";
     devCalle.value = "";
     devBarrio.value = "";
     devLocalidad.value = "";
@@ -563,12 +626,17 @@ async function submitOrder() {
     let observation = "";
     
     if (devMethod.value === "Envío a domicilio") {
+        const nombre = document.getElementById("devNombre").value.trim();
         const calle = devCalle.value.trim();
         const barrio = devBarrio.value.trim();
         const loc = devLocalidad.value;
         const tel = devTelefono.value.trim();
         observation = devObservacion.value.trim();
         
+        if (!nombre) {
+            showToast("⚠️ Ingresá nombre y apellido del destinatario.", "warning");
+            return;
+        }
         if (!calle) {
             showToast("⚠️ Ingresá calle y número.", "warning");
             return;
@@ -582,7 +650,7 @@ async function submitOrder() {
             return;
         }
         
-        const addrParts = [calle];
+        const addrParts = [`Nombre: ${nombre}`, calle];
         if (barrio) addrParts.push(`Barrio ${barrio}`);
         addrParts.push(loc);
         addrParts.push(`Tel: ${tel}`);
@@ -637,6 +705,18 @@ async function submitOrder() {
             cartState = {};
             saveCartToLocalStorage();
             updateCartCount();
+            
+            // local pickup warning notice in success modal
+            const successLocalAlert = document.getElementById("successLocalAlert");
+            if (successLocalAlert) successLocalAlert.remove();
+            
+            if (devMethod.value === "Retiro en local") {
+                successOrderId.insertAdjacentHTML('afterend', `
+                    <div id="successLocalAlert" class="my-3 p-3 bg-warningOrange/10 border border-warningOrange/20 text-warningOrange text-xs font-semibold rounded-xl">
+                        ⚠️ Se coordinará con el local para el punto de entrega.
+                    </div>
+                `);
+            }
             
             // Open success visual
             successModal.classList.remove("hidden");
@@ -791,7 +871,7 @@ function renderAdminPedidosTable(pedidos) {
     // Render in reverse chronological order (latest first)
     pedidos.slice().reverse().forEach(p => {
         const tr = document.createElement("tr");
-        tr.className = "hover:bg-bgLight/40 transition-colors";
+        tr.className = "hover:bg-bgLight/40 transition-colors border-b border-black/[0.03]";
         
         let selectHtml = `
             <select onchange="updatePedidoEstado('${p.id_pedido}', this.value)" class="text-xs bg-bgLight border-0 rounded-lg py-1 px-2 cursor-pointer font-semibold">
@@ -804,7 +884,11 @@ function renderAdminPedidosTable(pedidos) {
         
         tr.innerHTML = `
             <td class="py-3 px-4 font-medium text-xs whitespace-nowrap">${p.fecha}</td>
-            <td class="py-3 px-4 font-mono font-bold text-accentBlue text-xs">${p.id_pedido}</td>
+            <td class="py-3 px-4 font-mono font-bold text-accentBlue text-xs">
+                <button onclick="toggleOrderDetails('${p.id_pedido}')" class="hover:underline flex items-center gap-1 text-left text-accentBlue">
+                    <span>👁️</span> ${p.id_pedido}
+                </button>
+            </td>
             <td class="py-3 px-4 text-xs">${p.cliente_contacto}</td>
             <td class="py-3 px-4 font-bold text-xs">$${parseInt(p.total).toLocaleString('es-AR')}</td>
             <td class="py-3 px-4 text-xs">
@@ -816,9 +900,29 @@ function renderAdminPedidosTable(pedidos) {
             </td>
             <td class="py-3 px-4 text-right">${selectHtml}</td>
         `;
+        
+        // Append detail row
+        const detailTr = document.createElement("tr");
+        detailTr.className = "bg-bgLight/20";
+        detailTr.innerHTML = `
+            <td colspan="6" class="p-0 border-b border-black/[0.03]">
+                <div id="details-${p.id_pedido}" class="order-details-pre text-xs text-textMuted bg-bgLight/50 rounded-xl border border-black/[0.03] mx-4 font-mono">
+                    ${p.detalle_ws}
+                </div>
+            </td>
+        `;
+        
         adminPedidosTableBody.appendChild(tr);
+        adminPedidosTableBody.appendChild(detailTr);
     });
 }
+
+window.toggleOrderDetails = function(id_pedido) {
+    const el = document.getElementById(`details-${id_pedido}`);
+    if (el) {
+        el.classList.toggle("expanded");
+    }
+};
 
 async function updatePedidoEstado(id_pedido, estado) {
     try {
@@ -843,13 +947,28 @@ async function updatePedidoEstado(id_pedido, estado) {
 }
 
 function renderAdminProductosTable() {
+    const query = (document.getElementById("adminSearchInput")?.value || "").toLowerCase().trim();
     adminProductosTableBody.innerHTML = "";
-    productsState.forEach(p => {
+    
+    let filtered = productsState;
+    if (query) {
+        filtered = productsState.filter(p => 
+            `${p.nombre} ${p.marca} ${p.modelo} ${p.color}`.toLowerCase().includes(query)
+        );
+    }
+    
+    if (filtered.length === 0) {
+        adminProductosTableBody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-textMuted">No se encontraron productos</td></tr>`;
+        return;
+    }
+    
+    filtered.forEach(p => {
         const tr = document.createElement("tr");
         tr.className = "hover:bg-bgLight/40 transition-colors";
         
-        const imgUrl = p.imagen_url && p.imagen_url.trim() !== "" 
-            ? p.imagen_url 
+        const imgUrls = p.imagen_url && p.imagen_url.trim() !== "" ? p.imagen_url.split(",") : [];
+        const imgUrl = imgUrls.length > 0 && imgUrls[0].trim() !== ""
+            ? imgUrls[0].trim() 
             : "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500";
             
         tr.innerHTML = `
@@ -863,7 +982,7 @@ function renderAdminProductosTable() {
             <td class="py-3 px-4 text-xs font-semibold text-accentBlue">${p.marca}</td>
             <td class="py-3 px-4 font-bold text-xs">$${p.precio.toLocaleString('es-AR')}</td>
             <td class="py-3 px-4 text-xs font-bold">${p.cantidad} uds</td>
-            <td class="py-3 px-4 text-right flex items-center justify-end gap-1.5">
+            <td class="py-3 px-4 text-right flex items-center justify-end gap-1.5 h-16">
                 <button onclick="openEditProductModal(${p.index})" class="text-xs bg-bgLight hover:bg-black/[0.04] text-textDark py-1 px-2.5 rounded-lg font-bold transition-all">✏️ Editar</button>
                 <button onclick="deleteProduct(${p.index})" class="text-xs bg-offerRed/10 hover:bg-offerRed text-offerRed hover:text-white py-1 px-2.5 rounded-lg font-bold transition-all">🗑️</button>
             </td>
@@ -874,7 +993,9 @@ function renderAdminProductosTable() {
 
 function openEditProductModal(index = null) {
     productEditForm.reset();
-    document.getElementById("editFotoFile").value = "";
+    document.getElementById("editFotoFile1").value = "";
+    document.getElementById("editFotoFile2").value = "";
+    document.getElementById("editFotoFile3").value = "";
     
     if (index !== null) {
         productEditModalTitle.textContent = "Editar Producto";
@@ -888,7 +1009,11 @@ function openEditProductModal(index = null) {
         document.getElementById("editColor").value = prod.color;
         document.getElementById("editPrecio").value = prod.precio;
         document.getElementById("editCantidad").value = prod.cantidad;
-        document.getElementById("editUrlImgur").value = prod.imagen_url.startsWith("data:image") ? "" : prod.imagen_url;
+        
+        const imgUrls = prod.imagen_url && prod.imagen_url.trim() !== "" ? prod.imagen_url.split(",") : [];
+        document.getElementById("editUrlImgur1").value = imgUrls.length > 0 && !imgUrls[0].startsWith("data:image") ? imgUrls[0].trim() : "";
+        document.getElementById("editUrlImgur2").value = imgUrls.length > 1 && !imgUrls[1].startsWith("data:image") ? imgUrls[1].trim() : "";
+        document.getElementById("editUrlImgur3").value = imgUrls.length > 2 && !imgUrls[2].startsWith("data:image") ? imgUrls[2].trim() : "";
     } else {
         productEditModalTitle.textContent = "Agregar Producto";
         document.getElementById("editIndex").value = "";
@@ -961,6 +1086,43 @@ async function deleteProduct(index) {
 
 // ── AUXILIARY: EVENT LISTENERS SETUP ──
 function setupEventListeners() {
+    // Tabs Navigation switch triggers
+    const navCatalogBtn = document.getElementById("navCatalogBtn");
+    const navOffersBtn = document.getElementById("navOffersBtn");
+    const navWholesaleBtn = document.getElementById("navWholesaleBtn");
+    const catalogContent = document.getElementById("catalogContent");
+    const wholesaleContent = document.getElementById("wholesaleContent");
+    
+    const selectTab = (tab) => {
+        activeMainTab = tab;
+        
+        if (tab === "catalog") {
+            navCatalogBtn.className = "pb-4 border-b-2 border-accentBlue text-accentBlue flex items-center gap-1.5 transition-all";
+            navOffersBtn.className = "pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all";
+            navWholesaleBtn.className = "pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all";
+            catalogContent.classList.remove("hidden");
+            wholesaleContent.classList.add("hidden");
+        } else if (tab === "offers") {
+            navOffersBtn.className = "pb-4 border-b-2 border-accentBlue text-accentBlue flex items-center gap-1.5 transition-all";
+            navCatalogBtn.className = "pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all";
+            navWholesaleBtn.className = "pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all";
+            catalogContent.classList.remove("hidden");
+            wholesaleContent.classList.add("hidden");
+        } else if (tab === "wholesale") {
+            navWholesaleBtn.className = "pb-4 border-b-2 border-accentBlue text-accentBlue flex items-center gap-1.5 transition-all";
+            navCatalogBtn.className = "pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all";
+            navOffersBtn.className = "pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all";
+            catalogContent.classList.add("hidden");
+            wholesaleContent.classList.remove("hidden");
+        }
+        
+        renderCatalog();
+    };
+    
+    navCatalogBtn.addEventListener("click", () => selectTab("catalog"));
+    navOffersBtn.addEventListener("click", () => selectTab("offers"));
+    navWholesaleBtn.addEventListener("click", () => selectTab("wholesale"));
+
     // Search input filters
     searchInput.addEventListener("input", renderCatalog);
     searchInputMobile.addEventListener("input", renderCatalog);
@@ -1049,6 +1211,12 @@ function setupEventListeners() {
     Array.from(deliveryMethods).forEach(rm => {
         rm.addEventListener("change", handleDeliveryMethodChange);
     });
+
+    // Admin product quick search
+    const adminSearchInput = document.getElementById("adminSearchInput");
+    if (adminSearchInput) {
+        adminSearchInput.addEventListener("input", renderAdminProductosTable);
+    }
 }
 
 // ── TOAST MESSAGES HELPER ──

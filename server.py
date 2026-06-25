@@ -458,7 +458,7 @@ def post_checkout():
         msg += f"🏠 *Dirección:* {direccion}\n"
         if observacion: msg += f"📝 *Referencias:* {observacion}\n"
     if "Retiro" in metodo_entrega:
-        msg += "\n🤝 ¡Coordino el retiro por WhatsApp!\n"
+        msg += "\n⚠️ *Se coordinará con el local para el punto de entrega.*\n"
     msg += "\n✨ ¡Gracias por elegir BEJO! 🙌"
     
     ws_url = f"https://wa.me/{NUMERO_WS}?text={urllib.parse.quote(msg)}"
@@ -486,7 +486,7 @@ def post_checkout():
     return jsonify({
         "success": True,
         "id_pedido": id_pedido,
-        "total": total_pedido,
+        "total": int(total_pedido),
         "ws_url": ws_url,
         "mp_url": mp_url,
         "stock_updated": ok_stock
@@ -554,24 +554,52 @@ def admin_save_producto():
     color = request.form.get("color", "").strip()
     precio = request.form.get("precio", "0")
     cantidad = request.form.get("cantidad", "0")
-    url_imgur = request.form.get("url_imgur", "").strip()
+    
+    url_imgur1 = request.form.get("url_imgur1", "").strip()
+    url_imgur2 = request.form.get("url_imgur2", "").strip()
+    url_imgur3 = request.form.get("url_imgur3", "").strip()
+    
+    file_photo1 = request.files.get("foto1")
+    file_photo2 = request.files.get("foto2")
+    file_photo3 = request.files.get("foto3")
     
     if not nombre or not marca or not modelo:
         return jsonify({"success": False, "error": "Campos nombre, marca y modelo son obligatorios"}), 400
         
-    # Process uploaded image file
-    file_photo = request.files.get("foto")
-    nueva_url_foto = url_imgur
+    urls_fotos = []
     
-    if file_photo:
-        # Convert uploaded file to base64
+    # Process Photo 1
+    if file_photo1:
         try:
-            b64 = imagen_a_base64(file_photo)
-            if b64:
-                nueva_url_foto = b64
+            b64 = imagen_a_base64(file_photo1)
+            if b64: urls_fotos.append(b64)
         except Exception as e:
-            return jsonify({"success": False, "error": f"Error al procesar la imagen: {e}"}), 500
-            
+            return jsonify({"success": False, "error": f"Error al procesar imagen 1: {e}"}), 500
+    elif url_imgur1:
+        urls_fotos.append(url_imgur1)
+        
+    # Process Photo 2
+    if file_photo2:
+        try:
+            b64 = imagen_a_base64(file_photo2)
+            if b64: urls_fotos.append(b64)
+        except Exception as e:
+            return jsonify({"success": False, "error": f"Error al procesar imagen 2: {e}"}), 500
+    elif url_imgur2:
+        urls_fotos.append(url_imgur2)
+        
+    # Process Photo 3
+    if file_photo3:
+        try:
+            b64 = imagen_a_base64(file_photo3)
+            if b64: urls_fotos.append(b64)
+        except Exception as e:
+            return jsonify({"success": False, "error": f"Error al procesar imagen 3: {e}"}), 500
+    elif url_imgur3:
+        urls_fotos.append(url_imgur3)
+        
+    nueva_url_foto = ",".join(urls_fotos)
+    
     df_stock = cargar_datos_sheets_cached(force=True)
     sheet = get_sheet()
     
@@ -582,8 +610,8 @@ def admin_save_producto():
             fila_sheet = df_idx + 5
             row = df_stock.loc[df_idx]
             
-            # If no photo uploaded and no image url pasted, retain the old image url
-            if not file_photo and not url_imgur:
+            # If all image fields are empty, retain old image URL
+            if not urls_fotos and not file_photo1 and not file_photo2 and not file_photo3 and not url_imgur1 and not url_imgur2 and not url_imgur3:
                 nueva_url_foto = str(row.get("Imagen_URL", ""))
                 
             cols = df_stock.columns.tolist()
@@ -678,4 +706,4 @@ def serve_static(path):
 if __name__ == '__main__':
     # Ensure static directory exists
     os.makedirs('static', exist_ok=True)
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
