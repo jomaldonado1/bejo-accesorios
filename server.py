@@ -347,6 +347,27 @@ def cargar_compatibilidad_sheets_cached(force=False):
 
 # ── API ENDPOINTS ────────────────────────────────────────────────────────────
 
+@app.route('/api/debug/sheets', methods=['GET'])
+def debug_sheets():
+    import traceback
+    try:
+        sheet = get_sheet()
+        data  = sheet.get_all_records(head=4)
+        df    = pd.DataFrame(data)
+        return jsonify({
+            "success": True,
+            "row_count": len(df),
+            "columns": df.columns.tolist()
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+            "gcp_env_exists": "GCP_SERVICE_ACCOUNT" in os.environ,
+            "gcp_env_len": len(os.environ.get("GCP_SERVICE_ACCOUNT", ""))
+        })
+
 @app.route('/api/productos', methods=['GET'])
 def get_productos():
     df = cargar_datos_sheets_cached()
