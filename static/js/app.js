@@ -1,0 +1,1079 @@
+// BEJO Accesorios – Client Side Logic (ES6)
+
+let productsState = [];
+let compatState = [];
+let cartState = {}; // { index: qty }
+let adminAuthenticated = false;
+let adminToken = "";
+
+// ── DOM ELEMENTS ──
+const searchInput = document.getElementById("searchInput");
+const searchInputMobile = document.getElementById("searchInputMobile");
+const filterTipo = document.getElementById("filterTipo");
+const filterMarca = document.getElementById("filterMarca");
+const filterModelo = document.getElementById("filterModelo");
+const filterColor = document.getElementById("filterColor");
+const clearFiltersBtn = document.getElementById("clearFiltersBtn");
+const resetFiltersBtn = document.getElementById("resetFiltersBtn");
+const emptyCatalogState = document.getElementById("emptyCatalogState");
+const productosGrid = document.getElementById("productosGrid");
+const resultsCount = document.getElementById("resultsCount");
+const ofertasSection = document.getElementById("ofertasSection");
+const ofertasGrid = document.getElementById("ofertasGrid");
+
+// Compat widget
+const compatInput = document.getElementById("compatInput");
+const compatSearchBtn = document.getElementById("compatSearchBtn");
+const compatResults = document.getElementById("compatResults");
+
+// Cart Drawer
+const cartBtn = document.getElementById("cartBtn");
+const closeCartBtn = document.getElementById("closeCartBtn");
+const cartDrawer = document.getElementById("cartDrawer");
+const cartDrawerOverlay = document.getElementById("cartDrawerOverlay");
+const cartItemsContainer = document.getElementById("cartItemsContainer");
+const cartEmptyState = document.getElementById("cartEmptyState");
+const cartFooter = document.getElementById("cartFooter");
+const cartTotalSum = document.getElementById("cartTotalSum");
+const cartCount = document.getElementById("cartCount");
+
+// Checkout Modal
+const checkoutBtn = document.getElementById("checkoutBtn");
+const checkoutModal = document.getElementById("checkoutModal");
+const closeCheckoutBtn = document.getElementById("closeCheckoutBtn");
+const confirmOrderBtn = document.getElementById("confirmOrderBtn");
+const checkoutTotal = document.getElementById("checkoutTotal");
+
+// Delivery & Payment
+const deliveryMethods = document.getElementsByName("deliveryMethod");
+const deliveryDetails = document.getElementById("deliveryDetails");
+const devCalle = document.getElementById("devCalle");
+const devBarrio = document.getElementById("devBarrio");
+const devLocalidad = document.getElementById("devLocalidad");
+const devTelefono = document.getElementById("devTelefono");
+const devObservacion = document.getElementById("devObservacion");
+const paymentMethods = document.getElementsByName("paymentMethod");
+
+// Success Modal
+const successModal = document.getElementById("successModal");
+const successOrderId = document.getElementById("successOrderId");
+const successMPBtn = document.getElementById("successMPBtn");
+const successWSBtn = document.getElementById("successWSBtn");
+const successCloseBtn = document.getElementById("successCloseBtn");
+
+// Admin Login & Panel
+const adminLoginBtn = document.getElementById("adminLoginBtn");
+const adminFooterLink = document.getElementById("adminFooterLink");
+const adminLoginModal = document.getElementById("adminLoginModal");
+const adminPasswordInput = document.getElementById("adminPasswordInput");
+const adminLoginCancelBtn = document.getElementById("adminLoginCancelBtn");
+const adminLoginSubmitBtn = document.getElementById("adminLoginSubmitBtn");
+const adminPanel = document.getElementById("adminPanel");
+const adminCloseBtn = document.getElementById("adminCloseBtn");
+const adminDownloadInventario = document.getElementById("adminDownloadInventario");
+const adminDownloadPedidos = document.getElementById("adminDownloadPedidos");
+
+// Admin Tabs
+const tabPedidosBtn = document.getElementById("tabPedidosBtn");
+const tabProductosBtn = document.getElementById("tabProductosBtn");
+const panelPedidos = document.getElementById("panelPedidos");
+const panelProductos = document.getElementById("panelProductos");
+const adminPedidosTableBody = document.getElementById("adminPedidosTableBody");
+const adminProductosTableBody = document.getElementById("adminProductosTableBody");
+const adminNewProdBtn = document.getElementById("adminNewProdBtn");
+
+// Admin Edit modal
+const productEditModal = document.getElementById("productEditModal");
+const productEditModalTitle = document.getElementById("productEditModalTitle");
+const productEditModalClose = document.getElementById("productEditModalClose");
+const productEditForm = document.getElementById("productEditForm");
+const productEditCancelBtn = document.getElementById("productEditCancelBtn");
+
+// Toast Container
+const toastContainer = document.getElementById("toastContainer");
+
+// ── INITIALIZATION ──
+document.addEventListener("DOMContentLoaded", () => {
+    loadCartFromLocalStorage();
+    fetchData();
+    setupEventListeners();
+});
+
+// ── DATA FETCHING ──
+async function fetchData() {
+    try {
+        // Fetch products catalog
+        const resProd = await fetch("/api/productos");
+        productsState = await resProd.json();
+        
+        // Fetch compatibility data
+        const resCompat = await fetch("/api/compatibilidad");
+        compatState = await resCompat.json();
+        
+        populateFilters();
+        renderCatalog();
+        updateCartCount();
+    } catch (err) {
+        console.error("Error fetching data:", err);
+        showToast("⚠️ Error al conectar con el servidor.", "error");
+    }
+}
+
+// Populate dropdown filters based on products catalog
+function populateFilters() {
+    const tipos = new Set(["Todos"]);
+    const marcas = new Set(["Todas"]);
+    
+    productsState.forEach(p => {
+        if (p.nombre) tipos.add(p.nombre);
+        if (p.marca) marcas.add(p.marca);
+    });
+    
+    // Categorías select
+    filterTipo.innerHTML = "";
+    [...tipos].sort().forEach(t => {
+        const opt = document.createElement("option");
+        opt.value = t;
+        opt.textContent = t === "Todos" ? "Todas las categorías" : t;
+        filterTipo.appendChild(opt);
+    });
+
+    // Marcas select
+    filterMarca.innerHTML = "";
+    [...marcas].sort().forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m === "Todas" ? "Todas las marcas" : m;
+        filterMarca.appendChild(opt);
+    });
+    
+    updateCascadingFilters();
+}
+
+// Handle cascade filter updates (when category/brand selection changes)
+function updateCascadingFilters() {
+    const selectedTipo = filterTipo.value;
+    const selectedMarca = filterMarca.value;
+    
+    // Filter active items to see what models and colors are available
+    let filtered = productsState;
+    if (selectedTipo !== "Todos") {
+        filtered = filtered.filter(p => p.nombre === selectedTipo);
+    }
+    if (selectedMarca !== "Todas") {
+        filtered = filtered.filter(p => p.marca === selectedMarca);
+    }
+    
+    // Populate model selection
+    const modelos = new Set(["Todos"]);
+    filtered.forEach(p => {
+        if (p.modelo) modelos.add(p.modelo);
+    });
+    
+    const prevModelValue = filterModelo.value;
+    filterModelo.innerHTML = "";
+    [...modelos].sort().forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m === "Todos" ? "Todos los modelos" : m;
+        filterModelo.appendChild(opt);
+    });
+    if ([...modelos].includes(prevModelValue)) {
+        filterModelo.value = prevModelValue;
+    } else {
+        filterModelo.value = "Todos";
+    }
+    
+    // Populate colors
+    const colores = new Set(["Todos"]);
+    filtered.forEach(p => {
+        if (p.color) colores.add(p.color);
+    });
+    
+    const prevColorValue = filterColor.value;
+    filterColor.innerHTML = "";
+    [...colores].sort().forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c;
+        opt.textContent = c === "Todos" ? "Todos los colores" : c;
+        filterColor.appendChild(opt);
+    });
+    if ([...colores].includes(prevColorValue)) {
+        filterColor.value = prevColorValue;
+    } else {
+        filterColor.value = "Todos";
+    }
+}
+
+// ── CATALOG RENDERING ──
+function renderCatalog() {
+    const query = (searchInput.value || searchInputMobile.value || "").toLowerCase().trim();
+    const selTipo = filterTipo.value;
+    const selMarca = filterMarca.value;
+    const selModelo = filterModelo.value;
+    const selColor = filterColor.value;
+    
+    // Check if any filters are active
+    const isFiltered = query !== "" || selTipo !== "Todos" || selMarca !== "Todas" || selModelo !== "Todos" || selColor !== "Todos";
+    
+    // Filter product state
+    let filtered = productsState.filter(p => {
+        // Search text matching
+        if (query !== "") {
+            const searchable = `${p.nombre} ${p.marca} ${p.modelo} ${p.color}`.toLowerCase();
+            if (!searchable.includes(query)) return false;
+        }
+        // Category matching
+        if (selTipo !== "Todos" && p.nombre !== selTipo) return false;
+        // Brand matching
+        if (selMarca !== "Todas" && p.marca !== selMarca) return false;
+        // Model matching
+        if (selModelo !== "Todos" && p.modelo !== selModelo) return false;
+        // Color matching
+        if (selColor !== "Todos" && p.color !== selColor) return false;
+        
+        return true;
+    });
+
+    // Clear grid
+    productosGrid.innerHTML = "";
+    
+    // Handle results counts and visibility of clear button
+    if (isFiltered) {
+        clearFiltersBtn.classList.remove("hidden");
+        ofertasSection.classList.add("hidden");
+        resultsCount.textContent = `${filtered.length} artículo(s) encontrado(s)`;
+    } else {
+        clearFiltersBtn.classList.add("hidden");
+        resultsCount.textContent = `Catálogo completo (${productsState.length})`;
+        
+        // Show featured offers in separate grid
+        const offers = productsState.filter(p => p.en_oferta);
+        if (offers.length > 0) {
+            ofertasSection.classList.remove("hidden");
+            renderOffersGrid(offers.slice(0, 3));
+        } else {
+            ofertasSection.classList.add("hidden");
+        }
+    }
+    
+    if (filtered.length === 0) {
+        emptyCatalogState.classList.remove("hidden");
+        emptyCatalogState.classList.add("flex");
+        productosGrid.classList.add("hidden");
+    } else {
+        emptyCatalogState.classList.add("hidden");
+        emptyCatalogState.classList.remove("flex");
+        productosGrid.classList.remove("hidden");
+        
+        // Render item cards
+        filtered.forEach(p => {
+            productosGrid.appendChild(createProductCard(p, false));
+        });
+    }
+}
+
+// Render the top horizontal list of offers
+function renderOffersGrid(offers) {
+    ofertasGrid.innerHTML = "";
+    offers.forEach(p => {
+        ofertasGrid.appendChild(createProductCard(p, true));
+    });
+}
+
+// Create Card element for products
+function createProductCard(p, isOfferCard = false) {
+    const card = document.createElement("div");
+    card.className = `product-card bg-white border border-black/[0.04] rounded-2xl overflow-hidden shadow-sm flex flex-col relative ${isOfferCard ? 'border-accentBlue/25' : ''}`;
+    
+    // Offer Badge
+    let offerBadge = "";
+    if (p.en_oferta) {
+        offerBadge = `<span class="absolute top-3 left-3 z-10 text-[10px] font-black uppercase bg-offerRed text-white px-2 py-0.5 rounded-md shadow-sm">🔥 Oferta</span>`;
+    }
+    
+    // Image placeholder check
+    const imgUrl = p.imagen_url && p.imagen_url.trim() !== "" 
+        ? p.imagen_url 
+        : "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500";
+        
+    // Stock badge styling
+    let stockBadge = "";
+    let buttonHtml = "";
+    
+    if (p.cantidad <= 0) {
+        stockBadge = `<span class="inline-flex items-center gap-1.5 text-xs text-offerRed font-semibold mt-1">● Agotado</span>`;
+        buttonHtml = `<button disabled class="w-full mt-auto py-3 bg-black/[0.04] text-textMuted text-xs font-bold rounded-xl cursor-not-allowed">Sin Stock</button>`;
+    } else if (p.cantidad <= 2) {
+        stockBadge = `<span class="inline-flex items-center gap-1.5 text-xs text-warningOrange font-semibold mt-1">● ¡Últimas ${p.cantidad} unidades!</span>`;
+        buttonHtml = `<button onclick="addToCart(${p.index})" class="w-full mt-auto py-3 bg-accentBlue hover:bg-accentBlueHover text-white text-xs font-bold rounded-xl transition-all shadow-sm transform active:scale-95">🛒 Agregar al Carrito</button>`;
+    } else {
+        stockBadge = `<span class="inline-flex items-center gap-1.5 text-xs text-successGreen font-semibold mt-1">● Stock disponible (${p.cantidad})</span>`;
+        buttonHtml = `<button onclick="addToCart(${p.index})" class="w-full mt-auto py-3 bg-accentBlue hover:bg-accentBlueHover text-white text-xs font-bold rounded-xl transition-all shadow-sm transform active:scale-95">🛒 Agregar al Carrito</button>`;
+    }
+    
+    // Check if compatibility information exists in the compat state for this model
+    let compatText = "";
+    const matches = compatState.filter(c => c.modelo.toLowerCase() === p.modelo.toLowerCase() || p.modelo.toLowerCase().includes(c.modelo.toLowerCase()));
+    if (matches.length > 0 && matches[0].compatibilidad) {
+        compatText = `<div class="text-[10px] text-textMuted mt-1 bg-black/[0.02] py-1 px-1.5 rounded-md inline-block">🔗 Compatible: ${matches[0].compatibilidad}</div>`;
+    }
+
+    card.innerHTML = `
+        <div class="relative w-full aspect-square overflow-hidden bg-bgLight">
+            ${offerBadge}
+            <img src="${imgUrl}" alt="${p.nombre}" class="product-card-img w-full h-full object-cover" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500'">
+        </div>
+        <div class="p-4 flex-1 flex flex-col gap-1.5">
+            <span class="text-[10px] font-bold text-accentBlue uppercase tracking-wider">${p.marca}</span>
+            <h4 class="font-bold text-sm text-textDark leading-tight">${p.nombre} ${p.modelo}</h4>
+            <div class="text-[11px] text-textMuted flex items-center gap-1">
+                <span>🎨 Diseño:</span>
+                <span class="font-semibold text-textDark">${p.color || 'Estándar'}</span>
+            </div>
+            ${compatText}
+            <div class="flex items-center justify-between mt-1">
+                <span class="text-base font-black text-textDark">$${p.precio.toLocaleString('es-AR', {minimumFractionDigits: 0})}</span>
+                ${stockBadge}
+            </div>
+            <div class="mt-3 flex">
+                ${buttonHtml}
+            </div>
+        </div>
+    `;
+    
+    return card;
+}
+
+// ── CART MANAGEMENT ──
+function loadCartFromLocalStorage() {
+    const saved = localStorage.getItem("bejo_cart");
+    if (saved) {
+        try {
+            cartState = JSON.parse(saved);
+        } catch (e) {
+            cartState = {};
+        }
+    }
+}
+
+function saveCartToLocalStorage() {
+    localStorage.setItem("bejo_cart", JSON.stringify(cartState));
+}
+
+function addToCart(index) {
+    const product = productsState.find(p => p.index === index);
+    if (!product) return;
+    
+    const currentQty = cartState[index] || 0;
+    if (currentQty >= product.cantidad) {
+        showToast(`😔 No hay más stock disponible de ${product.nombre}.`, "error");
+        return;
+    }
+    if (currentQty >= 10) {
+        showToast("Límite de 10 unidades por producto en la web.", "warning");
+        return;
+    }
+    
+    cartState[index] = currentQty + 1;
+    saveCartToLocalStorage();
+    updateCartCount();
+    showToast(`✅ ${product.nombre} agregado al carrito!`, "success");
+    
+    // Automatically open drawer to show items added
+    openCartDrawer();
+}
+
+function updateCartCount() {
+    const totalQty = Object.values(cartState).reduce((acc, curr) => acc + curr, 0);
+    cartCount.textContent = totalQty;
+    if (totalQty > 0) {
+        cartCount.classList.remove("scale-0");
+        cartCount.classList.add("scale-100");
+    } else {
+        cartCount.classList.remove("scale-100");
+        cartCount.classList.add("scale-0");
+    }
+}
+
+function openCartDrawer() {
+    cartDrawer.classList.add("active");
+    cartDrawerOverlay.classList.add("active");
+    renderCartItems();
+}
+
+function closeCartDrawer() {
+    cartDrawer.classList.remove("active");
+    cartDrawerOverlay.classList.remove("active");
+}
+
+function renderCartItems() {
+    cartItemsContainer.innerHTML = "";
+    
+    const cartIndices = Object.keys(cartState);
+    if (cartIndices.length === 0) {
+        cartEmptyState.classList.remove("hidden");
+        cartEmptyState.classList.add("flex");
+        cartFooter.classList.add("hidden");
+        return;
+    }
+    
+    cartEmptyState.classList.add("hidden");
+    cartEmptyState.classList.remove("flex");
+    cartFooter.classList.remove("hidden");
+    
+    let sumTotal = 0;
+    
+    cartIndices.forEach(idxStr => {
+        const idx = parseInt(idxStr);
+        const qty = cartState[idx];
+        const product = productsState.find(p => p.index === idx);
+        
+        if (!product) return;
+        
+        const sub = product.precio * qty;
+        sumTotal += sub;
+        
+        const imgUrl = product.imagen_url && product.imagen_url.trim() !== "" 
+            ? product.imagen_url 
+            : "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500";
+            
+        const cartItem = document.createElement("div");
+        cartItem.className = "flex gap-3 py-3 border-b border-black/[0.04]";
+        cartItem.innerHTML = `
+            <div class="w-16 h-16 rounded-xl bg-bgLight overflow-hidden shrink-0 border border-black/[0.04]">
+                <img src="${imgUrl}" alt="${product.nombre}" class="w-full h-full object-cover">
+            </div>
+            <div class="flex-1 flex flex-col gap-0.5 justify-center">
+                <h5 class="font-bold text-xs leading-tight text-textDark">${product.nombre} ${product.modelo}</h5>
+                <span class="text-[10px] text-textMuted">🎨 ${product.color || 'Estándar'}</span>
+                <span class="text-xs font-black text-textDark mt-1">$${product.precio.toLocaleString('es-AR')}</span>
+            </div>
+            <div class="flex flex-col items-end justify-between shrink-0">
+                <button onclick="removeCartItem(${idx})" class="text-textMuted hover:text-offerRed p-1 rounded-full hover:bg-bgLight transition-colors">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+                <div class="flex items-center border border-black/[0.08] rounded-lg overflow-hidden bg-white text-xs">
+                    <button onclick="changeCartItemQty(${idx}, -1)" class="px-2 py-1 hover:bg-bgLight font-bold">-</button>
+                    <span class="px-2 font-bold min-w-6 text-center select-none">${qty}</span>
+                    <button onclick="changeCartItemQty(${idx}, 1)" class="px-2 py-1 hover:bg-bgLight font-bold">+</button>
+                </div>
+            </div>
+        `;
+        cartItemsContainer.appendChild(cartItem);
+    });
+    
+    cartTotalSum.textContent = `$${sumTotal.toLocaleString('es-AR')}`;
+}
+
+function removeCartItem(idx) {
+    delete cartState[idx];
+    saveCartToLocalStorage();
+    updateCartCount();
+    renderCartItems();
+}
+
+function changeCartItemQty(idx, offset) {
+    const product = productsState.find(p => p.index === idx);
+    if (!product) return;
+    
+    const newQty = (cartState[idx] || 0) + offset;
+    if (newQty <= 0) {
+        removeCartItem(idx);
+        return;
+    }
+    
+    if (offset > 0 && newQty > product.cantidad) {
+        showToast(`😔 No hay más unidades de stock de ${product.nombre}.`, "error");
+        return;
+    }
+    
+    if (newQty > 10) {
+        showToast("Límite de 10 unidades por producto.", "warning");
+        return;
+    }
+    
+    cartState[idx] = newQty;
+    saveCartToLocalStorage();
+    updateCartCount();
+    renderCartItems();
+}
+
+// ── CHECKOUT MODAL ──
+function openCheckoutModal() {
+    closeCartDrawer();
+    
+    let sumTotal = 0;
+    Object.keys(cartState).forEach(idxStr => {
+        const idx = parseInt(idxStr);
+        const qty = cartState[idx];
+        const p = productsState.find(p => p.index === idx);
+        if (p) sumTotal += p.precio * qty;
+    });
+    
+    checkoutTotal.textContent = `$${sumTotal.toLocaleString('es-AR')}`;
+    
+    // Clear delivery input values
+    devCalle.value = "";
+    devBarrio.value = "";
+    devLocalidad.value = "";
+    devTelefono.value = "";
+    devObservacion.value = "";
+    
+    // Deselect radio buttons
+    deliveryMethods.forEach(rm => rm.checked = false);
+    paymentMethods.forEach(pm => pm.checked = false);
+    deliveryDetails.classList.add("hidden");
+    
+    checkoutModal.classList.remove("hidden");
+    checkoutModal.classList.add("flex");
+}
+
+function closeCheckoutModal() {
+    checkoutModal.classList.add("hidden");
+    checkoutModal.classList.remove("flex");
+}
+
+// Handle delivery options changes (DOM layout triggers)
+function handleDeliveryMethodChange() {
+    const selected = document.querySelector('input[name="deliveryMethod"]:checked');
+    if (selected && selected.value === "Envío a domicilio") {
+        deliveryDetails.classList.remove("hidden");
+        deliveryDetails.classList.add("flex");
+    } else {
+        deliveryDetails.classList.add("hidden");
+    }
+}
+
+// Order Confirmation Submit Call
+async function submitOrder() {
+    const devMethod = document.querySelector('input[name="deliveryMethod"]:checked');
+    const payMethod = document.querySelector('input[name="paymentMethod"]:checked');
+    
+    if (!devMethod) {
+        showToast("⚠️ Seleccioná cómo querés recibir tu pedido.", "warning");
+        return;
+    }
+    if (!payMethod) {
+        showToast("⚠️ Seleccioná el método de pago.", "warning");
+        return;
+    }
+    
+    let address = "";
+    let observation = "";
+    
+    if (devMethod.value === "Envío a domicilio") {
+        const calle = devCalle.value.trim();
+        const barrio = devBarrio.value.trim();
+        const loc = devLocalidad.value;
+        const tel = devTelefono.value.trim();
+        observation = devObservacion.value.trim();
+        
+        if (!calle) {
+            showToast("⚠️ Ingresá calle y número.", "warning");
+            return;
+        }
+        if (!loc) {
+            showToast("⚠️ Seleccioná tu localidad.", "warning");
+            return;
+        }
+        if (!tel) {
+            showToast("⚠️ Ingresá tu teléfono.", "warning");
+            return;
+        }
+        
+        const addrParts = [calle];
+        if (barrio) addrParts.push(`Barrio ${barrio}`);
+        addrParts.push(loc);
+        addrParts.push(`Tel: ${tel}`);
+        
+        address = addrParts.join(" | ");
+    }
+    
+    // Prepare payload
+    const payload = {
+        carrito: cartState,
+        entrega: {
+            metodo: devMethod.value,
+            direccion: address,
+            observacion: observation
+        },
+        pago: {
+            metodo: payMethod.value
+        }
+    };
+    
+    // UI state indicator
+    confirmOrderBtn.disabled = true;
+    confirmOrderBtn.textContent = "Procesando pedido... ⏳";
+    
+    try {
+        const response = await fetch("/api/checkout", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        const res = await response.json();
+        if (res.success) {
+            closeCheckoutModal();
+            
+            // Set success modal states
+            successOrderId.textContent = res.id_pedido;
+            
+            // Setup buttons
+            successWSBtn.href = res.ws_url;
+            
+            if (res.mp_url) {
+                successMPBtn.href = res.mp_url;
+                successMPBtn.classList.remove("hidden");
+            } else {
+                successMPBtn.classList.add("hidden");
+            }
+            
+            // Clear cart
+            cartState = {};
+            saveCartToLocalStorage();
+            updateCartCount();
+            
+            // Open success visual
+            successModal.classList.remove("hidden");
+            successModal.classList.add("flex");
+            
+            // Re-fetch catalog to update current stocks
+            fetchData();
+            
+            // Auto trigger WhatsApp after 1.5s delay
+            setTimeout(() => {
+                window.open(res.ws_url, "_blank");
+            }, 1500);
+        } else {
+            showToast(`❌ Error: ${res.error || 'No se pudo procesar el pedido'}`, "error");
+        }
+    } catch (e) {
+        console.error(e);
+        showToast("⚠️ Error de conexión al procesar la orden.", "error");
+    } finally {
+        confirmOrderBtn.disabled = false;
+        confirmOrderBtn.textContent = "Confirmar Pedido 🚀";
+    }
+}
+
+// ── COMPATIBILITY FILTER SEARCH ──
+function performCompatSearch() {
+    const val = compatInput.value.trim().toLowerCase();
+    if (!val) {
+        showToast("Escribí el modelo de tu celular.", "warning");
+        return;
+    }
+    
+    const results = compatState.filter(c => 
+        c.modelo.toLowerCase().includes(val) || 
+        val.includes(c.modelo.toLowerCase())
+    );
+    
+    compatResults.innerHTML = "";
+    compatResults.classList.remove("hidden");
+    
+    if (results.length === 0) {
+        compatResults.innerHTML = `
+            <div class="text-textMuted py-1 text-center font-medium">
+                ℹ️ No encontramos datos específicos de compatibilidad para este modelo. Coordiná la consulta por WhatsApp.
+            </div>
+        `;
+    } else {
+        const container = document.createElement("div");
+        container.className = "flex flex-col gap-2.5";
+        
+        results.forEach(r => {
+            const row = document.createElement("div");
+            row.className = "border-b border-black/[0.04] pb-2 last:border-0 last:pb-0";
+            row.innerHTML = `
+                <div class="font-bold text-xs uppercase text-accentBlue">${r.marca} · ${r.tipo}</div>
+                <div class="font-semibold text-sm text-textDark">${r.modelo}</div>
+                <div class="text-xs text-textMuted mt-0.5">Compatible con: <span class="text-textDark font-medium">${r.compatibilidad}</span></div>
+            `;
+            container.appendChild(row);
+        });
+        compatResults.appendChild(container);
+    }
+}
+
+// ── ADMIN PANEL CLIENT LOGIC ──
+function openAdminLogin() {
+    adminPasswordInput.value = "";
+    adminLoginModal.classList.remove("hidden");
+    adminLoginModal.classList.add("flex");
+}
+
+function closeAdminLogin() {
+    adminLoginModal.classList.add("hidden");
+    adminLoginModal.classList.remove("flex");
+}
+
+async function submitAdminLogin() {
+    const pw = adminPasswordInput.value;
+    if (!pw) return;
+    
+    try {
+        const response = await fetch("/api/admin/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password: pw })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            adminAuthenticated = true;
+            adminToken = data.token;
+            closeAdminLogin();
+            openAdminPanel();
+        } else {
+            showToast("❌ Contraseña incorrecta", "error");
+        }
+    } catch (e) {
+        showToast("⚠️ Error al conectar con la autenticación", "error");
+    }
+}
+
+function openAdminPanel() {
+    adminPanel.classList.remove("hidden");
+    adminPanel.classList.add("flex");
+    loadAdminTab("pedidos");
+}
+
+function closeAdminPanel() {
+    adminPanel.classList.add("hidden");
+    adminPanel.classList.remove("flex");
+    adminAuthenticated = false;
+    adminToken = "";
+}
+
+function loadAdminTab(tab) {
+    if (tab === "pedidos") {
+        tabPedidosBtn.className = "text-left px-4 py-3 text-sm font-semibold rounded-xl bg-accentBlue/10 text-accentBlue";
+        tabProductosBtn.className = "text-left px-4 py-3 text-sm font-semibold rounded-xl text-textMuted hover:bg-bgLight hover:text-textDark";
+        panelPedidos.classList.remove("hidden");
+        panelPedidos.classList.add("flex");
+        panelProductos.classList.add("hidden");
+        fetchAdminPedidos();
+    } else {
+        tabProductosBtn.className = "text-left px-4 py-3 text-sm font-semibold rounded-xl bg-accentBlue/10 text-accentBlue";
+        tabPedidosBtn.className = "text-left px-4 py-3 text-sm font-semibold rounded-xl text-textMuted hover:bg-bgLight hover:text-textDark";
+        panelProductos.classList.remove("hidden");
+        panelProductos.classList.add("flex");
+        panelPedidos.classList.add("hidden");
+        renderAdminProductosTable();
+    }
+}
+
+async function fetchAdminPedidos() {
+    try {
+        const response = await fetch("/api/admin/pedidos", {
+            headers: { "Authorization": adminToken }
+        });
+        const pedidos = await response.json();
+        renderAdminPedidosTable(pedidos);
+    } catch (err) {
+        showToast("Error al cargar pedidos admin.", "error");
+    }
+}
+
+function renderAdminPedidosTable(pedidos) {
+    adminPedidosTableBody.innerHTML = "";
+    if (pedidos.length === 0) {
+        adminPedidosTableBody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-textMuted">No hay pedidos registrados</td></tr>`;
+        return;
+    }
+    
+    // Render in reverse chronological order (latest first)
+    pedidos.slice().reverse().forEach(p => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-bgLight/40 transition-colors";
+        
+        let selectHtml = `
+            <select onchange="updatePedidoEstado('${p.id_pedido}', this.value)" class="text-xs bg-bgLight border-0 rounded-lg py-1 px-2 cursor-pointer font-semibold">
+                <option value="Pendiente" ${p.estado === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
+                <option value="Entregado" ${p.estado === 'Entregado' ? 'selected' : ''}>Entregado</option>
+                <option value="Rechazado" ${p.estado === 'Rechazado' ? 'selected' : ''}>Rechazado</option>
+                <option value="Cancelado" ${p.estado === 'Cancelado' ? 'selected' : ''}>Cancelado</option>
+            </select>
+        `;
+        
+        tr.innerHTML = `
+            <td class="py-3 px-4 font-medium text-xs whitespace-nowrap">${p.fecha}</td>
+            <td class="py-3 px-4 font-mono font-bold text-accentBlue text-xs">${p.id_pedido}</td>
+            <td class="py-3 px-4 text-xs">${p.cliente_contacto}</td>
+            <td class="py-3 px-4 font-bold text-xs">$${parseInt(p.total).toLocaleString('es-AR')}</td>
+            <td class="py-3 px-4 text-xs">
+                <span class="font-semibold rounded px-1.5 py-0.5 text-[10px] uppercase
+                    ${p.estado === 'Pendiente' ? 'bg-warningOrange/10 text-warningOrange' : ''}
+                    ${p.estado === 'Entregado' ? 'bg-successGreen/10 text-successGreen' : ''}
+                    ${p.estado === 'Rechazado' || p.estado === 'Cancelado' ? 'bg-offerRed/10 text-offerRed' : ''}
+                ">${p.estado}</span>
+            </td>
+            <td class="py-3 px-4 text-right">${selectHtml}</td>
+        `;
+        adminPedidosTableBody.appendChild(tr);
+    });
+}
+
+async function updatePedidoEstado(id_pedido, estado) {
+    try {
+        const response = await fetch("/api/admin/pedidos/estado", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": adminToken
+            },
+            body: JSON.stringify({ id_pedido, estado })
+        });
+        const res = await response.json();
+        if (res.success) {
+            showToast(`Pedido ${id_pedido} actualizado a ${estado}.`, "success");
+            fetchAdminPedidos();
+        } else {
+            showToast("Error al actualizar pedido.", "error");
+        }
+    } catch (e) {
+        showToast("Error de red", "error");
+    }
+}
+
+function renderAdminProductosTable() {
+    adminProductosTableBody.innerHTML = "";
+    productsState.forEach(p => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-bgLight/40 transition-colors";
+        
+        const imgUrl = p.imagen_url && p.imagen_url.trim() !== "" 
+            ? p.imagen_url 
+            : "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500";
+            
+        tr.innerHTML = `
+            <td class="py-3 px-4 w-12 h-12">
+                <img src="${imgUrl}" alt="${p.nombre}" class="w-10 h-10 object-cover rounded-lg">
+            </td>
+            <td class="py-3 px-4 font-bold text-xs">
+                ${p.nombre} ${p.modelo}
+                <div class="text-[10px] font-normal text-textMuted">🎨 Color: ${p.color || 'Estándar'}</div>
+            </td>
+            <td class="py-3 px-4 text-xs font-semibold text-accentBlue">${p.marca}</td>
+            <td class="py-3 px-4 font-bold text-xs">$${p.precio.toLocaleString('es-AR')}</td>
+            <td class="py-3 px-4 text-xs font-bold">${p.cantidad} uds</td>
+            <td class="py-3 px-4 text-right flex items-center justify-end gap-1.5">
+                <button onclick="openEditProductModal(${p.index})" class="text-xs bg-bgLight hover:bg-black/[0.04] text-textDark py-1 px-2.5 rounded-lg font-bold transition-all">✏️ Editar</button>
+                <button onclick="deleteProduct(${p.index})" class="text-xs bg-offerRed/10 hover:bg-offerRed text-offerRed hover:text-white py-1 px-2.5 rounded-lg font-bold transition-all">🗑️</button>
+            </td>
+        `;
+        adminProductosTableBody.appendChild(tr);
+    });
+}
+
+function openEditProductModal(index = null) {
+    productEditForm.reset();
+    document.getElementById("editFotoFile").value = "";
+    
+    if (index !== null) {
+        productEditModalTitle.textContent = "Editar Producto";
+        const prod = productsState.find(p => p.index === index);
+        if (!prod) return;
+        
+        document.getElementById("editIndex").value = index;
+        document.getElementById("editNombre").value = prod.nombre;
+        document.getElementById("editMarca").value = prod.marca;
+        document.getElementById("editModelo").value = prod.modelo;
+        document.getElementById("editColor").value = prod.color;
+        document.getElementById("editPrecio").value = prod.precio;
+        document.getElementById("editCantidad").value = prod.cantidad;
+        document.getElementById("editUrlImgur").value = prod.imagen_url.startsWith("data:image") ? "" : prod.imagen_url;
+    } else {
+        productEditModalTitle.textContent = "Agregar Producto";
+        document.getElementById("editIndex").value = "";
+    }
+    
+    productEditModal.classList.remove("hidden");
+    productEditModal.classList.add("flex");
+}
+
+function closeEditProductModal() {
+    productEditModal.classList.add("hidden");
+    productEditModal.classList.remove("flex");
+}
+
+async function handleProductFormSubmit(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(productEditForm);
+    
+    try {
+        const response = await fetch("/api/admin/productos", {
+            method: "POST",
+            headers: {
+                "Authorization": adminToken
+            },
+            body: formData
+        });
+        
+        const res = await response.json();
+        if (res.success) {
+            showToast("💾 Cambios guardados correctamente.", "success");
+            closeEditProductModal();
+            // Refresh local product catalogue
+            await fetchData();
+            if (panelProductos.classList.contains("hidden")) {
+                loadAdminTab("pedidos");
+            } else {
+                loadAdminTab("productos");
+            }
+        } else {
+            showToast(`❌ Error: ${res.error}`, "error");
+        }
+    } catch (err) {
+        showToast("⚠️ Error de conexión al guardar cambios.", "error");
+    }
+}
+
+async function deleteProduct(index) {
+    if (!confirm("🚨 ¿Estás seguro de que deseás eliminar este producto permanentemente de Google Sheets?")) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/productos/${index}`, {
+            method: "DELETE",
+            headers: { "Authorization": adminToken }
+        });
+        const res = await response.json();
+        if (res.success) {
+            showToast("🗑️ Producto eliminado del catálogo.", "success");
+            await fetchData();
+            renderAdminProductosTable();
+        } else {
+            showToast("Error al eliminar el producto.", "error");
+        }
+    } catch (e) {
+        showToast("Error de red al eliminar.", "error");
+    }
+}
+
+// ── AUXILIARY: EVENT LISTENERS SETUP ──
+function setupEventListeners() {
+    // Search input filters
+    searchInput.addEventListener("input", renderCatalog);
+    searchInputMobile.addEventListener("input", renderCatalog);
+    
+    // Filters cascading triggers
+    filterTipo.addEventListener("change", () => {
+        updateCascadingFilters();
+        renderCatalog();
+    });
+    filterMarca.addEventListener("change", () => {
+        updateCascadingFilters();
+        renderCatalog();
+    });
+    filterModelo.addEventListener("change", renderCatalog);
+    filterColor.addEventListener("change", renderCatalog);
+    
+    // Clean filters CTAs
+    const resetAllFilters = () => {
+        searchInput.value = "";
+        searchInputMobile.value = "";
+        filterTipo.value = "Todos";
+        updateCascadingFilters();
+        filterMarca.value = "Todas";
+        filterModelo.value = "Todos";
+        filterColor.value = "Todos";
+        renderCatalog();
+    };
+    clearFiltersBtn.addEventListener("click", resetAllFilters);
+    resetFiltersBtn.addEventListener("click", resetAllFilters);
+    
+    // Compat search widget trigger
+    compatSearchBtn.addEventListener("click", performCompatSearch);
+    compatInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") performCompatSearch();
+    });
+    
+    // Cart open/close
+    cartBtn.addEventListener("click", openCartDrawer);
+    closeCartBtn.addEventListener("click", closeCartDrawer);
+    cartDrawerOverlay.addEventListener("click", closeCartDrawer);
+    
+    // Checkout step triggers
+    checkoutBtn.addEventListener("click", openCheckoutModal);
+    closeCheckoutBtn.addEventListener("click", closeCheckoutModal);
+    confirmOrderBtn.addEventListener("click", submitOrder);
+    
+    // Success Modal Close
+    successCloseBtn.addEventListener("click", () => {
+        successModal.classList.add("hidden");
+        successModal.classList.remove("flex");
+    });
+    
+    // Admin login modal controls
+    const toggleAdminLogin = (e) => {
+        e.preventDefault();
+        openAdminLogin();
+    };
+    adminLoginBtn.addEventListener("click", toggleAdminLogin);
+    adminFooterLink.addEventListener("click", toggleAdminLogin);
+    adminLoginCancelBtn.addEventListener("click", closeAdminLogin);
+    adminLoginSubmitBtn.addEventListener("click", submitAdminLogin);
+    adminPasswordInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") submitAdminLogin();
+    });
+    
+    // Admin dashboard controls
+    adminCloseBtn.addEventListener("click", closeAdminPanel);
+    tabPedidosBtn.addEventListener("click", () => loadAdminTab("pedidos"));
+    tabProductosBtn.addEventListener("click", () => loadAdminTab("productos"));
+    adminNewProdBtn.addEventListener("click", () => openEditProductModal(null));
+    
+    // Admin download Excel actions
+    adminDownloadInventario.addEventListener("click", () => {
+        window.open(`/api/admin/download/inventario?token=${adminToken}`, "_blank");
+    });
+    adminDownloadPedidos.addEventListener("click", () => {
+        window.open(`/api/admin/download/pedidos?token=${adminToken}`, "_blank");
+    });
+    
+    // Edit Product actions
+    productEditModalClose.addEventListener("click", closeEditProductModal);
+    productEditCancelBtn.addEventListener("click", closeEditProductModal);
+    productEditForm.addEventListener("submit", handleProductFormSubmit);
+    
+    // Checkout forms conditional details trigger
+    Array.from(deliveryMethods).forEach(rm => {
+        rm.addEventListener("change", handleDeliveryMethodChange);
+    });
+}
+
+// ── TOAST MESSAGES HELPER ──
+function showToast(message, type = "success") {
+    const toast = document.createElement("div");
+    toast.className = `toast-in flex items-center gap-2.5 px-4 py-3 text-xs font-bold rounded-xl shadow-lg border text-white transition-all max-w-sm
+        ${type === 'success' ? 'bg-successGreen border-successGreen/20 shadow-successGreen/10' : ''}
+        ${type === 'error' ? 'bg-offerRed border-offerRed/20 shadow-offerRed/10' : ''}
+        ${type === 'warning' ? 'bg-warningOrange border-warningOrange/20 shadow-warningOrange/10' : ''}
+    `;
+    
+    let icon = "⚡";
+    if (type === "success") icon = "✓";
+    if (type === "error") icon = "✕";
+    if (type === "warning") icon = "⚠️";
+    
+    toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+    toastContainer.appendChild(toast);
+    
+    // Remove toast after 3 seconds
+    setTimeout(() => {
+        toast.classList.remove("toast-in");
+        toast.classList.add("toast-out");
+        setTimeout(() => {
+            toast.remove();
+        }, 300);
+    }, 3000);
+}

@@ -1,0 +1,147 @@
+/* ── CUSTOM APP STYLES & ANIMATIONS ── */
+
+:root {
+    --transition-timing: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Smooth Scrolling */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Glassmorphism Header blur adjustment */
+header {
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+/* Slide-Over Drawer Classes */
+#cartDrawer {
+    transition: transform 0.4s var(--transition-timing);
+}
+
+#cartDrawer.active {
+    transform: translateX(0);
+}
+
+/* Drawer Backdrop Overlay Fade */
+#cartDrawerOverlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Product Card Layout Styles */
+.product-card {
+    transition: transform 0.35s var(--transition-timing), box-shadow 0.35s var(--transition-timing);
+}
+
+.product-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.05), 0 4px 8px rgba(0, 0, 0, 0.02);
+}
+
+/* Zoom effect on card image hover */
+.product-card-img {
+    transition: transform 0.5s var(--transition-timing);
+}
+
+.product-card:hover .product-card-img {
+    transform: scale(1.05);
+}
+
+/* Scale-up Modal Animation */
+@keyframes scaleUp {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.animate-scaleUp {
+    animation: scaleUp 0.3s var(--transition-timing) forwards;
+}
+
+/* Toast Notification Animation */
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeOut {
+    to {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+}
+
+.toast-in {
+    animation: slideInUp 0.35s var(--transition-timing) forwards;
+}
+
+.toast-out {
+    animation: fadeOut 0.3s var(--transition-timing) forwards;
+}
+
+/* Skeleton Loading Animation */
+@keyframes shimmer {
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.shimmer-bg::after {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.2) 20%,
+        rgba(255, 255, 255, 0.5) 60%,
+        rgba(255, 255, 255, 0) 100%
+    );
+    animation: shimmer 2s infinite;
+    content: '';
+}
+
+/* Custom Scrollbar for modern design */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+/* Radio Button/Card active focus style */
+input[type="radio"]:checked + div {
+    color: #0066CC;
+}
+
+label:has(input[type="radio"]:checked) {
+    border-color: #0066CC;
+    background-color: rgba(0, 102, 204, 0.03);
+}

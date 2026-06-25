@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BEJO – Accesorios para Celulares</title>
+    <link rel="icon" type="image/png" href="/static/logo.png" onerror="this.href='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>'">
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+                    },
+                    colors: {
+                        bgLight: '#F5F5F7',
+                        textDark: '#1D1D1F',
+                        textMuted: '#86868B',
+                        accentBlue: '#0066CC',
+                        accentBlueHover: '#0055a8',
+                        offerRed: '#FF3B30',
+                        successGreen: '#34C759',
+                        warningOrange: '#FF9F0A',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="bg-bgLight text-textDark font-sans antialiased min-h-screen">
+
+    <!-- HEADER: Glassmorphism -->
+    <header class="fixed top-0 left-0 right-0 z-40 bg-white/75 backdrop-blur-xl border-b border-black/[0.06] transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+            <!-- Logo -->
+            <a href="#" class="flex items-center gap-2 group">
+                <span class="text-xl sm:text-2xl font-black tracking-tight text-textDark group-hover:opacity-80 transition-opacity">
+                    BEJO <span class="text-accentBlue">⚡</span>
+                </span>
+            </a>
+
+            <!-- Search Bar (Desktop) -->
+            <div class="hidden md:flex flex-1 max-w-md relative">
+                <input type="text" id="searchInput" placeholder="Buscá tu accesorio (Ej: Funda iPhone 14)..." 
+                       class="w-full bg-black/[0.04] focus:bg-white text-sm border-0 focus:ring-2 focus:ring-accentBlue rounded-full py-2 pl-10 pr-4 transition-all placeholder:text-textMuted">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-textMuted">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                </div>
+            </div>
+
+            <!-- Header Actions -->
+            <div class="flex items-center gap-3">
+                <button id="cartBtn" class="relative p-2 bg-black/[0.04] hover:bg-black/[0.08] transition-colors rounded-full text-textDark flex items-center justify-center">
+                    <svg class="h-5.5 w-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                    <span id="cartCount" class="absolute -top-1 -right-1 bg-accentBlue text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full scale-0 transition-transform duration-300">0</span>
+                </button>
+                <button id="adminLoginBtn" class="text-xs font-semibold px-3 py-1.5 rounded-full hover:bg-black/[0.04] transition-colors text-textMuted hover:text-textDark">
+                    Panel ⚙️
+                </button>
+            </div>
+        </div>
+        
+        <!-- Search Bar (Mobile) -->
+        <div class="md:hidden px-4 pb-3 pt-1 border-t border-black/[0.03]">
+            <div class="relative">
+                <input type="text" id="searchInputMobile" placeholder="Buscá tu accesorio..." 
+                       class="w-full bg-black/[0.04] focus:bg-white text-sm border-0 focus:ring-2 focus:ring-accentBlue rounded-full py-2 pl-10 pr-4 transition-all">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-textMuted">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- HERO SECTION -->
+    <section class="pt-28 md:pt-36 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <div class="bg-gradient-to-br from-white via-white to-accentBlue/[0.03] border border-black/[0.04] rounded-3xl p-8 sm:p-12 lg:p-16 flex flex-col md:flex-row items-center justify-between gap-8 shadow-sm relative overflow-hidden">
+            <div class="max-w-2xl relative z-10 text-center md:text-left">
+                <span class="inline-flex items-center gap-1.5 text-xs font-bold tracking-wider uppercase text-accentBlue bg-accentBlue/[0.08] px-3 py-1 rounded-full mb-4">
+                    ⚡ San Miguel de Tucumán · Envíos rápidos
+                </span>
+                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight text-textDark mb-4">
+                    Accesorios Tech <br class="hidden sm:inline">de calidad premium
+                </h1>
+                <p class="text-base sm:text-lg text-textMuted mb-8 max-w-xl">
+                    Fundas, cargadores, hidrogel y más para tu celular. Stock siempre actualizado. Comprá en un clic y coordiná la entrega.
+                </p>
+                <div class="flex flex-wrap items-center justify-center md:justify-start gap-4">
+                    <a href="#productosCatalog" class="px-6 py-3 bg-textDark hover:bg-black text-white font-medium rounded-full transition-all duration-300 transform active:scale-95 shadow-md shadow-black/10">
+                        🛍️ Ver Catálogo
+                    </a>
+                    <a id="consultarWSA" href="https://wa.me/5493816582851?text=Hola%20BEJO!%20Tengo%20una%20consulta%20%F0%9F%98%8A" target="_blank" 
+                       class="px-6 py-3 bg-white hover:bg-bgLight text-textDark border border-black/[0.08] font-medium rounded-full transition-all duration-300 transform active:scale-95">
+                        💬 Consultar
+                    </a>
+                </div>
+            </div>
+            <!-- Visual Hero Side -->
+            <div class="relative w-full max-w-[320px] aspect-square flex items-center justify-center md:max-w-none md:w-1/3">
+                <div class="absolute inset-0 bg-accentBlue/5 rounded-full filter blur-2xl animate-pulse"></div>
+                <img src="/static/logo.png" alt="BEJO Logo" class="relative z-10 max-h-56 object-contain filter drop-shadow-xl hover:scale-105 transition-transform duration-500"
+                     onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%230066cc%22 rx=%2220%22/><text x=%2250%25%22 y=%2265%25%22 font-size=%2255%22 fill=%22white%22 font-weight=%22bold%22 text-anchor=%22middle%22>BJ</text></svg>'">
+            </div>
+        </div>
+    </section>
+
+    <!-- MAIN SECTION: Filters and Products -->
+    <main id="productosCatalog" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
+        <!-- Section Header -->
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+            <div>
+                <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-textDark">Encontrá tu accesorio</h2>
+                <p class="text-sm text-textMuted mt-1">Filtrá por tipo de producto, marca o modelo exacto</p>
+            </div>
+            <!-- Clear Filters Button -->
+            <button id="clearFiltersBtn" class="hidden text-xs font-semibold text-accentBlue hover:text-accentBlueHover items-center gap-1">
+                Limpiar filtros ✕
+            </button>
+        </div>
+
+        <!-- Filter Cascade Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <!-- Tipo de Producto / Categoría -->
+            <div class="relative bg-white border border-black/[0.06] rounded-2xl px-4 py-2.5 shadow-sm">
+                <label class="block text-[10px] font-bold uppercase tracking-wider text-textMuted mb-1">Categoría</label>
+                <select id="filterTipo" class="w-full text-sm font-semibold border-0 p-0 text-textDark focus:ring-0 cursor-pointer bg-transparent">
+                    <option value="Todos">Todas las categorías</option>
+                </select>
+            </div>
+            
+            <!-- Marca -->
+            <div class="relative bg-white border border-black/[0.06] rounded-2xl px-4 py-2.5 shadow-sm">
+                <label class="block text-[10px] font-bold uppercase tracking-wider text-textMuted mb-1">Marca de Celular</label>
+                <select id="filterMarca" class="w-full text-sm font-semibold border-0 p-0 text-textDark focus:ring-0 cursor-pointer bg-transparent">
+                    <option value="Todas">Todas las marcas</option>
+                </select>
+            </div>
+            
+            <!-- Modelo -->
+            <div class="relative bg-white border border-black/[0.06] rounded-2xl px-4 py-2.5 shadow-sm">
+                <label class="block text-[10px] font-bold uppercase tracking-wider text-textMuted mb-1">Modelo Exacto</label>
+                <select id="filterModelo" class="w-full text-sm font-semibold border-0 p-0 text-textDark focus:ring-0 cursor-pointer bg-transparent">
+                    <option value="Todos">Todos los modelos</option>
+                </select>
+            </div>
+            
+            <!-- Color / Diseño -->
+            <div class="relative bg-white border border-black/[0.06] rounded-2xl px-4 py-2.5 shadow-sm">
+                <label class="block text-[10px] font-bold uppercase tracking-wider text-textMuted mb-1">Color / Diseño</label>
+                <select id="filterColor" class="w-full text-sm font-semibold border-0 p-0 text-textDark focus:ring-0 cursor-pointer bg-transparent">
+                    <option value="Todos">Todos los colores</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Featured Offers (Only shown when no filters are set) -->
+        <div id="ofertasSection" class="mb-12 hidden">
+            <div class="flex items-center gap-2 mb-6">
+                <h3 class="text-xl font-bold tracking-tight text-textDark">🔥 Ofertas Destacadas</h3>
+                <span class="text-xs bg-offerRed/10 text-offerRed font-bold px-2 py-0.5 rounded">Limitado</span>
+            </div>
+            <div id="ofertasGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Ofertas renderizadas mediante JS -->
+            </div>
+            <hr class="border-black/[0.05] mt-12">
+        </div>
+
+        <!-- Main Product Catalog Grid -->
+        <div class="mt-8">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold tracking-tight text-textDark">Catálogo Completo</h3>
+                <span id="resultsCount" class="text-xs font-semibold text-textMuted">Cargando productos...</span>
+            </div>
+            
+            <!-- Products Render Grid -->
+            <div id="productosGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <!-- Render dinámico mediante JS -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyCatalogState" class="hidden flex-col items-center justify-center py-16 px-4 bg-white border border-black/[0.04] rounded-3xl text-center shadow-sm">
+                <div class="text-5xl mb-4">🔍</div>
+                <h4 class="text-lg font-bold text-textDark mb-1">No encontramos resultados</h4>
+                <p class="text-sm text-textMuted max-w-sm">Intentá cambiar los filtros de búsqueda o restablecelos para ver más accesorios.</p>
+                <button id="resetFiltersBtn" class="mt-4 text-sm font-semibold text-accentBlue hover:text-accentBlueHover">Restablecer filtros</button>
+            </div>
+        </div>
+
+        <!-- Compatibility Search Widget -->
+        <section class="mt-16 bg-white border border-black/[0.04] rounded-3xl p-6 sm:p-8 shadow-sm">
+            <div class="max-w-2xl">
+                <h3 class="text-xl font-bold text-textDark flex items-center gap-2">
+                    📱 ¿Tu modelo no figura en los filtros?
+                </h3>
+                <p class="text-sm text-textMuted mt-1 mb-6">
+                    Ingresá el modelo de tu celular para verificar qué fundas o protectores son compatibles.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="compatInput" placeholder="Ej: iPhone 13 Pro" 
+                           class="flex-1 bg-bgLight text-sm border-0 focus:ring-2 focus:ring-accentBlue rounded-xl px-4 py-3 placeholder:text-textMuted">
+                    <button id="compatSearchBtn" class="px-6 py-3 bg-textDark hover:bg-black text-white text-sm font-semibold rounded-xl transition-colors">
+                        Buscar Compatibilidad
+                    </button>
+                </div>
+                <div id="compatResults" class="mt-4 hidden p-4 rounded-2xl bg-bgLight text-sm">
+                    <!-- Resultados de compatibilidad -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- SLIDE-OVER: CART DRAWER -->
+    <div id="cartDrawerOverlay" class="fixed inset-0 z-50 bg-black/40 opacity-0 pointer-events-none transition-opacity duration-300"></div>
+    <div id="cartDrawer" class="fixed top-0 right-0 bottom-0 z-50 w-full max-w-md bg-white shadow-2xl translate-x-full transition-transform duration-300 flex flex-col">
+        <!-- Drawer Header -->
+        <div class="px-6 py-5 border-b border-black/[0.05] flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <svg class="h-5 w-5 text-textDark" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                <h3 class="text-lg font-bold text-textDark">Tu Carrito</h3>
+            </div>
+            <button id="closeCartBtn" class="p-2 hover:bg-bgLight rounded-full text-textMuted hover:text-textDark transition-colors">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <!-- Drawer Content (Scrollable) -->
+        <div id="cartItemsContainer" class="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-4">
+            <!-- Items rendered dynamic -->
+        </div>
+
+        <!-- Drawer Empty State -->
+        <div id="cartEmptyState" class="hidden flex-1 flex-col items-center justify-center text-center p-8">
+            <span class="text-5xl mb-3">🛒</span>
+            <h4 class="font-bold text-textDark">Tu carrito está vacío</h4>
+            <p class="text-xs text-textMuted max-w-[240px] mt-1">Agregá accesorios desde el catálogo para iniciar tu compra.</p>
+        </div>
+
+        <!-- Drawer Footer -->
+        <div id="cartFooter" class="px-6 py-5 border-t border-black/[0.05] bg-bgLight/50 flex flex-col gap-4">
+            <div class="flex items-center justify-between text-base font-bold text-textDark">
+                <span>Total estimado</span>
+                <span id="cartTotalSum">$0</span>
+            </div>
+            <button id="checkoutBtn" class="w-full py-4 bg-accentBlue hover:bg-accentBlueHover text-white font-semibold rounded-2xl transition-colors shadow-lg shadow-accentBlue/10 flex items-center justify-center gap-2">
+                Proceder al pago
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL: CHECKOUT STEP FLOW -->
+    <div id="checkoutModal" class="fixed inset-0 z-50 bg-black/50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-xl w-full shadow-2xl max-h-[90vh] flex flex-col overflow-hidden animate-scaleUp">
+            <!-- Modal Header -->
+            <div class="px-6 py-5 border-b border-black/[0.05] flex items-center justify-between">
+                <h3 class="text-lg font-bold text-textDark">Detalle de tu pedido</h3>
+                <button id="closeCheckoutBtn" class="p-2 hover:bg-bgLight rounded-full text-textMuted hover:text-textDark transition-colors">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Modal Form Scrollable Area -->
+            <div class="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+                <!-- STEP 1: Delivery Method -->
+                <div>
+                    <h4 class="text-sm font-bold uppercase tracking-wider text-textMuted mb-3">1. Método de entrega</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label class="border-2 border-black/[0.06] rounded-2xl p-4 flex items-start gap-3 cursor-pointer hover:border-accentBlue/50 transition-all select-none relative">
+                            <input type="radio" name="deliveryMethod" value="Retiro en local" class="mt-1 text-accentBlue focus:ring-accentBlue">
+                            <div>
+                                <span class="font-bold text-sm block">🏪 Retiro en local</span>
+                                <span class="text-xs text-textMuted block mt-0.5">Coordinar retiro por local BEJO</span>
+                            </div>
+                        </label>
+                        <label class="border-2 border-black/[0.06] rounded-2xl p-4 flex items-start gap-3 cursor-pointer hover:border-accentBlue/50 transition-all select-none relative">
+                            <input type="radio" name="deliveryMethod" value="Envío a domicilio" class="mt-1 text-accentBlue focus:ring-accentBlue">
+                            <div>
+                                <span class="font-bold text-sm block">🏠 Envío a domicilio</span>
+                                <span class="text-xs text-textMuted block mt-0.5">San Miguel de Tucumán y alrededores</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Envío a domicilio Details (Conditional) -->
+                <div id="deliveryDetails" class="hidden flex-col gap-4 p-4 bg-bgLight rounded-2xl border border-black/[0.04]">
+                    <div class="text-xs text-successGreen font-semibold flex items-center gap-1.5 mb-1">
+                        🛵 <b>Info de Envíos:</b> Gratis dentro de las 4 Avenidas. Fuera coordinamos tarifa.
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="col-span-2 sm:col-span-1">
+                            <label class="block text-xs font-bold text-textMuted mb-1">Calle y número *</label>
+                            <input type="text" id="devCalle" placeholder="Ej: Haiti 650" class="w-full text-sm bg-white border border-black/[0.08] focus:border-accentBlue focus:ring-accentBlue rounded-xl px-3 py-2">
+                        </div>
+                        <div class="col-span-2 sm:col-span-1">
+                            <label class="block text-xs font-bold text-textMuted mb-1">Barrio</label>
+                            <input type="text" id="devBarrio" placeholder="Ej: Villa Carmela" class="w-full text-sm bg-white border border-black/[0.08] focus:border-accentBlue focus:ring-accentBlue rounded-xl px-3 py-2">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="col-span-2 sm:col-span-1">
+                            <label class="block text-xs font-bold text-textMuted mb-1">Localidad *</label>
+                            <select id="devLocalidad" class="w-full text-sm bg-white border border-black/[0.08] focus:border-accentBlue focus:ring-accentBlue rounded-xl px-3 py-2">
+                                <option value="">Seleccionar localidad...</option>
+                                <option value="San Miguel de Tucumán">San Miguel de Tucumán</option>
+                                <option value="Yerba Buena">Yerba Buena</option>
+                                <option value="Alderetes">Alderetes</option>
+                                <option value="Banda del Río Salí">Banda del Río Salí</option>
+                                <option value="Las Talitas">Las Talitas</option>
+                                <option value="El Manantial">El Manantial</option>
+                                <option value="Otra localidad">Otra localidad</option>
+                            </select>
+                        </div>
+                        <div class="col-span-2 sm:col-span-1">
+                            <label class="block text-xs font-bold text-textMuted mb-1">Teléfono de contacto *</label>
+                            <input type="text" id="devTelefono" placeholder="Ej: 381 4123456" class="w-full text-sm bg-white border border-black/[0.08] focus:border-accentBlue focus:ring-accentBlue rounded-xl px-3 py-2">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-textMuted mb-1">Referencias / Observación</label>
+                        <textarea id="devObservacion" placeholder="Ej: Casa azul, piso 3 dpto B..." rows="2" class="w-full text-sm bg-white border border-black/[0.08] focus:border-accentBlue focus:ring-accentBlue rounded-xl px-3 py-2"></textarea>
+                    </div>
+                </div>
+
+                <!-- STEP 2: Payment Method -->
+                <div>
+                    <h4 class="text-sm font-bold uppercase tracking-wider text-textMuted mb-3">2. Método de pago</h4>
+                    <div class="flex flex-col gap-2">
+                        <label class="border border-black/[0.06] rounded-2xl p-4 flex items-start gap-3 cursor-pointer hover:border-accentBlue/40 transition-all select-none">
+                            <input type="radio" name="paymentMethod" value="Efectivo" class="mt-1 text-accentBlue focus:ring-accentBlue">
+                            <div>
+                                <span class="font-bold text-sm block">💵 Efectivo al recibir</span>
+                                <span class="text-xs text-textMuted block">Abonás el importe exacto cuando te entreguen el pedido</span>
+                            </div>
+                        </label>
+                        <label class="border border-black/[0.06] rounded-2xl p-4 flex items-start gap-3 cursor-pointer hover:border-accentBlue/40 transition-all select-none">
+                            <input type="radio" name="paymentMethod" value="Transferencia Bancaria" class="mt-1 text-accentBlue focus:ring-accentBlue">
+                            <div>
+                                <span class="font-bold text-sm block">🏦 Transferencia Bancaria</span>
+                                <span class="text-xs text-textMuted block">Seña del 50% ahora y el resto contra entrega. Datos bancarios por WhatsApp.</span>
+                            </div>
+                        </label>
+                        <label class="border border-black/[0.06] rounded-2xl p-4 flex items-start gap-3 cursor-pointer hover:border-accentBlue/40 transition-all select-none">
+                            <input type="radio" name="paymentMethod" value="Mercado Pago" class="mt-1 text-accentBlue focus:ring-accentBlue">
+                            <div>
+                                <span class="font-bold text-sm block">💳 Mercado Pago</span>
+                                <span class="text-xs text-textMuted block">Pagá el total online mediante Tarjeta de crédito/débito o dinero en cuenta</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-5 border-t border-black/[0.05] bg-bgLight/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="text-left w-full sm:w-auto">
+                    <span class="text-xs text-textMuted block">Total a pagar</span>
+                    <span id="checkoutTotal" class="text-xl font-black text-textDark">$0</span>
+                </div>
+                <button id="confirmOrderBtn" class="w-full sm:w-auto px-8 py-3.5 bg-accentBlue hover:bg-accentBlueHover text-white font-semibold rounded-2xl transition-colors shadow-lg shadow-accentBlue/10 flex items-center justify-center gap-2">
+                    Confirmar Pedido 🚀
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ORDER SUCCESS & ACTIONS -->
+    <div id="successModal" class="fixed inset-0 z-50 bg-black/60 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-8 text-center animate-scaleUp">
+            <span class="text-6xl block mb-4">🎉</span>
+            <h3 class="text-2xl font-black text-textDark mb-1">¡Pedido confirmado!</h3>
+            <p id="successOrderId" class="text-sm font-mono text-accentBlue font-bold bg-accentBlue/5 inline-block px-3 py-1 rounded-full mb-4">PED-XXXX</p>
+            <p class="text-sm text-textMuted mb-6 max-w-xs mx-auto">
+                Registramos tu orden en Google Sheets. Para finalizar, coordiná la entrega o realizá el pago utilizando los botones inferiores.
+            </p>
+            
+            <div id="paymentActionsContainer" class="flex flex-col gap-3">
+                <!-- Mercado Pago payment button (rendered if chosen) -->
+                <a id="successMPBtn" href="#" target="_blank" class="hidden w-full py-4 bg-[#009EE3] hover:bg-[#0087c2] text-white font-bold rounded-2xl transition-colors flex items-center justify-center gap-2 text-sm">
+                    💳 PAGAR CON MERCADO PAGO
+                </a>
+                
+                <!-- WhatsApp order confirm button -->
+                <a id="successWSBtn" href="#" target="_blank" class="w-full py-4 bg-[#25D366] hover:bg-[#20ba59] text-white font-bold rounded-2xl transition-colors flex items-center justify-center gap-2 text-sm">
+                    📲 AVISAR AL VENDEDOR POR WS
+                </a>
+                
+                <button id="successCloseBtn" class="mt-2 text-xs font-bold text-textMuted hover:text-textDark py-2 transition-colors">
+                    Cerrar y volver a la tienda
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN ADMIN PANEL (Hidden by Default) -->
+    <div id="adminPanel" class="fixed inset-0 z-50 bg-bgLight hidden flex-col overflow-hidden">
+        <!-- Admin Header -->
+        <header class="bg-white border-b border-black/[0.06] h-16 flex items-center justify-between px-6">
+            <div class="flex items-center gap-2">
+                <span class="text-lg font-black tracking-tight text-textDark">BEJO 🛠️ <span class="text-xs bg-accentBlue/10 text-accentBlue px-2 py-0.5 rounded ml-1">Admin</span></span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="adminDownloadInventario" class="text-xs font-bold bg-white border border-black/[0.08] hover:bg-bgLight text-textDark px-3 py-2 rounded-xl transition-colors">📥 Excel Stock</button>
+                <button id="adminDownloadPedidos" class="text-xs font-bold bg-white border border-black/[0.08] hover:bg-bgLight text-textDark px-3 py-2 rounded-xl transition-colors">📥 Excel Pedidos</button>
+                <button id="adminCloseBtn" class="text-xs font-bold bg-textDark hover:bg-black text-white px-4 py-2 rounded-xl transition-colors">Cerrar Sesión 🔒</button>
+            </div>
+        </header>
+
+        <!-- Admin Content (Tabs/Panels) -->
+        <div class="flex-1 overflow-hidden flex flex-col md:flex-row">
+            <!-- Sidebar -->
+            <div class="w-full md:w-64 bg-white border-r border-black/[0.05] p-4 flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-x-visible">
+                <button id="tabPedidosBtn" class="flex-1 md:flex-initial text-left px-4 py-3 text-sm font-semibold rounded-xl bg-accentBlue/10 text-accentBlue whitespace-nowrap">📦 Pedidos Registrados</button>
+                <button id="tabProductosBtn" class="flex-1 md:flex-initial text-left px-4 py-3 text-sm font-semibold rounded-xl text-textMuted hover:bg-bgLight hover:text-textDark whitespace-nowrap">🛍️ Catálogo / Inventario</button>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <!-- PANEL: PEDIDOS -->
+                <div id="panelPedidos" class="flex flex-col gap-4">
+                    <h3 class="text-xl font-bold text-textDark">Pedidos del Sistema</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="border-b border-black/[0.05] text-textMuted uppercase font-bold text-xs">
+                                    <th class="py-3 px-4">Fecha</th>
+                                    <th class="py-3 px-4">ID Pedido</th>
+                                    <th class="py-3 px-4">Cliente / Contacto</th>
+                                    <th class="py-3 px-4">Total</th>
+                                    <th class="py-3 px-4">Estado</th>
+                                    <th class="py-3 px-4">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminPedidosTableBody" class="divide-y divide-black/[0.03]">
+                                <!-- Cargado dinámico -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- PANEL: CATALOGO -->
+                <div id="panelProductos" class="hidden flex-col gap-6">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-bold text-textDark">Catálogo e Inventario</h3>
+                        <button id="adminNewProdBtn" class="px-4 py-2 bg-accentBlue hover:bg-accentBlueHover text-white text-sm font-bold rounded-xl transition-colors">＋ Nuevo Producto</button>
+                    </div>
+
+                    <!-- Products Table -->
+                    <div class="overflow-x-auto bg-white border border-black/[0.04] rounded-2xl">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="border-b border-black/[0.05] text-textMuted uppercase font-bold text-xs bg-bgLight/50">
+                                    <th class="py-3 px-4">Imagen</th>
+                                    <th class="py-3 px-4">Producto / Modelo</th>
+                                    <th class="py-3 px-4">Marca</th>
+                                    <th class="py-3 px-4">Precio</th>
+                                    <th class="py-3 px-4">Stock</th>
+                                    <th class="py-3 px-4 text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminProductosTableBody" class="divide-y divide-black/[0.03]">
+                                <!-- Cargado dinámico -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ADMIN LOGIN PASSWORD -->
+    <div id="adminLoginModal" class="fixed inset-0 z-50 bg-black/60 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-sm w-full shadow-2xl p-6 text-center animate-scaleUp">
+            <h3 class="text-lg font-black text-textDark mb-1">Panel de Control</h3>
+            <p class="text-xs text-textMuted mb-4">Solo personal autorizado</p>
+            <input type="password" id="adminPasswordInput" placeholder="Contraseña de administrador" class="w-full text-sm bg-bgLight border-0 focus:ring-2 focus:ring-accentBlue rounded-xl px-4 py-3 mb-4 text-center">
+            <div class="flex gap-2">
+                <button id="adminLoginCancelBtn" class="flex-1 py-3 text-sm font-semibold rounded-xl bg-bgLight hover:bg-black/[0.04] text-textMuted transition-colors">Cancelar</button>
+                <button id="adminLoginSubmitBtn" class="flex-1 py-3 text-sm font-semibold rounded-xl bg-accentBlue hover:bg-accentBlueHover text-white transition-colors">Ingresar 🔓</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD / EDIT PRODUCT -->
+    <div id="productEditModal" class="fixed inset-0 z-50 bg-black/60 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-scaleUp">
+            <div class="px-6 py-5 border-b border-black/[0.05] flex items-center justify-between">
+                <h3 id="productEditModalTitle" class="text-lg font-bold text-textDark">Editar Producto</h3>
+                <button id="productEditModalClose" class="p-2 hover:bg-bgLight rounded-full text-textMuted hover:text-textDark transition-colors">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <form id="productEditForm" class="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
+                <input type="hidden" id="editIndex" name="index">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="col-span-2 sm:col-span-1">
+                        <label class="block text-xs font-bold text-textMuted mb-1">Nombre del Artículo *</label>
+                        <input type="text" id="editNombre" name="nombre" placeholder="Ej: Funda Silicona" required class="w-full text-sm bg-bgLight border-0 focus:ring-2 focus:ring-accentBlue rounded-xl px-3 py-2">
+                    </div>
+                    <div class="col-span-2 sm:col-span-1">
+                        <label class="block text-xs font-bold text-textMuted mb-1">Marca Principal *</label>
+                        <input type="text" id="editMarca" name="marca" placeholder="Ej: Samsung" required class="w-full text-sm bg-bgLight border-0 focus:ring-2 focus:ring-accentBlue rounded-xl px-3 py-2">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="col-span-2 sm:col-span-1">
+                        <label class="block text-xs font-bold text-textMuted mb-1">Modelo Exacto *</label>
+                        <input type="text" id="editModelo" name="modelo" placeholder="Ej: Galaxy A54" required class="w-full text-sm bg-bgLight border-0 focus:ring-2 focus:ring-accentBlue rounded-xl px-3 py-2">
+                    </div>
+                    <div class="col-span-2 sm:col-span-1">
+                        <label class="block text-xs font-bold text-textMuted mb-1">Color / Diseño (Variación)</label>
+                        <input type="text" id="editColor" name="color" placeholder="Ej: Negro Mate" class="w-full text-sm bg-bgLight border-0 focus:ring-2 focus:ring-accentBlue rounded-xl px-3 py-2">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-textMuted mb-1">Precio Mercado ($) *</label>
+                        <input type="number" id="editPrecio" name="precio" placeholder="15000" min="0" required class="w-full text-sm bg-bgLight border-0 focus:ring-2 focus:ring-accentBlue rounded-xl px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-textMuted mb-1">Cantidad de Stock *</label>
+                        <input type="number" id="editCantidad" name="cantidad" placeholder="5" min="0" required class="w-full text-sm bg-bgLight border-0 focus:ring-2 focus:ring-accentBlue rounded-xl px-3 py-2">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-textMuted mb-1">Pegar URL Imagen de Imgur u otro (Opcional)</label>
+                    <input type="url" id="editUrlImgur" name="url_imgur" placeholder="https://i.imgur.com/..." class="w-full text-sm bg-bgLight border-0 focus:ring-2 focus:ring-accentBlue rounded-xl px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-textMuted mb-1">O subir imagen desde tu dispositivo *</label>
+                    <input type="file" id="editFotoFile" name="foto" accept="image/*" class="w-full text-xs text-textMuted file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-accentBlue/10 file:text-accentBlue hover:file:bg-accentBlue/20">
+                </div>
+                <div class="flex gap-3 mt-4 border-t border-black/[0.05] pt-4">
+                    <button type="button" id="productEditCancelBtn" class="flex-1 py-3 text-sm font-semibold rounded-xl bg-bgLight hover:bg-black/[0.04] text-textMuted transition-colors">Cancelar</button>
+                    <button type="submit" class="flex-1 py-3 text-sm font-semibold rounded-xl bg-accentBlue hover:bg-accentBlueHover text-white transition-colors">Guardar Producto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2"></div>
+
+    <!-- FOOTER -->
+    <footer class="bg-white border-t border-black/[0.05] py-12 px-4 mt-24">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6 text-sm text-textMuted text-center sm:text-left">
+            <div>
+                <p class="font-bold text-textDark">BEJO Accesorios Celulares</p>
+                <p class="text-xs mt-1">© 2026 Todos los derechos reservados. San Miguel de Tucumán.</p>
+            </div>
+            <div class="flex gap-4">
+                <a href="https://wa.me/5493816582851" target="_blank" class="hover:text-accentBlue transition-colors font-semibold">WhatsApp</a>
+                <span class="text-black/[0.08]">|</span>
+                <button id="adminFooterLink" class="hover:text-textDark transition-colors font-semibold">Panel de Control</button>
+            </div>
+        </div>
+    </footer>
+
+    <!-- App Frontend JavaScript -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
