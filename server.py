@@ -375,14 +375,17 @@ def debug_sheets():
             "columns": df.columns.tolist()
         })
     except Exception as e:
+        gcp_val = os.environ.get("GCP_SERVICE_ACCOUNT", "")
+        snippet = gcp_val[max(0, 1500):min(len(gcp_val), 1620)] if gcp_val else None
         return jsonify({
             "success": False,
             "error": str(e),
             "traceback": traceback.format_exc(),
             "gcp_env_exists": "GCP_SERVICE_ACCOUNT" in os.environ,
-            "gcp_env_len": len(os.environ.get("GCP_SERVICE_ACCOUNT", "")),
+            "gcp_env_len": len(gcp_val),
             "parse_error": parse_error,
-            "parsed_dict_keys": parsed_dict_keys
+            "parsed_dict_keys": parsed_dict_keys,
+            "gcp_env_snippet_around_error": snippet
         })
 
 @app.route('/api/productos', methods=['GET'])
