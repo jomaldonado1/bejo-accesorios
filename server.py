@@ -267,10 +267,13 @@ def descontar_stock(carrito: dict, df_ref: pd.DataFrame):
     try:
         sheet   = get_sheet()
         cols    = df_ref.columns.tolist()
-        col_cant = cols.index("Cantidad") + 1
+        col_name = "CANTIDAD" if "CANTIDAD" in cols else "Cantidad"
+        if col_name not in cols:
+            return False
+        col_cant = cols.index(col_name) + 1
         for df_idx, cant_vendida in carrito.items():
             fila_sheet   = df_idx + 5
-            stock_actual = int(df_ref.loc[df_idx, "Cantidad"])
+            stock_actual = int(df_ref.loc[df_idx, col_name])
             nuevo_stock  = max(0, stock_actual - cant_vendida)
             sheet.update_cell(fila_sheet, col_cant, str(nuevo_stock))
         return True
@@ -487,7 +490,8 @@ def post_checkout():
             return jsonify({"success": False, "error": f"El producto con índice {idx} no existe en el inventario"}), 400
             
         row = df_stock.loc[idx]
-        stock_actual = int(row["Cantidad"])
+        col_cantidad = "CANTIDAD" if "CANTIDAD" in df_stock.columns else "Cantidad"
+        stock_actual = int(row[col_cantidad])
         if qty > stock_actual:
             return jsonify({
                 "success": False, 
@@ -698,23 +702,51 @@ def admin_save_producto():
                 nueva_url_foto = str(row.get("Imagen_URL", ""))
                 
             cols = df_stock.columns.tolist()
-            def col_num(nombre_col): return cols.index(nombre_col) + 1
+            def update_col(nombre1, nombre2, val):
+                if nombre1 in cols:
+                    sheet.update_cell(fila_sheet, cols.index(nombre1) + 1, val)
+                elif nombre2 in cols:
+                    sheet.update_cell(fila_sheet, cols.index(nombre2) + 1, val)
             
-            sheet.update_cell(fila_sheet, col_num("Nombre del Artículo"), nombre)
-            sheet.update_cell(fila_sheet, col_num("Marca Principal"), marca)
-            sheet.update_cell(fila_sheet, col_num("Modelo Exacto"), modelo)
-            sheet.update_cell(fila_sheet, col_num("Color / Diseño (Variación)"), color)
-            sheet.update_cell(fila_sheet, col_num("Precio Mercado"), str(precio))
-            sheet.update_cell(fila_sheet, col_num("Cantidad"), str(cantidad))
-            sheet.update_cell(fila_sheet, col_num("Imagen_URL"), nueva_url_foto)
+            update_col("CATEGORIA", "Nombre del Artículo", nombre)
+            update_col("MARCA", "Marca Principal", marca)
+            update_col("PRODUCTO / MODELO", "Modelo Exacto", modelo)
+            update_col("COLOR", "Color / Diseño (Variación)", color)
+            update_col("PRECIO DE MERCADO", "Precio Mercado", str(precio))
+            update_col("CANTIDAD", "Cantidad", str(cantidad))
             
+            if urls_fotos:
+                update_col("FOTO 1 OPCIONAL", "Imagen_URL", urls_fotos[0] if len(urls_fotos) > 0 else "")
+                if "FOTO 2 OPCIONAL" in cols:
+                    sheet.update_cell(fila_sheet, cols.index("FOTO 2 OPCIONAL") + 1, urls_fotos[1] if len(urls_fotos) > 1 else "")
+                if "FOTO 3 OPCIONAL" in cols:
+                    sheet.update_cell(fila_sheet, cols.index("FOTO 3 OPCIONAL") + 1, urls_fotos[2] if len(urls_fotos) > 2 else "")
+            elif "FOTO 1 OPCIONAL" not in cols and "Imagen_URL" in cols:
+                # Fallback if using old headers and no new photos
+                sheet.update_cell(fila_sheet, cols.index("Imagen_URL") + 1, nueva_url_foto)
+                
             msg_res = "Producto actualizado correctamente"
         else:
             # Create new product
-            # Column structure: Marca Principal, Nombre del Artículo, Modelo Exacto, Color / Diseño, Precio Mercado, Oferta (empty), Cantidad, Imagen_URL
-            sheet.append_row([
-                marca, nombre, modelo, color, str(precio), "", str(cantidad), nueva_url_foto
-            ])
+            # Use current columns
+            cols = df_stock.columns.tolist()
+            new_row = [""] * len(cols)
+            def set_col(nombre1, nombre2, val):
+                if nombre1 in cols: new_row[cols.index(nombre1)] = val
+                elif nombre2 in cols: new_row[cols.index(nombre2)] = val
+            
+            set_col("CATEGORIA", "Nombre del Artículo", nombre)
+            set_col("MARCA", "Marca Principal", marca)
+            set_col("PRODUCTO / MODELO", "Modelo Exacto", modelo)
+            set_col("COLOR", "Color / Diseño (Variación)", color)
+            set_col("PRECIO DE MERCADO", "Precio Mercado", str(precio))
+            set_col("CANTIDAD", "Cantidad", str(cantidad))
+            if urls_fotos:
+                set_col("FOTO 1 OPCIONAL", "Imagen_URL", urls_fotos[0] if len(urls_fotos) > 0 else "")
+                if len(urls_fotos) > 1: set_col("FOTO 2 OPCIONAL", "FOTO 2 OPCIONAL", urls_fotos[1])
+                if len(urls_fotos) > 2: set_col("FOTO 3 OPCIONAL", "FOTO 3 OPCIONAL", urls_fotos[2])
+                
+            sheet.append_row(new_row)
             msg_res = "Producto agregado correctamente"
             
         cargar_datos_sheets_cached(force=True)
