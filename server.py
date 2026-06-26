@@ -603,6 +603,7 @@ def get_admin_pedidos():
             "nombre_apellido": str(row.get("Nombre y Apellido", "")),
             "cliente_contacto": str(row.get("Cliente / Contacto", "")),
             "detalle_ws": str(row.get("Detalle Pedido WS", "")),
+            "productos": str(row.get("Productos", "")),
             "total": str(row.get("Total", "0")),
             "estado": str(row.get("Estado", "Pendiente"))
         })

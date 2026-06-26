@@ -1087,10 +1087,16 @@ async function fetchAdminPedidos() {
     }
 }
 
+function extractProductos(wsText) {
+    if (!wsText) return "";
+    const match = wsText.match(/📦 \*Productos:\*([\s\S]*?)\n\n💰 \*Total:\*/);
+    return match ? match[1].trim() : "No detallado";
+}
+
 function renderAdminPedidosTable(pedidos) {
     adminPedidosTableBody.innerHTML = "";
     if (pedidos.length === 0) {
-        adminPedidosTableBody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-textMuted">No hay pedidos registrados</td></tr>`;
+        adminPedidosTableBody.innerHTML = `<tr><td colspan="7" class="py-4 text-center text-textMuted">No hay pedidos registrados</td></tr>`;
         return;
     }
     
@@ -1119,6 +1125,7 @@ function renderAdminPedidosTable(pedidos) {
                 <div class="font-bold text-textDark">${p.nombre_apellido || 'Sin nombre'}</div>
                 <div class="text-[10px] text-textMuted mt-0.5">${p.cliente_contacto}</div>
             </td>
+            <td class="py-3 px-4 text-[11px] whitespace-pre-line">${p.productos || extractProductos(p.detalle_ws)}</td>
             <td class="py-3 px-4 font-bold text-xs">$${parseInt(p.total).toLocaleString('es-AR')}</td>
             <td class="py-3 px-4 text-xs">
                 <span class="font-semibold rounded px-1.5 py-0.5 text-[10px] uppercase
@@ -1134,7 +1141,7 @@ function renderAdminPedidosTable(pedidos) {
         const detailTr = document.createElement("tr");
         detailTr.className = "bg-bgLight/20";
         detailTr.innerHTML = `
-            <td colspan="6" class="p-0 border-b border-black/[0.03]">
+            <td colspan="7" class="p-0 border-b border-black/[0.03]">
                 <div id="details-${p.id_pedido}" class="order-details-pre text-xs text-textMuted bg-bgLight/50 rounded-xl border border-black/[0.03] mx-4 font-mono">
                     ${p.detalle_ws}
                 </div>
