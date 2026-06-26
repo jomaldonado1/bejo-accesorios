@@ -251,3 +251,27 @@ body::before {
     margin-top: 8px;
 }
 
+/* ── STREETWEAR PREMIUM GRADIENT CARD ── */
+.premium-gradient-card {
+    background: linear-gradient(135deg, #ffe066 0%, #a9e034 50%, #ff9233 100%) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+.premium-gradient-card::before {
+    content: "" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 1 !important;
+    background-image: radial-gradient(rgba(0, 0, 0, 0.08) 1.2px, transparent 1.2px) !important;
+    background-size: 20px 20px !important;
+    pointer-events: none !important;
+    opacity: 0.8 !important;
+}
+
+.premium-gradient-card > * {
+    position: relative !important;
+    z-index: 2 !important;
+}
+

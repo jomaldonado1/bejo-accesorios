@@ -6,6 +6,62 @@ let cartState = {}; // { index: qty }
 let adminAuthenticated = false;
 let adminToken = "";
 let activeMainTab = "catalog"; // "catalog", "offers", "wholesale"
+let currentPage = 1;
+const itemsPerPage = 12;
+
+// Image normalization utilities
+function splitImageUrls(imagen_url) {
+    if (!imagen_url || imagen_url.trim() === "") {
+        return ["https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500"];
+    }
+    const parts = imagen_url.split(",");
+    const urls = [];
+    for (let i = 0; i < parts.length; i++) {
+        let part = parts[i].trim();
+        if (part.startsWith("data:image/") && i + 1 < parts.length) {
+            part = part + "," + parts[i + 1].trim();
+            i++;
+        }
+        if (part !== "") {
+            urls.push(part);
+        }
+    }
+    if (urls.length === 0) {
+        return ["https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500"];
+    }
+    return urls;
+}
+
+function normalizeImageUrl(url) {
+    if (!url) return "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500";
+    let clean = url.trim();
+    if (clean === "") return "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500";
+    
+    const isBase64Prefix = clean.startsWith("data:image/");
+    const seemsBase64 = !clean.startsWith("http://") && !clean.startsWith("https://") && !clean.startsWith("/") && !clean.startsWith("./");
+    
+    if (isBase64Prefix || seemsBase64) {
+        if (isBase64Prefix) {
+            const parts = clean.split(",");
+            if (parts.length > 1) {
+                const prefix = parts[0];
+                const base64Data = parts.slice(1).join(",").replace(/\s+/g, "");
+                return `${prefix},${base64Data}`;
+            }
+        }
+        const stripped = clean.replace(/\s+/g, "");
+        let mime = "image/jpeg";
+        if (stripped.startsWith("iVBORw0KGgo")) {
+            mime = "image/png";
+        } else if (stripped.startsWith("R0lGOD")) {
+            mime = "image/gif";
+        } else if (stripped.startsWith("UklGR")) {
+            mime = "image/webp";
+        }
+        return `data:${mime};base64,${stripped}`;
+    }
+    return clean;
+}
 
 // ── DOM ELEMENTS ──
 const searchInput = document.getElementById("searchInput");
@@ -23,8 +79,6 @@ const ofertasSection = document.getElementById("ofertasSection");
 const ofertasGrid = document.getElementById("ofertasGrid");
 
 // Compat widget
-const compatInput = document.getElementById("compatInput");
-const compatSearchBtn = document.getElementById("compatSearchBtn");
 const compatResults = document.getElementById("compatResults");
 
 // Cart Drawer
@@ -112,6 +166,8 @@ async function fetchData() {
         compatState = await resCompat.json();
         
         populateFilters();
+        populateCompatFilters();
+        populateAdminFilters();
         renderCatalog();
         updateCartCount();
     } catch (err) {
@@ -278,16 +334,73 @@ function renderCatalog() {
         emptyCatalogState.classList.remove("hidden");
         emptyCatalogState.classList.add("flex");
         productosGrid.classList.add("hidden");
+        
+        const container = document.getElementById("paginationControls");
+        if (container) container.innerHTML = "";
     } else {
         emptyCatalogState.classList.add("hidden");
         emptyCatalogState.classList.remove("flex");
         productosGrid.classList.remove("hidden");
         
+        // Paginated items
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const paginated = filtered.slice(startIndex, endIndex);
+        
         // Render item cards
-        filtered.forEach(p => {
+        paginated.forEach(p => {
             productosGrid.appendChild(createProductCard(p, false));
         });
+        
+        // Render pagination controls
+        renderPaginationControls(filtered.length);
     }
+}
+
+// Render pagination controls
+function renderPaginationControls(totalItems) {
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const container = document.getElementById("paginationControls");
+    if (!container) return;
+    
+    container.innerHTML = "";
+    if (totalPages <= 1) {
+        return;
+    }
+    
+    // Previous Button
+    const prevBtn = document.createElement("button");
+    prevBtn.className = `px-4 py-2 text-xs font-bold rounded-xl border transition-all ${currentPage === 1 ? 'bg-black/[0.02] text-textMuted cursor-not-allowed border-black/[0.04]' : 'bg-white text-textDark hover:bg-bgLight border-black/[0.08] active:scale-95'}`;
+    prevBtn.textContent = "◀ Anterior";
+    prevBtn.disabled = currentPage === 1;
+    prevBtn.addEventListener("click", () => {
+        if (currentPage > 1) {
+            currentPage--;
+            renderCatalog();
+            document.getElementById("productosCatalog").scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+    container.appendChild(prevBtn);
+    
+    // Page indicator
+    const indicator = document.createElement("span");
+    indicator.className = "text-xs font-bold text-textDark px-2";
+    indicator.textContent = `Página ${currentPage} de ${totalPages}`;
+    container.appendChild(indicator);
+    
+    // Next Button
+    const nextBtn = document.createElement("button");
+    nextBtn.className = `px-4 py-2 text-xs font-bold rounded-xl border transition-all ${currentPage === totalPages ? 'bg-black/[0.02] text-textMuted cursor-not-allowed border-black/[0.04]' : 'bg-white text-textDark hover:bg-bgLight border-black/[0.08] active:scale-95'}`;
+    nextBtn.textContent = "Siguiente ▶";
+    nextBtn.disabled = currentPage === totalPages;
+    nextBtn.addEventListener("click", () => {
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderCatalog();
+            document.getElementById("productosCatalog").scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+    container.appendChild(nextBtn);
 }
 
 // Render the top horizontal list of offers
@@ -335,9 +448,7 @@ function createProductCard(p, isOfferCard = false) {
     }
     
     // Split comma-separated multiple images
-    const imgUrls = p.imagen_url && p.imagen_url.trim() !== ""
-        ? p.imagen_url.split(",").map(url => url.trim()).filter(url => url !== "")
-        : ["https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500"];
+    const imgUrls = splitImageUrls(p.imagen_url);
         
     // Stock badge styling
     let stockBadge = "";
@@ -364,7 +475,7 @@ function createProductCard(p, isOfferCard = false) {
             ${offerBadge}
             <div class="zoom-overlay">🔍</div>
             ${imgUrls.map((url, idx) => `
-                <img src="${url}" alt="${p.nombre}" 
+                <img src="${normalizeImageUrl(url)}" alt="${p.nombre}" 
                      id="img-${p.index}-${idx}"
                      class="product-card-img w-full h-full object-cover absolute inset-0 transition-all duration-300 ${idx === 0 ? 'opacity-100 z-10' : 'opacity-0 z-0'}" 
                      loading="lazy" 
@@ -495,9 +606,8 @@ function renderCartItems() {
         const sub = product.precio * qty;
         sumTotal += sub;
         
-        const imgUrl = product.imagen_url && product.imagen_url.trim() !== "" 
-            ? product.imagen_url 
-            : "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500";
+        const imgUrls = splitImageUrls(product.imagen_url);
+        const imgUrl = normalizeImageUrl(imgUrls[0]);
             
         const cartItem = document.createElement("div");
         cartItem.className = "flex gap-3 py-3 border-b border-black/[0.04]";
@@ -625,28 +735,29 @@ async function submitOrder() {
     let address = "";
     let observation = "";
     
+    const nombre = document.getElementById("devNombre").value.trim();
+    const tel = devTelefono.value.trim();
+    
+    if (!nombre) {
+        showToast("⚠️ Ingresá tu Nombre y Apellido.", "warning");
+        return;
+    }
+    if (!tel) {
+        showToast("⚠️ Ingresá tu Teléfono de contacto.", "warning");
+        return;
+    }
+    
     if (devMethod.value === "Envío a domicilio") {
-        const nombre = document.getElementById("devNombre").value.trim();
         const calle = devCalle.value.trim();
         const barrio = devBarrio.value.trim();
         const loc = devLocalidad.value;
-        const tel = devTelefono.value.trim();
-        observation = devObservacion.value.trim();
         
-        if (!nombre) {
-            showToast("⚠️ Ingresá nombre y apellido del destinatario.", "warning");
-            return;
-        }
         if (!calle) {
-            showToast("⚠️ Ingresá calle y número.", "warning");
+            showToast("⚠️ Ingresá calle y número para el envío.", "warning");
             return;
         }
         if (!loc) {
             showToast("⚠️ Seleccioná tu localidad.", "warning");
-            return;
-        }
-        if (!tel) {
-            showToast("⚠️ Ingresá tu teléfono.", "warning");
             return;
         }
         
@@ -656,6 +767,8 @@ async function submitOrder() {
         addrParts.push(`Tel: ${tel}`);
         
         address = addrParts.join(" | ");
+    } else {
+        address = `Retiro por Local | Nombre: ${nombre} | Tel: ${tel}`;
     }
     
     // Prepare payload
@@ -664,7 +777,8 @@ async function submitOrder() {
         entrega: {
             metodo: devMethod.value,
             direccion: address,
-            observacion: observation
+            observacion: observation,
+            nombre: nombre
         },
         pago: {
             metodo: payMethod.value
@@ -742,44 +856,151 @@ async function submitOrder() {
 }
 
 // ── COMPATIBILITY FILTER SEARCH ──
-function performCompatSearch() {
-    const val = compatInput.value.trim().toLowerCase();
-    if (!val) {
-        showToast("Escribí el modelo de tu celular.", "warning");
+function populateCompatFilters() {
+    const compatFilterTipo = document.getElementById("compatFilterTipo");
+    const compatFilterMarca = document.getElementById("compatFilterMarca");
+    const compatFilterModelo = document.getElementById("compatFilterModelo");
+    if (!compatFilterTipo || !compatFilterMarca || !compatFilterModelo) return;
+    
+    const tipos = new Set();
+    compatState.forEach(c => {
+        if (c.tipo) tipos.add(c.tipo);
+    });
+    
+    compatFilterTipo.innerHTML = '<option value="">Seleccionar categoría...</option>';
+    [...tipos].sort().forEach(t => {
+        const opt = document.createElement("option");
+        opt.value = t;
+        opt.textContent = t;
+        compatFilterTipo.appendChild(opt);
+    });
+    
+    const marcas = new Set();
+    compatState.forEach(c => {
+        if (c.marca) marcas.add(c.marca);
+    });
+    
+    compatFilterMarca.innerHTML = '<option value="">Seleccionar marca...</option>';
+    [...marcas].sort().forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        compatFilterMarca.appendChild(opt);
+    });
+    
+    compatFilterModelo.innerHTML = '<option value="">Seleccionar modelo...</option>';
+    compatFilterModelo.disabled = true;
+}
+
+function updateCompatModels() {
+    const compatFilterTipo = document.getElementById("compatFilterTipo");
+    const compatFilterMarca = document.getElementById("compatFilterMarca");
+    const compatFilterModelo = document.getElementById("compatFilterModelo");
+    if (!compatFilterTipo || !compatFilterMarca || !compatFilterModelo) return;
+    
+    const selTipo = compatFilterTipo.value;
+    const selMarca = compatFilterMarca.value;
+    
+    compatResults.innerHTML = "";
+    compatResults.classList.add("hidden");
+    
+    if (!selTipo || !selMarca) {
+        compatFilterModelo.innerHTML = '<option value="">Seleccionar modelo...</option>';
+        compatFilterModelo.disabled = true;
         return;
     }
     
-    const results = compatState.filter(c => 
-        c.modelo.toLowerCase().includes(val) || 
-        val.includes(c.modelo.toLowerCase())
-    );
+    const models = new Set();
+    compatState.forEach(c => {
+        if (c.tipo === selTipo && c.marca === selMarca && c.modelo) {
+            models.add(c.modelo);
+        }
+    });
+    
+    compatFilterModelo.innerHTML = '<option value="">Seleccionar modelo...</option>';
+    if (models.size > 0) {
+        compatFilterModelo.disabled = false;
+        [...models].sort().forEach(m => {
+            const opt = document.createElement("option");
+            opt.value = m;
+            opt.textContent = m;
+            compatFilterModelo.appendChild(opt);
+        });
+    } else {
+        compatFilterModelo.disabled = true;
+        compatFilterModelo.innerHTML = '<option value="">Sin modelos compatibles</option>';
+    }
+}
+
+function handleCompatModelChange() {
+    const compatFilterTipo = document.getElementById("compatFilterTipo");
+    const compatFilterMarca = document.getElementById("compatFilterMarca");
+    const compatFilterModelo = document.getElementById("compatFilterModelo");
+    if (!compatFilterTipo || !compatFilterMarca || !compatFilterModelo) return;
+    
+    const selTipo = compatFilterTipo.value;
+    const selMarca = compatFilterMarca.value;
+    const selModelo = compatFilterModelo.value;
+    
+    if (!selModelo) {
+        compatResults.innerHTML = "";
+        compatResults.classList.add("hidden");
+        return;
+    }
+    
+    const match = compatState.find(c => c.tipo === selTipo && c.marca === selMarca && c.modelo === selModelo);
     
     compatResults.innerHTML = "";
     compatResults.classList.remove("hidden");
     
-    if (results.length === 0) {
+    if (!match) {
         compatResults.innerHTML = `
             <div class="text-textMuted py-1 text-center font-medium">
                 ℹ️ No encontramos datos específicos de compatibilidad para este modelo. Coordiná la consulta por WhatsApp.
             </div>
         `;
     } else {
-        const container = document.createElement("div");
-        container.className = "flex flex-col gap-2.5";
-        
-        results.forEach(r => {
-            const row = document.createElement("div");
-            row.className = "border-b border-black/[0.04] pb-2 last:border-0 last:pb-0";
-            row.innerHTML = `
-                <div class="font-bold text-xs uppercase text-accentBlue">${r.marca} · ${r.tipo}</div>
-                <div class="font-semibold text-sm text-textDark">${r.modelo}</div>
-                <div class="text-xs text-textMuted mt-0.5">Compatible con: <span class="text-textDark font-medium">${r.compatibilidad}</span></div>
-            `;
-            container.appendChild(row);
-        });
-        compatResults.appendChild(container);
+        compatResults.innerHTML = `
+            <div class="flex flex-col gap-2.5">
+                <div class="font-bold text-xs uppercase text-accentBlue">${match.marca} · ${match.tipo}</div>
+                <div class="font-semibold text-sm text-textDark">${match.modelo}</div>
+                <div class="text-xs text-textMuted mt-0.5">Compatible con: <span class="text-textDark font-medium">${match.compatibilidad || 'Ninguno'}</span></div>
+                
+                <button onclick="buscarModeloEnCatalogo('${match.marca}', '${match.modelo}')" 
+                        class="mt-2 w-full py-2 bg-textDark hover:bg-black text-white text-xs font-bold rounded-xl transition-all shadow-sm transform active:scale-95 text-center font-bold">
+                    🔍 Buscar en el catálogo
+                </button>
+            </div>
+        `;
     }
 }
+
+window.buscarModeloEnCatalogo = function(marca, modelo) {
+    const navCatalogBtn = document.getElementById("navCatalogBtn");
+    if (navCatalogBtn) {
+        navCatalogBtn.click();
+    }
+    
+    searchInput.value = "";
+    searchInputMobile.value = "";
+    
+    filterMarca.value = marca;
+    updateCascadingFilters();
+    
+    const modelOptions = Array.from(filterModelo.options).map(o => o.value);
+    if (modelOptions.includes(modelo)) {
+        filterModelo.value = modelo;
+    } else {
+        filterModelo.value = "Todos";
+        searchInput.value = modelo;
+        if (searchInputMobile) searchInputMobile.value = modelo;
+    }
+    
+    currentPage = 1;
+    renderCatalog();
+    
+    document.getElementById("productosCatalog").scrollIntoView({ behavior: 'smooth' });
+};
 
 // ── ADMIN PANEL CLIENT LOGIC ──
 function openAdminLogin() {
@@ -889,7 +1110,10 @@ function renderAdminPedidosTable(pedidos) {
                     <span>👁️</span> ${p.id_pedido}
                 </button>
             </td>
-            <td class="py-3 px-4 text-xs">${p.cliente_contacto}</td>
+            <td class="py-3 px-4 text-xs">
+                <div class="font-bold text-textDark">${p.nombre_apellido || 'Sin nombre'}</div>
+                <div class="text-[10px] text-textMuted mt-0.5">${p.cliente_contacto}</div>
+            </td>
             <td class="py-3 px-4 font-bold text-xs">$${parseInt(p.total).toLocaleString('es-AR')}</td>
             <td class="py-3 px-4 text-xs">
                 <span class="font-semibold rounded px-1.5 py-0.5 text-[10px] uppercase
@@ -946,16 +1170,122 @@ async function updatePedidoEstado(id_pedido, estado) {
     }
 }
 
-function renderAdminProductosTable() {
-    const query = (document.getElementById("adminSearchInput")?.value || "").toLowerCase().trim();
-    adminProductosTableBody.innerHTML = "";
+// Admin panel cascade filters
+function populateAdminFilters() {
+    const adminFilterTipo = document.getElementById("adminFilterTipo");
+    const adminFilterMarca = document.getElementById("adminFilterMarca");
+    if (!adminFilterTipo || !adminFilterMarca) return;
+    
+    const tipos = new Set(["Todos"]);
+    const marcas = new Set(["Todas"]);
+    
+    productsState.forEach(p => {
+        if (p.nombre) tipos.add(p.nombre);
+        if (p.marca) marcas.add(p.marca);
+    });
+    
+    adminFilterTipo.innerHTML = "";
+    [...tipos].sort().forEach(t => {
+        const opt = document.createElement("option");
+        opt.value = t;
+        opt.textContent = t === "Todos" ? "Todas las categorías" : t;
+        adminFilterTipo.appendChild(opt);
+    });
+
+    adminFilterMarca.innerHTML = "";
+    [...marcas].sort().forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m === "Todas" ? "Todas las marcas" : m;
+        adminFilterMarca.appendChild(opt);
+    });
+    
+    updateAdminCascadingFilters();
+}
+
+function updateAdminCascadingFilters() {
+    const adminFilterTipo = document.getElementById("adminFilterTipo");
+    const adminFilterMarca = document.getElementById("adminFilterMarca");
+    const adminFilterModelo = document.getElementById("adminFilterModelo");
+    const adminFilterColor = document.getElementById("adminFilterColor");
+    if (!adminFilterTipo || !adminFilterMarca || !adminFilterModelo || !adminFilterColor) return;
+    
+    const selectedTipo = adminFilterTipo.value;
+    const selectedMarca = adminFilterMarca.value;
     
     let filtered = productsState;
-    if (query) {
-        filtered = productsState.filter(p => 
-            `${p.nombre} ${p.marca} ${p.modelo} ${p.color}`.toLowerCase().includes(query)
-        );
+    if (selectedTipo !== "Todos") {
+        filtered = filtered.filter(p => p.nombre === selectedTipo);
     }
+    if (selectedMarca !== "Todas") {
+        filtered = filtered.filter(p => p.marca === selectedMarca);
+    }
+    
+    const modelos = new Set(["Todos"]);
+    filtered.forEach(p => {
+        if (p.modelo) modelos.add(p.modelo);
+    });
+    
+    const prevModelValue = adminFilterModelo.value;
+    adminFilterModelo.innerHTML = "";
+    [...modelos].sort().forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m === "Todos" ? "Todos los modelos" : m;
+        adminFilterModelo.appendChild(opt);
+    });
+    if ([...modelos].includes(prevModelValue)) {
+        adminFilterModelo.value = prevModelValue;
+    } else {
+        adminFilterModelo.value = "Todos";
+    }
+    
+    const colores = new Set(["Todos"]);
+    filtered.forEach(p => {
+        if (p.color) colores.add(p.color);
+    });
+    
+    const prevColorValue = adminFilterColor.value;
+    adminFilterColor.innerHTML = "";
+    [...colores].sort().forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c;
+        opt.textContent = c === "Todos" ? "Todos los colores" : c;
+        adminFilterColor.appendChild(opt);
+    });
+    if ([...colores].includes(prevColorValue)) {
+        adminFilterColor.value = prevColorValue;
+    } else {
+        adminFilterColor.value = "Todos";
+    }
+}
+
+function renderAdminProductosTable() {
+    const query = (document.getElementById("adminSearchInput")?.value || "").toLowerCase().trim();
+    
+    const adminFilterTipo = document.getElementById("adminFilterTipo");
+    const adminFilterMarca = document.getElementById("adminFilterMarca");
+    const adminFilterModelo = document.getElementById("adminFilterModelo");
+    const adminFilterColor = document.getElementById("adminFilterColor");
+    
+    const selTipo = adminFilterTipo ? adminFilterTipo.value : "Todos";
+    const selMarca = adminFilterMarca ? adminFilterMarca.value : "Todas";
+    const selModelo = adminFilterModelo ? adminFilterModelo.value : "Todos";
+    const selColor = adminFilterColor ? adminFilterColor.value : "Todos";
+    
+    adminProductosTableBody.innerHTML = "";
+    
+    let filtered = productsState.filter(p => {
+        if (query) {
+            const searchable = `${p.nombre} ${p.marca} ${p.modelo} ${p.color}`.toLowerCase();
+            if (!searchable.includes(query)) return false;
+        }
+        if (selTipo !== "Todos" && p.nombre !== selTipo) return false;
+        if (selMarca !== "Todas" && p.marca !== selMarca) return false;
+        if (selModelo !== "Todos" && p.modelo !== selModelo) return false;
+        if (selColor !== "Todos" && p.color !== selColor) return false;
+        return true;
+    });
     
     if (filtered.length === 0) {
         adminProductosTableBody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-textMuted">No se encontraron productos</td></tr>`;
@@ -964,12 +1294,10 @@ function renderAdminProductosTable() {
     
     filtered.forEach(p => {
         const tr = document.createElement("tr");
-        tr.className = "hover:bg-bgLight/40 transition-colors";
+        tr.className = "hover:bg-bgLight/40 transition-colors border-b border-black/[0.03]";
         
-        const imgUrls = p.imagen_url && p.imagen_url.trim() !== "" ? p.imagen_url.split(",") : [];
-        const imgUrl = imgUrls.length > 0 && imgUrls[0].trim() !== ""
-            ? imgUrls[0].trim() 
-            : "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500";
+        const imgUrls = splitImageUrls(p.imagen_url);
+        const imgUrl = normalizeImageUrl(imgUrls[0]);
             
         tr.innerHTML = `
             <td class="py-3 px-4 w-12 h-12">
@@ -1124,20 +1452,34 @@ function setupEventListeners() {
     navWholesaleBtn.addEventListener("click", () => selectTab("wholesale"));
 
     // Search input filters
-    searchInput.addEventListener("input", renderCatalog);
-    searchInputMobile.addEventListener("input", renderCatalog);
+    searchInput.addEventListener("input", () => {
+        currentPage = 1;
+        renderCatalog();
+    });
+    searchInputMobile.addEventListener("input", () => {
+        currentPage = 1;
+        renderCatalog();
+    });
     
     // Filters cascading triggers
     filterTipo.addEventListener("change", () => {
+        currentPage = 1;
         updateCascadingFilters();
         renderCatalog();
     });
     filterMarca.addEventListener("change", () => {
+        currentPage = 1;
         updateCascadingFilters();
         renderCatalog();
     });
-    filterModelo.addEventListener("change", renderCatalog);
-    filterColor.addEventListener("change", renderCatalog);
+    filterModelo.addEventListener("change", () => {
+        currentPage = 1;
+        renderCatalog();
+    });
+    filterColor.addEventListener("change", () => {
+        currentPage = 1;
+        renderCatalog();
+    });
     
     // Clean filters CTAs
     const resetAllFilters = () => {
@@ -1148,16 +1490,57 @@ function setupEventListeners() {
         filterMarca.value = "Todas";
         filterModelo.value = "Todos";
         filterColor.value = "Todos";
+        currentPage = 1;
         renderCatalog();
     };
     clearFiltersBtn.addEventListener("click", resetAllFilters);
     resetFiltersBtn.addEventListener("click", resetAllFilters);
     
-    // Compat search widget trigger
-    compatSearchBtn.addEventListener("click", performCompatSearch);
-    compatInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") performCompatSearch();
-    });
+    // Compat dropdown filters cascading triggers
+    const compatFilterTipo = document.getElementById("compatFilterTipo");
+    const compatFilterMarca = document.getElementById("compatFilterMarca");
+    const compatFilterModelo = document.getElementById("compatFilterModelo");
+    
+    if (compatFilterTipo) {
+        compatFilterTipo.addEventListener("change", () => {
+            updateCompatModels();
+            handleCompatModelChange();
+        });
+    }
+    if (compatFilterMarca) {
+        compatFilterMarca.addEventListener("change", () => {
+            updateCompatModels();
+            handleCompatModelChange();
+        });
+    }
+    if (compatFilterModelo) {
+        compatFilterModelo.addEventListener("change", handleCompatModelChange);
+    }
+    
+    // Admin filter cascading triggers
+    const adminFilterTipo = document.getElementById("adminFilterTipo");
+    const adminFilterMarca = document.getElementById("adminFilterMarca");
+    const adminFilterModelo = document.getElementById("adminFilterModelo");
+    const adminFilterColor = document.getElementById("adminFilterColor");
+    
+    if (adminFilterTipo) {
+        adminFilterTipo.addEventListener("change", () => {
+            updateAdminCascadingFilters();
+            renderAdminProductosTable();
+        });
+    }
+    if (adminFilterMarca) {
+        adminFilterMarca.addEventListener("change", () => {
+            updateAdminCascadingFilters();
+            renderAdminProductosTable();
+        });
+    }
+    if (adminFilterModelo) {
+        adminFilterModelo.addEventListener("change", renderAdminProductosTable);
+    }
+    if (adminFilterColor) {
+        adminFilterColor.addEventListener("change", renderAdminProductosTable);
+    }
     
     // Cart open/close
     cartBtn.addEventListener("click", openCartDrawer);

@@ -102,9 +102,12 @@ def get_pedidos_sheet():
     spreadsheet = client.open("inventario_tienda")
     try:
         sheet = spreadsheet.worksheet("Pedidos")
+        row1 = [r.strip() for r in sheet.row_values(1)]
+        if len(row1) < 7 or "Nombre y Apellido" not in row1:
+            sheet.update_cell(1, 7, "Nombre y Apellido")
     except Exception:
-        sheet = spreadsheet.add_worksheet(title="Pedidos", rows=1000, cols=6)
-        sheet.append_row(["Fecha", "ID Pedido", "Cliente / Contacto", "Detalle Pedido WS", "Total", "Estado"])
+        sheet = spreadsheet.add_worksheet(title="Pedidos", rows=1000, cols=7)
+        sheet.append_row(["Fecha", "ID Pedido", "Cliente / Contacto", "Detalle Pedido WS", "Total", "Estado", "Nombre y Apellido"])
     return sheet
 
 def get_compatibilidad_sheet():
@@ -520,13 +523,14 @@ def post_checkout():
     # Write to Pedidos Worksheet
     try:
         p_sheet = get_pedidos_sheet()
+        nombre_cliente = entrega.get("nombre", "").strip()
         cliente_info = f"Pago: {lp} | Entrega: {le}"
         if "Envío" in metodo_entrega:
             cliente_info += f" | Dir: {direccion}"
         p_sheet.append_row([
             ahora.strftime('%Y-%m-%d %H:%M:%S'),
             id_pedido, cliente_info, msg,
-            str(total_pedido), "Pendiente"
+            str(total_pedido), "Pendiente", nombre_cliente
         ])
     except Exception as e:
         print(f"⚠️ Error appending row to Pedidos worksheet: {e}")
@@ -568,6 +572,7 @@ def get_admin_pedidos():
         pedidos.append({
             "fecha": str(row.get("Fecha", "")),
             "id_pedido": str(row.get("ID Pedido", "")),
+            "nombre_apellido": str(row.get("Nombre y Apellido", "")),
             "cliente_contacto": str(row.get("Cliente / Contacto", "")),
             "detalle_ws": str(row.get("Detalle Pedido WS", "")),
             "total": str(row.get("Total", "0")),
@@ -760,4 +765,4 @@ def serve_static(path):
 if __name__ == '__main__':
     # Ensure static directory exists
     os.makedirs('static', exist_ok=True)
-    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False, threaded=True)
