@@ -186,18 +186,16 @@ function populateFilters() {
         if (p.marca) marcas.add(p.marca);
     });
     
-    // Categorías select
-    filterTipo.innerHTML = "";
-    [...tipos].sort().forEach(t => {
+    const sortedTipos = [...tipos].filter(t => t !== "Todos").sort();
+    ["Todos", ...sortedTipos].forEach(t => {
         const opt = document.createElement("option");
         opt.value = t;
         opt.textContent = t === "Todos" ? "Todos" : t;
         filterTipo.appendChild(opt);
     });
 
-    // Marcas select
-    filterMarca.innerHTML = "";
-    [...marcas].sort().forEach(m => {
+    const sortedMarcas = [...marcas].filter(m => m !== "Todas").sort();
+    ["Todas", ...sortedMarcas].forEach(m => {
         const opt = document.createElement("option");
         opt.value = m;
         opt.textContent = m === "Todas" ? "Todos" : m;
@@ -227,9 +225,8 @@ function updateCascadingFilters() {
         if (p.modelo) modelos.add(p.modelo);
     });
     
-    const prevModelValue = filterModelo.value;
-    filterModelo.innerHTML = "";
-    [...modelos].sort().forEach(m => {
+    const sortedModelos = [...modelos].filter(m => m !== "Todos").sort();
+    ["Todos", ...sortedModelos].forEach(m => {
         const opt = document.createElement("option");
         opt.value = m;
         opt.textContent = m === "Todos" ? "Todos" : m;
@@ -247,9 +244,8 @@ function updateCascadingFilters() {
         if (p.color) colores.add(p.color);
     });
     
-    const prevColorValue = filterColor.value;
-    filterColor.innerHTML = "";
-    [...colores].sort().forEach(c => {
+    const sortedColores = [...colores].filter(c => c !== "Todos").sort();
+    ["Todos", ...sortedColores].forEach(c => {
         const opt = document.createElement("option");
         opt.value = c;
         opt.textContent = c === "Todos" ? "Todos" : c;
@@ -281,7 +277,10 @@ function renderCatalog() {
         // Search text matching
         if (query !== "") {
             const searchable = `${p.nombre} ${p.marca} ${p.modelo} ${p.color}`.toLowerCase();
-            if (!searchable.includes(query)) return false;
+            const words = query.split(/\s+/);
+            for (let w of words) {
+                if (!searchable.includes(w)) return false;
+            }
         }
         // Category matching
         if (selTipo !== "Todos" && p.nombre !== selTipo) return false;
@@ -473,7 +472,7 @@ function createProductCard(p, isOfferCard = false) {
     let imageAreaHtml = `
         <div class="relative w-full aspect-square overflow-hidden bg-bgLight product-card-img-container">
             ${offerBadge}
-            <div class="zoom-overlay">🔍</div>
+            <div class="zoom-overlay" onclick="openImageZoom(this.parentElement)">🔍</div>
             ${imgUrls.map((url, idx) => `
                 <img src="${normalizeImageUrl(url)}" alt="${p.nombre}" 
                      id="img-${p.index}-${idx}"
@@ -1184,16 +1183,16 @@ function populateAdminFilters() {
         if (p.marca) marcas.add(p.marca);
     });
     
-    adminFilterTipo.innerHTML = "";
-    [...tipos].sort().forEach(t => {
+    const sortedAdminTipos = [...tipos].filter(t => t !== "Todos").sort();
+    ["Todos", ...sortedAdminTipos].forEach(t => {
         const opt = document.createElement("option");
         opt.value = t;
         opt.textContent = t === "Todos" ? "Todos" : t;
         adminFilterTipo.appendChild(opt);
     });
 
-    adminFilterMarca.innerHTML = "";
-    [...marcas].sort().forEach(m => {
+    const sortedAdminMarcas = [...marcas].filter(m => m !== "Todas").sort();
+    ["Todas", ...sortedAdminMarcas].forEach(m => {
         const opt = document.createElement("option");
         opt.value = m;
         opt.textContent = m === "Todas" ? "Todos" : m;
@@ -1227,8 +1226,8 @@ function updateAdminCascadingFilters() {
     });
     
     const prevModelValue = adminFilterModelo.value;
-    adminFilterModelo.innerHTML = "";
-    [...modelos].sort().forEach(m => {
+    const sortedAdminModelos = [...modelos].filter(m => m !== "Todos").sort();
+    ["Todos", ...sortedAdminModelos].forEach(m => {
         const opt = document.createElement("option");
         opt.value = m;
         opt.textContent = m === "Todos" ? "Todos" : m;
@@ -1246,8 +1245,8 @@ function updateAdminCascadingFilters() {
     });
     
     const prevColorValue = adminFilterColor.value;
-    adminFilterColor.innerHTML = "";
-    [...colores].sort().forEach(c => {
+    const sortedAdminColores = [...colores].filter(c => c !== "Todos").sort();
+    ["Todos", ...sortedAdminColores].forEach(c => {
         const opt = document.createElement("option");
         opt.value = c;
         opt.textContent = c === "Todos" ? "Todos" : c;
@@ -1278,7 +1277,10 @@ function renderAdminProductosTable() {
     let filtered = productsState.filter(p => {
         if (query) {
             const searchable = `${p.nombre} ${p.marca} ${p.modelo} ${p.color}`.toLowerCase();
-            if (!searchable.includes(query)) return false;
+            const words = query.split(/\s+/);
+            for (let w of words) {
+                if (!searchable.includes(w)) return false;
+            }
         }
         if (selTipo !== "Todos" && p.nombre !== selTipo) return false;
         if (selMarca !== "Todas" && p.marca !== selMarca) return false;
@@ -1338,7 +1340,7 @@ function openEditProductModal(index = null) {
         document.getElementById("editPrecio").value = prod.precio;
         document.getElementById("editCantidad").value = prod.cantidad;
         
-        const imgUrls = prod.imagen_url && prod.imagen_url.trim() !== "" ? prod.imagen_url.split(",") : [];
+        const imgUrls = splitImageUrls(prod.imagen_url);
         document.getElementById("editUrlImgur1").value = imgUrls.length > 0 && !imgUrls[0].startsWith("data:image") ? imgUrls[0].trim() : "";
         document.getElementById("editUrlImgur2").value = imgUrls.length > 1 && !imgUrls[1].startsWith("data:image") ? imgUrls[1].trim() : "";
         document.getElementById("editUrlImgur3").value = imgUrls.length > 2 && !imgUrls[2].startsWith("data:image") ? imgUrls[2].trim() : "";
@@ -1628,3 +1630,19 @@ function showToast(message, type = "success") {
         }, 300);
     }, 3000);
 }
+
+// Image Zoom Modal Functions
+window.openImageZoom = function(container) {
+    const activeImg = container.querySelector('img.opacity-100');
+    if (activeImg) {
+        document.getElementById("imageZoomContent").src = activeImg.src;
+        const modal = document.getElementById("imageZoomModal");
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+    }
+};
+window.closeImageZoom = function() {
+    const modal = document.getElementById("imageZoomModal");
+    modal.classList.add("hidden");
+    modal.classList.remove("flex");
+};

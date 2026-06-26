@@ -101,6 +101,9 @@
                        class="px-5 py-2.5 bg-white hover:bg-bgLight text-textDark border border-black/[0.08] text-xs font-semibold rounded-full transition-all duration-300 transform active:scale-95">
                         💬 Consultar
                     </a>
+                    <a href="#compatFilterTipo" class="px-5 py-2.5 bg-white hover:bg-bgLight text-textDark border border-black/[0.08] text-xs font-semibold rounded-full transition-all duration-300 transform active:scale-95">
+                        📱 Compatibilidad
+                    </a>
                 </div>
             </div>
             <!-- Visual Hero Side -->
@@ -429,7 +432,7 @@
                 <!-- Envío a domicilio Details (Conditional) -->
                 <div id="deliveryDetails" class="hidden flex-col gap-4 p-4 bg-bgLight rounded-2xl border border-black/[0.04]">
                     <div class="text-xs text-successGreen font-semibold flex items-center gap-1.5 mb-1">
-                        🛵 <b>Info de Envíos:</b> Gratis dentro de las 4 Avenidas. Fuera coordinamos tarifa.
+                        🛵 <b>Info de Envíos:</b> Gratis dentro de las 4 Avenidas. Fuera coordinamos tarifa (tranqui, súper accesible como un Uber Moto aprox).
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div class="col-span-2 sm:col-span-1">
@@ -530,6 +533,12 @@
                 </button>
             </div>
         </div>
+    </div>
+
+    <!-- MODAL: IMAGE ZOOM -->
+    <div id="imageZoomModal" class="fixed inset-0 z-[100] bg-black/90 hidden flex items-center justify-center p-4 cursor-pointer" onclick="closeImageZoom()">
+        <img id="imageZoomContent" src="" alt="Zoom" class="max-w-full max-h-full object-contain select-none shadow-2xl rounded-lg animate-scaleUp">
+        <button class="absolute top-6 right-6 text-white bg-black/50 hover:bg-white hover:text-black w-10 h-10 rounded-full flex items-center justify-center transition-colors text-xl font-bold">×</button>
     </div>
 
     <!-- MAIN ADMIN PANEL (Hidden by Default) -->
@@ -713,7 +722,7 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pb-3 border-b border-black/[0.04]">
                             <div>
                                 <label class="block text-[10px] font-bold text-textMuted mb-1">Foto 1 (Principal) - URL</label>
-                                <input type="url" id="editUrlImgur1" name="url_imgur1" placeholder="https://i.imgur.com/..." class="w-full text-xs bg-bgLight border-0 focus:ring-2 focus:ring-accentBlue rounded-xl px-2.5 py-1.5">
+                                <input type="text" id="editUrlImgur1" name="url_imgur1" placeholder="https://i.imgur.com/..." class="w-full text-xs bg-bgLight border-0 focus:ring-2 focus:ring-accentBlue rounded-xl px-2.5 py-1.5">
                             </div>
                             <div>
                                 <label class="block text-[10px] font-bold text-textMuted mb-1">O subir archivo</label>
@@ -725,7 +734,7 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pb-3 border-b border-black/[0.04]">
                             <div>
                                 <label class="block text-[10px] font-bold text-textMuted mb-1">Foto 2 (Opcional) - URL</label>
-                                <input type="url" id="editUrlImgur2" name="url_imgur2" placeholder="https://i.imgur.com/..." class="w-full text-xs bg-bgLight border-0 focus:ring-2 focus:ring-accentBlue rounded-xl px-2.5 py-1.5">
+                                <input type="text" id="editUrlImgur2" name="url_imgur2" placeholder="https://i.imgur.com/..." class="w-full text-xs bg-bgLight border-0 focus:ring-2 focus:ring-accentBlue rounded-xl px-2.5 py-1.5">
                             </div>
                             <div>
                                 <label class="block text-[10px] font-bold text-textMuted mb-1">O subir archivo</label>
@@ -737,7 +746,7 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <div>
                                 <label class="block text-[10px] font-bold text-textMuted mb-1">Foto 3 (Opcional) - URL</label>
-                                <input type="url" id="editUrlImgur3" name="url_imgur3" placeholder="https://i.imgur.com/..." class="w-full text-xs bg-bgLight border-0 focus:ring-2 focus:ring-accentBlue rounded-xl px-2.5 py-1.5">
+                                <input type="text" id="editUrlImgur3" name="url_imgur3" placeholder="https://i.imgur.com/..." class="w-full text-xs bg-bgLight border-0 focus:ring-2 focus:ring-accentBlue rounded-xl px-2.5 py-1.5">
                             </div>
                             <div>
                                 <label class="block text-[10px] font-bold text-textMuted mb-1">O subir archivo</label>

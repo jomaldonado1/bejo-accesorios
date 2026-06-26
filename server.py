@@ -100,14 +100,20 @@ def get_pedidos_sheet():
     creds = get_creds()
     client = gspread.authorize(creds)
     spreadsheet = client.open("inventario_tienda")
+    headers = ["Fecha", "ID Pedido", "Cliente / Contacto", "Detalle Pedido WS", "Total", "Estado", "Nombre y Apellido"]
     try:
         sheet = spreadsheet.worksheet("Pedidos")
-        row1 = [r.strip() for r in sheet.row_values(1)]
-        if len(row1) < 7 or "Nombre y Apellido" not in row1:
-            sheet.update_cell(1, 7, "Nombre y Apellido")
+        row1 = sheet.row_values(1)
+        if not row1 or len(row1) == 0 or not row1[0].strip():
+            # If sheet is empty, add headers to the first row
+            sheet.update('A1:G1', [headers])
+        else:
+            row1_clean = [r.strip() for r in row1]
+            if len(row1_clean) < 7 or "Nombre y Apellido" not in row1_clean:
+                sheet.update_cell(1, 7, "Nombre y Apellido")
     except Exception:
         sheet = spreadsheet.add_worksheet(title="Pedidos", rows=1000, cols=7)
-        sheet.append_row(["Fecha", "ID Pedido", "Cliente / Contacto", "Detalle Pedido WS", "Total", "Estado", "Nombre y Apellido"])
+        sheet.append_row(headers)
     return sheet
 
 def get_compatibilidad_sheet():
@@ -144,15 +150,11 @@ def limpiar_precio_mercado(val):
             s = s.replace('.', '')
     try:
         val_float = float(s)
-        if val_float < 200:
-            return int(val_float * 1000)
         return int(val_float)
     except ValueError:
         s_clean = re.sub(r'[^\d.]', '', s)
         try:
             val_float = float(s_clean)
-            if val_float < 200:
-                return int(val_float * 1000)
             return int(val_float)
         except ValueError:
             return 0
