@@ -207,7 +207,12 @@ function populateFilters() {
     updateCascadingFilters();
 }
 
-// Handle cascade filter updates (when category/brand selection changes)
+// Remove diacritics / accents for search normalization
+function removeAccents(str) {
+    if (!str) return "";
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 function updateCascadingFilters() {
     const selectedTipo = filterTipo.value;
     const selectedMarca = filterMarca.value;
@@ -221,52 +226,86 @@ function updateCascadingFilters() {
         filtered = filtered.filter(p => p.marca === selectedMarca);
     }
     
-    // Populate model selection
-    const modelos = new Set(["Todos"]);
+    const modelos = new Set();
+    const colores = new Set();
+    
     filtered.forEach(p => {
         if (p.modelo) modelos.add(p.modelo);
+        if (p.color) colores.add(p.color);
     });
     
     const prevModelValue = filterModelo.value;
     filterModelo.innerHTML = "";
     const sortedModelos = [...modelos].filter(m => m !== "Todos").sort();
-    ["Todos", ...sortedModelos].forEach(m => {
+    sortedModelos.unshift("Todos");
+    
+    sortedModelos.forEach(m => {
         const opt = document.createElement("option");
         opt.value = m;
-        opt.textContent = m === "Todos" ? "Todos" : m;
+        opt.textContent = m;
         filterModelo.appendChild(opt);
     });
-    if ([...modelos].includes(prevModelValue)) {
+    if (sortedModelos.includes(prevModelValue)) {
         filterModelo.value = prevModelValue;
     } else {
         filterModelo.value = "Todos";
     }
     
-    // Populate colors
-    const colores = new Set(["Todos"]);
-    filtered.forEach(p => {
-        if (p.color) colores.add(p.color);
-    });
+    // Admin panel sync (if exists)
+    if (typeof adminFilterModelo !== "undefined" && adminFilterModelo) {
+        const prevAdminModel = adminFilterModelo.value;
+        adminFilterModelo.innerHTML = "";
+        sortedModelos.forEach(m => {
+            const opt = document.createElement("option");
+            opt.value = m;
+            opt.textContent = m;
+            adminFilterModelo.appendChild(opt);
+        });
+        if (sortedModelos.includes(prevAdminModel)) {
+            adminFilterModelo.value = prevAdminModel;
+        } else {
+            adminFilterModelo.value = "Todos";
+        }
+    }
     
     const prevColorValue = filterColor.value;
     filterColor.innerHTML = "";
     const sortedColores = [...colores].filter(c => c !== "Todos").sort();
-    ["Todos", ...sortedColores].forEach(c => {
+    sortedColores.unshift("Todos");
+    
+    sortedColores.forEach(c => {
         const opt = document.createElement("option");
         opt.value = c;
-        opt.textContent = c === "Todos" ? "Todos" : c;
+        opt.textContent = c;
         filterColor.appendChild(opt);
     });
-    if ([...colores].includes(prevColorValue)) {
+    if (sortedColores.includes(prevColorValue)) {
         filterColor.value = prevColorValue;
     } else {
         filterColor.value = "Todos";
+    }
+    
+    if (typeof adminFilterColor !== "undefined" && adminFilterColor) {
+        const prevAdminColor = adminFilterColor.value;
+        adminFilterColor.innerHTML = "";
+        sortedColores.forEach(c => {
+            const opt = document.createElement("option");
+            opt.value = c;
+            opt.textContent = c;
+            adminFilterColor.appendChild(opt);
+        });
+        if (sortedColores.includes(prevAdminColor)) {
+            adminFilterColor.value = prevAdminColor;
+        } else {
+            adminFilterColor.value = "Todos";
+        }
     }
 }
 
 // ── CATALOG RENDERING ──
 function renderCatalog() {
-    const query = (searchInput.value || searchInputMobile.value || "").toLowerCase().trim();
+    const query = searchInput.value.toLowerCase().trim();
+    
     const selTipo = filterTipo.value;
     const selMarca = filterMarca.value;
     const selModelo = filterModelo.value;
@@ -282,8 +321,8 @@ function renderCatalog() {
         
         // Search text matching
         if (query !== "") {
-            const searchable = `${p.nombre} ${p.marca} ${p.modelo} ${p.color}`.toLowerCase();
-            const words = query.split(/\s+/);
+            const searchable = removeAccents(`${p.nombre} ${p.marca} ${p.modelo} ${p.color}`).toLowerCase();
+            const words = removeAccents(query).split(/\s+/);
             for (let w of words) {
                 if (!searchable.includes(w)) return false;
             }
@@ -1293,8 +1332,8 @@ function renderAdminProductosTable() {
     
     let filtered = productsState.filter(p => {
         if (query) {
-            const searchable = `${p.nombre} ${p.marca} ${p.modelo} ${p.color}`.toLowerCase();
-            const words = query.split(/\s+/);
+            const searchable = removeAccents(`${p.nombre} ${p.marca} ${p.modelo} ${p.color}`).toLowerCase();
+            const words = removeAccents(query).split(/\s+/);
             for (let w of words) {
                 if (!searchable.includes(w)) return false;
             }
