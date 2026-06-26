@@ -186,6 +186,7 @@ function populateFilters() {
         if (p.marca) marcas.add(p.marca);
     });
     
+    filterTipo.innerHTML = "";
     const sortedTipos = [...tipos].filter(t => t !== "Todos").sort();
     ["Todos", ...sortedTipos].forEach(t => {
         const opt = document.createElement("option");
@@ -194,6 +195,7 @@ function populateFilters() {
         filterTipo.appendChild(opt);
     });
 
+    filterMarca.innerHTML = "";
     const sortedMarcas = [...marcas].filter(m => m !== "Todas").sort();
     ["Todas", ...sortedMarcas].forEach(m => {
         const opt = document.createElement("option");
@@ -225,6 +227,8 @@ function updateCascadingFilters() {
         if (p.modelo) modelos.add(p.modelo);
     });
     
+    const prevModelValue = filterModelo.value;
+    filterModelo.innerHTML = "";
     const sortedModelos = [...modelos].filter(m => m !== "Todos").sort();
     ["Todos", ...sortedModelos].forEach(m => {
         const opt = document.createElement("option");
@@ -244,6 +248,8 @@ function updateCascadingFilters() {
         if (p.color) colores.add(p.color);
     });
     
+    const prevColorValue = filterColor.value;
+    filterColor.innerHTML = "";
     const sortedColores = [...colores].filter(c => c !== "Todos").sort();
     ["Todos", ...sortedColores].forEach(c => {
         const opt = document.createElement("option");
@@ -1183,6 +1189,7 @@ function populateAdminFilters() {
         if (p.marca) marcas.add(p.marca);
     });
     
+    adminFilterTipo.innerHTML = "";
     const sortedAdminTipos = [...tipos].filter(t => t !== "Todos").sort();
     ["Todos", ...sortedAdminTipos].forEach(t => {
         const opt = document.createElement("option");
@@ -1191,6 +1198,7 @@ function populateAdminFilters() {
         adminFilterTipo.appendChild(opt);
     });
 
+    adminFilterMarca.innerHTML = "";
     const sortedAdminMarcas = [...marcas].filter(m => m !== "Todas").sort();
     ["Todas", ...sortedAdminMarcas].forEach(m => {
         const opt = document.createElement("option");
@@ -1226,6 +1234,7 @@ function updateAdminCascadingFilters() {
     });
     
     const prevModelValue = adminFilterModelo.value;
+    adminFilterModelo.innerHTML = "";
     const sortedAdminModelos = [...modelos].filter(m => m !== "Todos").sort();
     ["Todos", ...sortedAdminModelos].forEach(m => {
         const opt = document.createElement("option");
@@ -1245,6 +1254,7 @@ function updateAdminCascadingFilters() {
     });
     
     const prevColorValue = adminFilterColor.value;
+    adminFilterColor.innerHTML = "";
     const sortedAdminColores = [...colores].filter(c => c !== "Todos").sort();
     ["Todos", ...sortedAdminColores].forEach(c => {
         const opt = document.createElement("option");

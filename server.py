@@ -103,10 +103,12 @@ def get_pedidos_sheet():
     headers = ["Fecha", "ID Pedido", "Cliente / Contacto", "Detalle Pedido WS", "Total", "Estado", "Nombre y Apellido"]
     try:
         sheet = spreadsheet.worksheet("Pedidos")
+        if sheet.col_count < 7:
+            sheet.add_cols(7 - sheet.col_count)
         row1 = sheet.row_values(1)
         if not row1 or len(row1) == 0 or not row1[0].strip():
             # If sheet is empty, add headers to the first row
-            sheet.update('A1:G1', [headers])
+            sheet.update([headers], 'A1:G1')
         else:
             row1_clean = [r.strip() for r in row1]
             if len(row1_clean) < 7 or "Nombre y Apellido" not in row1_clean:
