@@ -191,7 +191,7 @@ function populateFilters() {
     [...tipos].sort().forEach(t => {
         const opt = document.createElement("option");
         opt.value = t;
-        opt.textContent = t === "Todos" ? "Todas las categorías" : t;
+        opt.textContent = t === "Todos" ? "Todos" : t;
         filterTipo.appendChild(opt);
     });
 
@@ -200,7 +200,7 @@ function populateFilters() {
     [...marcas].sort().forEach(m => {
         const opt = document.createElement("option");
         opt.value = m;
-        opt.textContent = m === "Todas" ? "Todas las marcas" : m;
+        opt.textContent = m === "Todas" ? "Todos" : m;
         filterMarca.appendChild(opt);
     });
     
@@ -232,7 +232,7 @@ function updateCascadingFilters() {
     [...modelos].sort().forEach(m => {
         const opt = document.createElement("option");
         opt.value = m;
-        opt.textContent = m === "Todos" ? "Todos los modelos" : m;
+        opt.textContent = m === "Todos" ? "Todos" : m;
         filterModelo.appendChild(opt);
     });
     if ([...modelos].includes(prevModelValue)) {
@@ -252,7 +252,7 @@ function updateCascadingFilters() {
     [...colores].sort().forEach(c => {
         const opt = document.createElement("option");
         opt.value = c;
-        opt.textContent = c === "Todos" ? "Todos los colores" : c;
+        opt.textContent = c === "Todos" ? "Todos" : c;
         filterColor.appendChild(opt);
     });
     if ([...colores].includes(prevColorValue)) {
@@ -276,7 +276,7 @@ function renderCatalog() {
     // Filter product state
     let filtered = productsState.filter(p => {
         // Active Tab filter
-        if (activeMainTab === "offers" && !p.en_oferta) return false;
+        if (activeMainTab === "offers") return p.en_oferta;
         
         // Search text matching
         if (query !== "") {
@@ -1188,7 +1188,7 @@ function populateAdminFilters() {
     [...tipos].sort().forEach(t => {
         const opt = document.createElement("option");
         opt.value = t;
-        opt.textContent = t === "Todos" ? "Todas las categorías" : t;
+        opt.textContent = t === "Todos" ? "Todos" : t;
         adminFilterTipo.appendChild(opt);
     });
 
@@ -1196,7 +1196,7 @@ function populateAdminFilters() {
     [...marcas].sort().forEach(m => {
         const opt = document.createElement("option");
         opt.value = m;
-        opt.textContent = m === "Todas" ? "Todas las marcas" : m;
+        opt.textContent = m === "Todas" ? "Todos" : m;
         adminFilterMarca.appendChild(opt);
     });
     
@@ -1231,7 +1231,7 @@ function updateAdminCascadingFilters() {
     [...modelos].sort().forEach(m => {
         const opt = document.createElement("option");
         opt.value = m;
-        opt.textContent = m === "Todos" ? "Todos los modelos" : m;
+        opt.textContent = m === "Todos" ? "Todos" : m;
         adminFilterModelo.appendChild(opt);
     });
     if ([...modelos].includes(prevModelValue)) {
@@ -1250,7 +1250,7 @@ function updateAdminCascadingFilters() {
     [...colores].sort().forEach(c => {
         const opt = document.createElement("option");
         opt.value = c;
-        opt.textContent = c === "Todos" ? "Todos los colores" : c;
+        opt.textContent = c === "Todos" ? "Todos" : c;
         adminFilterColor.appendChild(opt);
     });
     if ([...colores].includes(prevColorValue)) {
