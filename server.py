@@ -100,21 +100,23 @@ def get_pedidos_sheet():
     creds = get_creds()
     client = gspread.authorize(creds)
     spreadsheet = client.open("inventario_tienda")
-    headers = ["Fecha", "ID Pedido", "Cliente / Contacto", "Detalle Pedido WS", "Total", "Estado", "Nombre y Apellido"]
+    headers = ["Fecha", "ID Pedido", "Cliente / Contacto", "Detalle Pedido WS", "Total", "Estado", "Nombre y Apellido", "Productos"]
     try:
         sheet = spreadsheet.worksheet("Pedidos")
-        if sheet.col_count < 7:
-            sheet.add_cols(7 - sheet.col_count)
+        if sheet.col_count < 8:
+            sheet.add_cols(8 - sheet.col_count)
         row1 = sheet.row_values(1)
         if not row1 or len(row1) == 0 or not row1[0].strip():
             # If sheet is empty, add headers to the first row
-            sheet.update([headers], 'A1:G1')
+            sheet.update([headers], 'A1:H1')
         else:
             row1_clean = [r.strip() for r in row1]
             if len(row1_clean) < 7 or "Nombre y Apellido" not in row1_clean:
                 sheet.update_cell(1, 7, "Nombre y Apellido")
+            if len(row1_clean) < 8 or "Productos" not in row1_clean:
+                sheet.update_cell(1, 8, "Productos")
     except Exception:
-        sheet = spreadsheet.add_worksheet(title="Pedidos", rows=1000, cols=7)
+        sheet = spreadsheet.add_worksheet(title="Pedidos", rows=1000, cols=8)
         sheet.append_row(headers)
     return sheet
 
@@ -167,10 +169,23 @@ def cargar_datos_sheets():
         data  = sheet.get_all_records(head=4)
         df    = pd.DataFrame(data)
         df.columns = df.columns.str.strip()
-        df["Cantidad"] = pd.to_numeric(df["Cantidad"], errors="coerce").fillna(0).astype(int)
-        df["Precio Mercado"] = df["Precio Mercado"].apply(limpiar_precio_mercado)
+        col_cantidad = "CANTIDAD" if "CANTIDAD" in df.columns else "Cantidad"
+        df[col_cantidad] = pd.to_numeric(df[col_cantidad], errors="coerce").fillna(0).astype(int)
+        
+        col_precio = "PRECIO DE MERCADO" if "PRECIO DE MERCADO" in df.columns else "Precio Mercado"
+        df[col_precio] = df[col_precio].apply(limpiar_precio_mercado)
+        
         if "Imagen_URL" not in df.columns:
-            df["Imagen_URL"] = ""
+            if "FOTO 1 OPCIONAL" in df.columns:
+                df["Imagen_URL"] = df.apply(
+                    lambda r: ",".join(filter(None, [
+                        str(r.get("FOTO 1 OPCIONAL", "")),
+                        str(r.get("FOTO 2 OPCIONAL", "")),
+                        str(r.get("FOTO 3 OPCIONAL", ""))
+                    ])), axis=1
+                )
+            else:
+                df["Imagen_URL"] = ""
         col_oferta = None
         for c in df.columns:
             if "oferta" in str(c).lower():
@@ -415,12 +430,12 @@ def get_productos():
     for idx, row in df.iterrows():
         productos.append({
             "index": int(idx),
-            "nombre": str(row.get("Nombre del Artículo", "")),
-            "marca": str(row.get("Marca Principal", "")),
-            "modelo": str(row.get("Modelo Exacto", "")),
-            "color": str(row.get("Color / Diseño (Variación)", "")),
-            "precio": int(row.get("Precio Mercado", 0)),
-            "cantidad": int(row.get("Cantidad", 0)),
+            "nombre": str(row.get("CATEGORIA", row.get("Nombre del Artículo", ""))),
+            "marca": str(row.get("MARCA", row.get("Marca Principal", ""))),
+            "modelo": str(row.get("PRODUCTO / MODELO", row.get("Modelo Exacto", ""))),
+            "color": str(row.get("COLOR", row.get("Color / Diseño (Variación)", ""))),
+            "precio": int(row.get("PRECIO DE MERCADO", row.get("Precio Mercado", 0))),
+            "cantidad": int(row.get("CANTIDAD", row.get("Cantidad", 0))),
             "imagen_url": str(row.get("Imagen_URL", "")),
             "en_oferta": bool(row.get("En Oferta", False))
         })
@@ -481,12 +496,14 @@ def post_checkout():
             
         nombre_prod = f"{row['Nombre del Artículo']} {row['Modelo Exacto']} ({row['Color / Diseño (Variación)']})"
         precio_unit = row["Precio Mercado"]
+        nombre_prod = f"{row.get('CATEGORIA', row.get('Nombre del Artículo', ''))} {row.get('PRODUCTO / MODELO', row.get('Modelo Exacto', ''))} ({row.get('COLOR', row.get('Color / Diseño (Variación)', ''))})"
+        precio_unit = row.get("PRECIO DE MERCADO", row.get("Precio Mercado", 0))
         subtotal = precio_unit * qty
         total_pedido += subtotal
         resumen_productos.append(f"- {nombre_prod} x{qty} (${subtotal:,.0f})")
         
     # Generate Order ID
-    ahora = datetime.now()
+    ahora = datetime.utcnow() - timedelta(hours=3)
     id_pedido = f"PED-{ahora.strftime('%d%m-%H%M')}-{random.randint(100,999)}"
     
     metodo_entrega = entrega.get("metodo", "")
@@ -524,6 +541,9 @@ def post_checkout():
     
     ws_url = f"https://wa.me/{NUMERO_WS}?text={urllib.parse.quote(msg)}"
     
+    # Format products list for the new column using the already built resumen_productos
+    productos_str = "\n".join(resumen_productos)
+
     # Write to Pedidos Worksheet
     try:
         p_sheet = get_pedidos_sheet()
@@ -534,7 +554,7 @@ def post_checkout():
         p_sheet.append_row([
             ahora.strftime('%Y-%m-%d %H:%M:%S'),
             id_pedido, cliente_info, msg,
-            str(total_pedido), "Pendiente", nombre_cliente
+            str(total_pedido), "Pendiente", nombre_cliente, productos_str
         ])
     except Exception as e:
         print(f"⚠️ Error appending row to Pedidos worksheet: {e}")
