@@ -976,16 +976,24 @@ async function submitOrder() {
     let observation = "";
     
     const nombre = document.getElementById("devNombre").value.trim();
-    const tel = devTelefono.value.trim();
+    const telSuffix = devTelefono.value.trim().replace(/\D/g, "");
+    const telefonoError = document.getElementById("telefonoError");
     
     if (!nombre) {
         showToast("⚠️ Ingresá tu Nombre y Apellido.", "warning");
         return;
     }
-    if (!tel) {
-        showToast("⚠️ Ingresá tu Teléfono de contacto.", "warning");
+    if (telSuffix.length !== 7) {
+        if (telefonoError) {
+            telefonoError.classList.remove("hidden");
+        }
+        showToast("⚠️ El teléfono debe tener 7 dígitos después de 0381-15.", "warning");
+        devTelefono.focus();
         return;
     }
+    if (telefonoError) telefonoError.classList.add("hidden");
+    
+    const tel = `0381-15-${telSuffix}`;
     
     if (devMethod.value === "Envío a domicilio") {
         const calle = devCalle.value.trim();
