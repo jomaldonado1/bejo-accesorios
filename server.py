@@ -518,6 +518,56 @@ def get_compatibilidad():
         })
     return jsonify(result)
 
+def enviar_email_confirmacion_sync(id_pedido, nombre_cliente, metodo_entrega, metodo_pago, direccion, total_pedido, resumen_productos):
+    smtp_user = os.environ.get("SMTP_USER")
+    smtp_password = os.environ.get("SMTP_PASSWORD")
+    smtp_to = os.environ.get("SMTP_TO", smtp_user)
+    
+    if not smtp_user or not smtp_password:
+        print("⚠️ Credenciales SMTP no configuradas. Saltando envío de email.")
+        return
+        
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = smtp_user
+        msg['To'] = smtp_to
+        msg['Subject'] = f"🚨 NUEVO PEDIDO CONFIRMADO - {id_pedido}"
+        
+        cuerpo = f"""
+        NUEVO PEDIDO CONFIRMADO
+        -------------------------------------------
+        ID de Orden: {id_pedido}
+        Cliente: {nombre_cliente}
+        
+        Método de Entrega: {metodo_entrega}
+        Dirección: {direccion}
+        
+        Método de Pago: {metodo_pago}
+        Monto Total: ${total_pedido:,.0f}
+        
+        DETALLE DE PRODUCTOS:
+        """
+        for prod in resumen_productos:
+            cuerpo += f"{prod}\n"
+            
+        cuerpo += "\n-------------------------------------------"
+        
+        msg.attach(MIMEText(cuerpo, 'plain'))
+        
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(smtp_user, smtp_password)
+        server.send_message(msg)
+        server.quit()
+        print(f"✅ Email enviado con éxito para el pedido {id_pedido}")
+    except Exception as e:
+        print(f"⚠️ Error al enviar el email para el pedido {id_pedido}: {e}")
+
+def enviar_email_confirmacion(id_pedido, nombre_cliente, metodo_entrega, metodo_pago, direccion, total_pedido, resumen_productos):
+    t = threading.Thread(target=enviar_email_confirmacion_sync, args=(id_pedido, nombre_cliente, metodo_entrega, metodo_pago, direccion, total_pedido, resumen_productos))
+    t.daemon = True
+    t.start()
+
 @app.route('/api/checkout', methods=['POST'])
 def post_checkout():
     data = request.json
