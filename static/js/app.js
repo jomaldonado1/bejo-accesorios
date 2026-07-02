@@ -506,8 +506,9 @@ function renderCatalog() {
         productosGrid.classList.remove("hidden");
         
         // Paginated items
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const endIndex = startIndex + itemsPerPage;
+        const activeItemsPerPage = activeMainTab === "offers" ? 5 : itemsPerPage;
+        const startIndex = (currentPage - 1) * activeItemsPerPage;
+        const endIndex = startIndex + activeItemsPerPage;
         const paginated = filtered.slice(startIndex, endIndex);
         
         // Render item cards
@@ -546,7 +547,8 @@ function renderCatalog() {
 
 // Render pagination controls
 function renderPaginationControls(totalItems) {
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const activeItemsPerPage = activeMainTab === "offers" ? 5 : itemsPerPage;
+    const totalPages = Math.ceil(totalItems / activeItemsPerPage);
     const container = document.getElementById("paginationControls");
     if (!container) return;
     
