@@ -354,9 +354,6 @@ function renderCatalog() {
         
         return true;
     });
-        
-        return true;
-    });
 
     // Clear grid
     productosGrid.innerHTML = "";
