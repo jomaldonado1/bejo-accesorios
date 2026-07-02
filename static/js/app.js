@@ -312,57 +312,7 @@ function removeAccents(str) {
     if (!str) return "";
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
-    
-    // Admin panel sync (if exists)
-    if (typeof adminFilterModelo !== "undefined" && adminFilterModelo) {
-        const prevAdminModel = adminFilterModelo.value;
-        adminFilterModelo.innerHTML = "";
-        sortedModelos.forEach(m => {
-            const opt = document.createElement("option");
-            opt.value = m;
-            opt.textContent = m;
-            adminFilterModelo.appendChild(opt);
-        });
-        if (sortedModelos.includes(prevAdminModel)) {
-            adminFilterModelo.value = prevAdminModel;
-        } else {
-            adminFilterModelo.value = "Todos";
-        }
-    }
-    
-    const prevColorValue = filterColor.value;
-    filterColor.innerHTML = "";
-    const sortedColores = [...colores].filter(c => c !== "Todos").sort();
-    sortedColores.unshift("Todos");
-    
-    sortedColores.forEach(c => {
-        const opt = document.createElement("option");
-        opt.value = c;
-        opt.textContent = c;
-        filterColor.appendChild(opt);
-    });
-    if (sortedColores.includes(prevColorValue)) {
-        filterColor.value = prevColorValue;
-    } else {
-        filterColor.value = "Todos";
-    }
-    
-    if (typeof adminFilterColor !== "undefined" && adminFilterColor) {
-        const prevAdminColor = adminFilterColor.value;
-        adminFilterColor.innerHTML = "";
-        sortedColores.forEach(c => {
-            const opt = document.createElement("option");
-            opt.value = c;
-            opt.textContent = c;
-            adminFilterColor.appendChild(opt);
-        });
-        if (sortedColores.includes(prevAdminColor)) {
-            adminFilterColor.value = prevAdminColor;
-        } else {
-            adminFilterColor.value = "Todos";
-        }
-    }
-}
+
 
 // ── CATALOG RENDERING ──
 function renderCatalog() {
@@ -1160,20 +1110,13 @@ window.buscarModeloEnCatalogo = function(marca, modelo) {
         navCatalogBtn.click();
     }
     
-    searchInput.value = "";
-    searchInputMobile.value = "";
-    
-    filterMarca.value = marca;
-    updateCascadingFilters();
-    
-    const modelOptions = Array.from(filterModelo.options).map(o => o.value);
-    if (modelOptions.includes(modelo)) {
-        filterModelo.value = modelo;
-    } else {
-        filterModelo.value = "Todos";
-        searchInput.value = modelo;
-        if (searchInputMobile) searchInputMobile.value = modelo;
+    if (filterSearch) {
+        filterSearch.value = `${marca} ${modelo}`.trim();
     }
+    
+    if (searchInput) searchInput.value = "";
+    if (searchInputMobile) searchInputMobile.value = "";
+    if (filterTipo) filterTipo.value = "Todos";
     
     currentPage = 1;
     renderCatalog();
