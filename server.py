@@ -520,111 +520,7 @@ def get_compatibilidad():
         })
     return jsonify(result)
 
-def registrar_log_email(id_pedido, status, error_msg=""):
-    try:
-        creds = get_creds()
-        client = gspread.authorize(creds)
-        spreadsheet = client.open("inventario_tienda")
-        try:
-            sheet = spreadsheet.worksheet("Logs_Email")
-        except gspread.exceptions.WorksheetNotFound:
-            sheet = spreadsheet.add_worksheet(title="Logs_Email", rows="100", cols="4")
-            sheet.append_row(["Fecha", "ID Pedido", "Estado", "Detalle / Error"])
-        
-        ahora = datetime.utcnow() - timedelta(hours=3)
-        sheet.append_row([ahora.strftime('%Y-%m-%d %H:%M:%S'), id_pedido, status, error_msg])
-    except Exception as e:
-        print(f"Error escribiendo log de email: {e}")
 
-def enviar_email_confirmacion_sync(id_pedido, nombre_cliente, metodo_entrega, metodo_pago, direccion, total_pedido, resumen_productos):
-    smtp_user = os.environ.get("SMTP_USER", "josefinarw22@gmail.com")
-    smtp_password = os.environ.get("SMTP_PASSWORD", "hximlwfttcyxxkyg")
-    smtp_to = os.environ.get("SMTP_TO", "josefinarw22@gmail.com")
-    
-    if not smtp_user or not smtp_password:
-        registrar_log_email(id_pedido, "ERROR", "Credenciales SMTP no configuradas.")
-        print("⚠️ Credenciales SMTP no configuradas. Saltando envío de email.")
-        return
-        
-    try:
-        msg = MIMEMultipart()
-        msg['From'] = smtp_user
-        msg['To'] = smtp_to
-        msg['Subject'] = f"🚨 NUEVO PEDIDO CONFIRMADO - {id_pedido}"
-        
-        cuerpo = f"""
-        NUEVO PEDIDO CONFIRMADO
-        -------------------------------------------
-        ID de Orden: {id_pedido}
-        Cliente: {nombre_cliente}
-        
-        Método de Entrega: {metodo_entrega}
-        Dirección: {direccion}
-        
-        Método de Pago: {metodo_pago}
-        Monto Total: ${total_pedido:,.0f}
-        
-        DETALLE DE PRODUCTOS:
-        """
-        for prod in resumen_productos:
-            cuerpo += f"{prod}\n"
-            
-        cuerpo += "\n-------------------------------------------"
-        
-        msg.attach(MIMEText(cuerpo, 'plain'))
-        
-        # Force IPv4 resolution for smtp.gmail.com to bypass Heroku's IPv6 routing issues (Errno 101 Network is unreachable)
-        try:
-            ais = socket.getaddrinfo('smtp.gmail.com', 587, socket.AF_INET)
-            smtp_ip = ais[0][4][0]
-            print(f"Resolviendo smtp.gmail.com a IPv4: {smtp_ip}")
-        except Exception as dns_err:
-            smtp_ip = 'smtp.gmail.com'
-            print(f"Error DNS IPv4, usando fallback: {dns_err}")
-
-        # Try STARTTLS on port 587 first
-        try:
-            print("Intentando SMTP STARTTLS puerto 587 (IPv4)...")
-            server = smtplib.SMTP(smtp_ip, 587, timeout=10)
-            context = ssl.create_default_context()
-            server.starttls(context=context, server_hostname='smtp.gmail.com')
-            server.login(smtp_user, smtp_password)
-            server.send_message(msg)
-            server.quit()
-            registrar_log_email(id_pedido, "EXITOSO (STARTTLS 587)")
-            print(f"✅ Email enviado con éxito para el pedido {id_pedido} (STARTTLS 587)")
-            return
-        except Exception as e587:
-            print(f"⚠️ Falló puerto 587: {e587}. Intentando SSL puerto 465 (IPv4)...")
-            # Fallback to SSL on port 465
-            try:
-                ais_465 = socket.getaddrinfo('smtp.gmail.com', 465, socket.AF_INET)
-                smtp_ip_465 = ais_465[0][4][0]
-                
-                # Disable cert validation check for IP address to prevent hostname mismatch error
-                context = ssl.create_default_context()
-                context.check_hostname = False
-                context.verify_mode = ssl.CERT_NONE
-                
-                server = smtplib.SMTP_SSL(smtp_ip_465, 465, context=context, timeout=10)
-                server.login(smtp_user, smtp_password)
-                server.send_message(msg)
-                server.quit()
-                registrar_log_email(id_pedido, "EXITOSO (SSL 465)")
-                print(f"✅ Email enviado con éxito para el pedido {id_pedido} (SSL 465)")
-                return
-            except Exception as e465:
-                err_details = f"Fallo 587: {e587} | Fallo 465: {e465}"
-                registrar_log_email(id_pedido, "ERROR", err_details)
-                print(f"⚠️ Error total al enviar el email para el pedido {id_pedido}: {err_details}")
-    except Exception as e:
-        registrar_log_email(id_pedido, "ERROR", f"Error general: {e}")
-        print(f"⚠️ Error general al procesar email para el pedido {id_pedido}: {e}")
-
-def enviar_email_confirmacion(id_pedido, nombre_cliente, metodo_entrega, metodo_pago, direccion, total_pedido, resumen_productos):
-    t = threading.Thread(target=enviar_email_confirmacion_sync, args=(id_pedido, nombre_cliente, metodo_entrega, metodo_pago, direccion, total_pedido, resumen_productos))
-    t.daemon = True
-    t.start()
 
 @app.route('/api/checkout', methods=['POST'])
 def post_checkout():
@@ -757,11 +653,7 @@ def post_checkout():
     except Exception as e:
         print(f"⚠️ Error appending row to Pedidos worksheet: {e}")
         
-    # Send email in background thread (non-blocking so it never crashes checkout)
-    try:
-        enviar_email_confirmacion(id_pedido, nombre_cliente, le, lp, direccion, total_pedido, resumen_productos)
-    except Exception as e:
-        print(f"⚠️ Error lanzando thread de email: {e}")
+
 
     # Decrement stock in sheet
     ok_stock = descontar_stock(stock_to_deduct, df_stock)
