@@ -7,6 +7,11 @@ import base64
 from io import BytesIO
 from datetime import datetime, timedelta
 
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import threading
+
 import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -456,7 +461,8 @@ def get_productos():
             "precio": int(row.get("PRECIO DE MERCADO", row.get("Precio Mercado", 0))),
             "cantidad": int(row.get("CANTIDAD", row.get("Cantidad", 0))),
             "imagen_url": str(row.get("Imagen_URL", "")),
-            "en_oferta": bool(row.get("En Oferta", False))
+            "en_oferta": bool(row.get("En Oferta", False)),
+            "compatibilidad": str(row.get("COMPATIBILIDAD", row.get("Compatibilidad", "")))
         })
     return jsonify(productos)
 
@@ -492,7 +498,8 @@ def get_productos_combo():
                 "precio": int(row.get("PRECIO DE MERCADO", row.get("Precio Mercado", 0))),
                 "cantidad": cant,
                 "imagen_url": str(row.get("Imagen_URL", "")),
-                "en_oferta": bool(row.get("En Oferta", False))
+                "en_oferta": bool(row.get("En Oferta", False)),
+                "compatibilidad": str(row.get("COMPATIBILIDAD", row.get("Compatibilidad", "")))
             })
     return jsonify(productos)
 
@@ -642,6 +649,9 @@ def post_checkout():
     except Exception as e:
         print(f"⚠️ Error appending row to Pedidos worksheet: {e}")
         
+    # Send email notification asynchronously
+    enviar_email_confirmacion(id_pedido, nombre_cliente, le, lp, direccion, total_pedido, resumen_productos)
+
     # Decrement stock in sheet
     ok_stock = descontar_stock(stock_to_deduct, df_stock)
     

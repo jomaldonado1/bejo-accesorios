@@ -153,37 +153,24 @@
             </div>
 
             <!-- Filter Cascade Grid -->
-            <div id="catalogFilters" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div id="catalogFilters" class="grid grid-cols-1 sm:grid-cols-12 gap-4">
                 <!-- Tipo de Producto / Categoría -->
-                <div class="relative bg-white border border-black/[0.06] rounded-2xl px-4 py-2.5 shadow-sm">
+                <div class="relative bg-white border border-black/[0.06] rounded-2xl px-4 py-2.5 shadow-sm sm:col-span-4 lg:col-span-3">
                     <label class="block text-[10px] font-bold uppercase tracking-wider text-textMuted mb-1">Categoría</label>
                     <select id="filterTipo" class="w-full text-sm font-semibold border-0 p-0 text-textDark focus:ring-0 cursor-pointer bg-transparent">
                         <option value="Todos">Todos</option>
                     </select>
                 </div>
                 
-                <!-- Marca -->
-                <div class="relative bg-white border border-black/[0.06] rounded-2xl px-4 py-2.5 shadow-sm">
-                    <label class="block text-[10px] font-bold uppercase tracking-wider text-textMuted mb-1">Marca de Celular</label>
-                    <select id="filterMarca" class="w-full text-sm font-semibold border-0 p-0 text-textDark focus:ring-0 cursor-pointer bg-transparent">
-                        <option value="Todas">Todos</option>
-                    </select>
-                </div>
-                
-                <!-- Modelo -->
-                <div class="relative bg-white border border-black/[0.06] rounded-2xl px-4 py-2.5 shadow-sm">
-                    <label class="block text-[10px] font-bold uppercase tracking-wider text-textMuted mb-1">Modelo Exacto</label>
-                    <select id="filterModelo" class="w-full text-sm font-semibold border-0 p-0 text-textDark focus:ring-0 cursor-pointer bg-transparent">
-                        <option value="Todos">Todos</option>
-                    </select>
-                </div>
-                
-                <!-- Color / Diseño -->
-                <div class="relative bg-white border border-black/[0.06] rounded-2xl px-4 py-2.5 shadow-sm">
-                    <label class="block text-[10px] font-bold uppercase tracking-wider text-textMuted mb-1">Color / Diseño</label>
-                    <select id="filterColor" class="w-full text-sm font-semibold border-0 p-0 text-textDark focus:ring-0 cursor-pointer bg-transparent">
-                        <option value="Todos">Todos</option>
-                    </select>
+                <!-- Buscador de Modelo / Compatibilidad -->
+                <div class="relative bg-white border border-black/[0.06] rounded-2xl px-4 py-2.5 shadow-sm flex items-center">
+                    <svg class="w-5 h-5 text-textMuted mr-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <div class="w-full">
+                        <label class="block text-[10px] font-bold uppercase tracking-wider text-textMuted mb-1">Buscar Modelo</label>
+                        <input type="text" id="filterSearch" placeholder="Escribí la marca y modelo de tu celular..." class="w-full text-sm font-semibold border-0 p-0 text-textDark focus:ring-0 bg-transparent placeholder-textMuted/50">
+                    </div>
                 </div>
             </div>
 
@@ -193,7 +180,7 @@
                     <h3 class="text-xl font-bold tracking-tight text-textDark">🔥 Ofertas Destacadas</h3>
                     <span class="text-xs bg-offerRed/10 text-offerRed font-bold px-2 py-0.5 rounded">Limitado</span>
                 </div>
-                <div id="ofertasGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div id="ofertasGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     <!-- Ofertas renderizadas mediante JS -->
                 </div>
                 <hr class="border-black/[0.05] mt-6">
@@ -231,12 +218,19 @@
                 <!-- Pagination Controls -->
                 <div id="paginationControls" class="flex items-center justify-center gap-3 mt-8"></div>
 
-                <!-- Empty State -->
+                <!-- Empty State (Fallback UI) -->
                 <div id="emptyCatalogState" class="hidden flex-col items-center justify-center py-16 px-4 bg-white border border-black/[0.04] rounded-3xl text-center shadow-sm">
-                    <div class="text-5xl mb-4">🔍</div>
-                    <h4 class="text-lg font-bold text-textDark mb-1">No encontramos resultados</h4>
-                    <p class="text-sm text-textMuted max-w-sm">Intentá cambiar los filtros de búsqueda o restablecelos para ver más accesorios.</p>
-                    <button id="resetFiltersBtn" class="mt-4 text-sm font-semibold text-accentBlue hover:text-accentBlueHover">Restablecer filtros</button>
+                    <div class="w-20 h-20 bg-black/[0.04] rounded-full flex items-center justify-center mb-6">
+                        <span class="text-4xl">🤔</span>
+                    </div>
+                    <h4 id="emptyCatalogTitle" class="text-xl font-bold text-textDark mb-2">¿No encontrás accesorios para tu modelo?</h4>
+                    <p class="text-sm text-textMuted max-w-md mb-8 leading-relaxed">
+                        Consultanos al instante por WhatsApp. Fabricamos e importamos fundas y vidrios para todos los modelos del mercado.
+                    </p>
+                    <a href="#" id="fallbackWsBtn" target="_blank" class="inline-flex items-center gap-2 bg-successGreen hover:bg-[#1da851] text-white font-bold py-3.5 px-8 rounded-xl transition-all shadow-md hover:shadow-lg transform active:scale-95">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.487-1.761-1.66-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                        CONSULTAR POR MI MODELO
+                    </a>
                 </div>
             </div>
 
@@ -551,7 +545,7 @@
                 
                 <!-- WhatsApp order confirm button -->
                 <a id="successWSBtn" href="#" target="_blank" class="w-full py-4 bg-[#25D366] hover:bg-[#20ba59] text-white font-bold rounded-2xl transition-colors flex items-center justify-center gap-2 text-sm">
-                    📲 AVISAR AL VENDEDOR POR WS
+                    📲 ENVIAR COMPROBANTE (OPCIONAL)
                 </a>
                 
                 <button id="successCloseBtn" class="mt-2 text-xs font-bold text-textMuted hover:text-textDark py-2 transition-colors">

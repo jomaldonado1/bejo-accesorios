@@ -68,11 +68,8 @@ function normalizeImageUrl(url) {
 const searchInput = document.getElementById("searchInput");
 const searchInputMobile = document.getElementById("searchInputMobile");
 const filterTipo = document.getElementById("filterTipo");
-const filterMarca = document.getElementById("filterMarca");
-const filterModelo = document.getElementById("filterModelo");
-const filterColor = document.getElementById("filterColor");
+const filterSearch = document.getElementById("filterSearch");
 const clearFiltersBtn = document.getElementById("clearFiltersBtn");
-const resetFiltersBtn = document.getElementById("resetFiltersBtn");
 const emptyCatalogState = document.getElementById("emptyCatalogState");
 const productosGrid = document.getElementById("productosGrid");
 const resultsCount = document.getElementById("resultsCount");
@@ -298,7 +295,6 @@ function populateFilters() {
     
     productsState.forEach(p => {
         if (p.nombre) tipos.add(p.nombre);
-        if (p.marca) marcas.add(p.marca);
     });
     
     filterTipo.innerHTML = "";
@@ -309,17 +305,6 @@ function populateFilters() {
         opt.textContent = t === "Todos" ? "Todos" : t;
         filterTipo.appendChild(opt);
     });
-
-    filterMarca.innerHTML = "";
-    const sortedMarcas = [...marcas].filter(m => m !== "Todas").sort();
-    ["Todas", ...sortedMarcas].forEach(m => {
-        const opt = document.createElement("option");
-        opt.value = m;
-        opt.textContent = m === "Todas" ? "Todos" : m;
-        filterMarca.appendChild(opt);
-    });
-    
-    updateCascadingFilters();
 }
 
 // Remove diacritics / accents for search normalization
@@ -327,44 +312,6 @@ function removeAccents(str) {
     if (!str) return "";
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
-
-function updateCascadingFilters() {
-    const selectedTipo = filterTipo.value;
-    const selectedMarca = filterMarca.value;
-    
-    // Filter active items to see what models and colors are available
-    let filtered = productsState;
-    if (selectedTipo !== "Todos") {
-        filtered = filtered.filter(p => p.nombre === selectedTipo);
-    }
-    if (selectedMarca !== "Todas") {
-        filtered = filtered.filter(p => p.marca === selectedMarca);
-    }
-    
-    const modelos = new Set();
-    const colores = new Set();
-    
-    filtered.forEach(p => {
-        if (p.modelo) modelos.add(p.modelo);
-        if (p.color) colores.add(p.color);
-    });
-    
-    const prevModelValue = filterModelo.value;
-    filterModelo.innerHTML = "";
-    const sortedModelos = [...modelos].filter(m => m !== "Todos").sort();
-    sortedModelos.unshift("Todos");
-    
-    sortedModelos.forEach(m => {
-        const opt = document.createElement("option");
-        opt.value = m;
-        opt.textContent = m;
-        filterModelo.appendChild(opt);
-    });
-    if (sortedModelos.includes(prevModelValue)) {
-        filterModelo.value = prevModelValue;
-    } else {
-        filterModelo.value = "Todos";
-    }
     
     // Admin panel sync (if exists)
     if (typeof adminFilterModelo !== "undefined" && adminFilterModelo) {
@@ -420,14 +367,12 @@ function updateCascadingFilters() {
 // ── CATALOG RENDERING ──
 function renderCatalog() {
     const query = searchInput.value.toLowerCase().trim();
+    const fsQuery = filterSearch ? filterSearch.value.toLowerCase().replace(/[\s-]/g, "") : "";
     
     const selTipo = filterTipo.value;
-    const selMarca = filterMarca.value;
-    const selModelo = filterModelo.value;
-    const selColor = filterColor.value;
     
     // Check if any filters are active
-    const isFiltered = query !== "" || selTipo !== "Todos" || selMarca !== "Todas" || selModelo !== "Todos" || selColor !== "Todos";
+    const isFiltered = query !== "" || fsQuery !== "" || selTipo !== "Todos";
     
     let baseProducts = activeMainTab === "combo" ? comboProducts : productsState;
     
@@ -438,7 +383,7 @@ function renderCatalog() {
             if(!p.en_oferta) return false;
         }
         
-        // Search text matching
+        // Header Search matching
         if (query !== "") {
             const searchable = removeAccents(`${p.nombre} ${p.marca} ${p.modelo} ${p.color}`).toLowerCase();
             const words = removeAccents(query).split(/\s+/);
@@ -446,14 +391,19 @@ function renderCatalog() {
                 if (!searchable.includes(w)) return false;
             }
         }
+        
+        // Fuzzy filter Search matching
+        if (fsQuery !== "") {
+            const searchable2 = removeAccents(`${p.marca} ${p.modelo} ${p.compatibilidad}`).toLowerCase().replace(/[\s-]/g, "");
+            const cleanedQuery = removeAccents(fsQuery);
+            if (!searchable2.includes(cleanedQuery)) return false;
+        }
+
         // Category matching
         if (selTipo !== "Todos" && p.nombre !== selTipo) return false;
-        // Brand matching
-        if (selMarca !== "Todas" && p.marca !== selMarca) return false;
-        // Model matching
-        if (selModelo !== "Todos" && p.modelo !== selModelo) return false;
-        // Color matching
-        if (selColor !== "Todos" && p.color !== selColor) return false;
+        
+        return true;
+    });
         
         return true;
     });
@@ -496,6 +446,17 @@ function renderCatalog() {
         emptyCatalogState.classList.remove("hidden");
         emptyCatalogState.classList.add("flex");
         productosGrid.classList.add("hidden");
+        
+        const fallbackWsBtn = document.getElementById("fallbackWsBtn");
+        const emptyCatalogTitle = document.getElementById("emptyCatalogTitle");
+        
+        if (fallbackWsBtn && emptyCatalogTitle) {
+            const userSearch = filterSearch && filterSearch.value ? filterSearch.value : (query ? query : "tu modelo");
+            emptyCatalogTitle.textContent = `¿No encontrás accesorios para ${userSearch}?`;
+            
+            const msg = `Hola! Busco accesorios para el modelo ${userSearch} y no lo encontré en la web.`;
+            fallbackWsBtn.href = `https://wa.me/5493816582851?text=${encodeURIComponent(msg)}`;
+        }
         
         const container = document.getElementById("paginationControls");
         if (container) container.innerHTML = "";
@@ -1060,10 +1021,7 @@ async function submitOrder() {
             // Re-fetch catalog to update current stocks
             fetchData();
             
-            // Auto trigger WhatsApp after 1.5s delay
-            setTimeout(() => {
-                window.open(res.ws_url, "_blank");
-            }, 1500);
+            // Auto trigger removed as per request
         } else {
             showToast(`❌ Error: ${res.error || 'No se pudo procesar el pedido'}`, "error");
         }
@@ -1678,24 +1636,41 @@ function setupEventListeners() {
         resetTabs();
         
         if (tab === "catalog") {
-            navCatalogBtn.className = "pb-4 border-b-2 border-accentBlue text-accentBlue flex items-center gap-1.5 transition-all";
+            navCatalogBtn.classList.add("text-accentBlue", "border-accentBlue", "font-bold");
             catalogContent.classList.remove("hidden");
         } else if (tab === "offers") {
-            navOffersBtn.className = "pb-4 border-b-2 border-accentBlue text-accentBlue flex items-center gap-1.5 transition-all";
+            navOffersBtn.classList.add("text-offerRed", "border-offerRed", "font-bold");
             catalogContent.classList.remove("hidden");
         } else if (tab === "wholesale") {
-            navWholesaleBtn.className = "pb-4 border-b-2 border-accentBlue text-accentBlue flex items-center gap-1.5 transition-all";
+            navWholesaleBtn.classList.add("text-accentBlue", "border-accentBlue", "font-bold");
             wholesaleContent.classList.remove("hidden");
+            renderWholesaleCatalog();
         } else if (tab === "combo") {
-            if(navComboBtn) navComboBtn.className = "pb-4 border-b-2 border-accentBlue text-accentBlue flex items-center gap-1.5 transition-all";
+            if(navComboBtn) navComboBtn.classList.add("text-comboPurple", "border-comboPurple", "font-bold");
             catalogContent.classList.remove("hidden");
+            
             document.getElementById("catalogHeaderNormal").classList.add("hidden");
             document.getElementById("catalogHeaderNormal").classList.remove("flex");
             document.getElementById("comboStickyHeader").classList.remove("hidden");
             document.getElementById("comboStickyHeader").classList.add("flex");
+            
+            // Check config
+            if (activeMainTab === "combo" && comboConfig.precio === 0) {
+                fetch("/api/combo-config").then(r => r.json()).then(data => {
+                    comboConfig = data;
+                    document.getElementById("comboSubtitle").innerText = `${data.cantidad} productos a $${data.precio.toLocaleString("es-AR")}`;
+                    document.getElementById("comboCounter").innerText = `${comboTotalSelected} / ${comboConfig.cantidad}`;
+                });
+            }
             if(comboProducts.length === 0) fetchComboData();
         }
         
+        // Reset filters globally on tab switch
+        if (searchInput) searchInput.value = "";
+        if (searchInputMobile) searchInputMobile.value = "";
+        if (filterSearch) filterSearch.value = "";
+        if (filterTipo) filterTipo.value = "Todos";
+        currentPage = 1;
         renderCatalog();
     };
     
@@ -1715,39 +1690,32 @@ function setupEventListeners() {
     });
     
     // Filters cascading triggers
-    filterTipo.addEventListener("change", () => {
-        currentPage = 1;
-        updateCascadingFilters();
-        renderCatalog();
-    });
-    filterMarca.addEventListener("change", () => {
-        currentPage = 1;
-        updateCascadingFilters();
-        renderCatalog();
-    });
-    filterModelo.addEventListener("change", () => {
-        currentPage = 1;
-        renderCatalog();
-    });
-    filterColor.addEventListener("change", () => {
-        currentPage = 1;
-        renderCatalog();
-    });
+    if (filterTipo) {
+        filterTipo.addEventListener("change", () => {
+            currentPage = 1;
+            renderCatalog();
+        });
+    }
+    
+    if (filterSearch) {
+        filterSearch.addEventListener("input", () => {
+            currentPage = 1;
+            renderCatalog();
+        });
+    }
     
     // Clean filters CTAs
     const resetAllFilters = () => {
-        searchInput.value = "";
-        searchInputMobile.value = "";
-        filterTipo.value = "Todos";
-        updateCascadingFilters();
-        filterMarca.value = "Todas";
-        filterModelo.value = "Todos";
-        filterColor.value = "Todos";
+        if (searchInput) searchInput.value = "";
+        if (searchInputMobile) searchInputMobile.value = "";
+        if (filterSearch) filterSearch.value = "";
+        if (filterTipo) filterTipo.value = "Todos";
         currentPage = 1;
         renderCatalog();
     };
-    clearFiltersBtn.addEventListener("click", resetAllFilters);
-    resetFiltersBtn.addEventListener("click", resetAllFilters);
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener("click", resetAllFilters);
+    }
     
     // Compat dropdown filters cascading triggers
     const compatFilterTipo = document.getElementById("compatFilterTipo");
