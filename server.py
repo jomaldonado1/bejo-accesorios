@@ -519,9 +519,9 @@ def get_compatibilidad():
     return jsonify(result)
 
 def enviar_email_confirmacion_sync(id_pedido, nombre_cliente, metodo_entrega, metodo_pago, direccion, total_pedido, resumen_productos):
-    smtp_user = os.environ.get("SMTP_USER")
-    smtp_password = os.environ.get("SMTP_PASSWORD")
-    smtp_to = os.environ.get("SMTP_TO", smtp_user)
+    smtp_user = os.environ.get("SMTP_USER", "josefinarw22@gmail.com")
+    smtp_password = os.environ.get("SMTP_PASSWORD", "hximlwfttcyxxkyg")
+    smtp_to = os.environ.get("SMTP_TO", "josefinarw22@gmail.com")
     
     if not smtp_user or not smtp_password:
         print("⚠️ Credenciales SMTP no configuradas. Saltando envío de email.")
