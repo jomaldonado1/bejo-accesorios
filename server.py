@@ -518,12 +518,29 @@ def get_compatibilidad():
         })
     return jsonify(result)
 
+def registrar_log_email(id_pedido, status, error_msg=""):
+    try:
+        creds = get_creds()
+        client = gspread.authorize(creds)
+        spreadsheet = client.open("inventario_tienda")
+        try:
+            sheet = spreadsheet.worksheet("Logs_Email")
+        except gspread.exceptions.WorksheetNotFound:
+            sheet = spreadsheet.add_worksheet(title="Logs_Email", rows="100", cols="4")
+            sheet.append_row(["Fecha", "ID Pedido", "Estado", "Detalle / Error"])
+        
+        ahora = datetime.utcnow() - timedelta(hours=3)
+        sheet.append_row([ahora.strftime('%Y-%m-%d %H:%M:%S'), id_pedido, status, error_msg])
+    except Exception as e:
+        print(f"Error escribiendo log de email: {e}")
+
 def enviar_email_confirmacion_sync(id_pedido, nombre_cliente, metodo_entrega, metodo_pago, direccion, total_pedido, resumen_productos):
     smtp_user = os.environ.get("SMTP_USER", "josefinarw22@gmail.com")
     smtp_password = os.environ.get("SMTP_PASSWORD", "hximlwfttcyxxkyg")
     smtp_to = os.environ.get("SMTP_TO", "josefinarw22@gmail.com")
     
     if not smtp_user or not smtp_password:
+        registrar_log_email(id_pedido, "ERROR", "Credenciales SMTP no configuradas.")
         print("⚠️ Credenciales SMTP no configuradas. Saltando envío de email.")
         return
         
@@ -554,14 +571,35 @@ def enviar_email_confirmacion_sync(id_pedido, nombre_cliente, metodo_entrega, me
         
         msg.attach(MIMEText(cuerpo, 'plain'))
         
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(smtp_user, smtp_password)
-        server.send_message(msg)
-        server.quit()
-        print(f"✅ Email enviado con éxito para el pedido {id_pedido}")
+        # Try STARTTLS on port 587 first
+        try:
+            print("Intentando SMTP STARTTLS puerto 587...")
+            server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
+            server.starttls()
+            server.login(smtp_user, smtp_password)
+            server.send_message(msg)
+            server.quit()
+            registrar_log_email(id_pedido, "EXITOSO (STARTTLS 587)")
+            print(f"✅ Email enviado con éxito para el pedido {id_pedido} (STARTTLS 587)")
+            return
+        except Exception as e587:
+            print(f"⚠️ Falló puerto 587: {e587}. Intentando SSL puerto 465...")
+            # Fallback to SSL on port 465
+            try:
+                server = smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=10)
+                server.login(smtp_user, smtp_password)
+                server.send_message(msg)
+                server.quit()
+                registrar_log_email(id_pedido, "EXITOSO (SSL 465)")
+                print(f"✅ Email enviado con éxito para el pedido {id_pedido} (SSL 465)")
+                return
+            except Exception as e465:
+                err_details = f"Fallo 587: {e587} | Fallo 465: {e465}"
+                registrar_log_email(id_pedido, "ERROR", err_details)
+                print(f"⚠️ Error total al enviar el email para el pedido {id_pedido}: {err_details}")
     except Exception as e:
-        print(f"⚠️ Error al enviar el email para el pedido {id_pedido}: {e}")
+        registrar_log_email(id_pedido, "ERROR", f"Error general: {e}")
+        print(f"⚠️ Error general al procesar email para el pedido {id_pedido}: {e}")
 
 def enviar_email_confirmacion(id_pedido, nombre_cliente, metodo_entrega, metodo_pago, direccion, total_pedido, resumen_productos):
     t = threading.Thread(target=enviar_email_confirmacion_sync, args=(id_pedido, nombre_cliente, metodo_entrega, metodo_pago, direccion, total_pedido, resumen_productos))
