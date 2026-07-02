@@ -244,8 +244,9 @@ if(addComboBtnEl) {
         localStorage.setItem("bejo_comboDetails", JSON.stringify(comboDetailsObj));
         
         cartState[comboId] = 1;
-        saveCart();
-        updateCartUI();
+        saveCartToLocalStorage();
+        updateCartCount();
+        renderCartItems();
         
         // Reset combo state
         comboSelections = {};
