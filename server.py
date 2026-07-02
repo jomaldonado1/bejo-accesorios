@@ -571,11 +571,21 @@ def enviar_email_confirmacion_sync(id_pedido, nombre_cliente, metodo_entrega, me
         
         msg.attach(MIMEText(cuerpo, 'plain'))
         
+        # Force IPv4 resolution for smtp.gmail.com to bypass Heroku's IPv6 routing issues (Errno 101 Network is unreachable)
+        try:
+            ais = socket.getaddrinfo('smtp.gmail.com', 587, socket.AF_INET)
+            smtp_ip = ais[0][4][0]
+            print(f"Resolviendo smtp.gmail.com a IPv4: {smtp_ip}")
+        except Exception as dns_err:
+            smtp_ip = 'smtp.gmail.com'
+            print(f"Error DNS IPv4, usando fallback: {dns_err}")
+
         # Try STARTTLS on port 587 first
         try:
-            print("Intentando SMTP STARTTLS puerto 587...")
-            server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
-            server.starttls()
+            print("Intentando SMTP STARTTLS puerto 587 (IPv4)...")
+            server = smtplib.SMTP(smtp_ip, 587, timeout=10)
+            context = ssl.create_default_context()
+            server.starttls(context=context, server_hostname='smtp.gmail.com')
             server.login(smtp_user, smtp_password)
             server.send_message(msg)
             server.quit()
@@ -583,10 +593,18 @@ def enviar_email_confirmacion_sync(id_pedido, nombre_cliente, metodo_entrega, me
             print(f"✅ Email enviado con éxito para el pedido {id_pedido} (STARTTLS 587)")
             return
         except Exception as e587:
-            print(f"⚠️ Falló puerto 587: {e587}. Intentando SSL puerto 465...")
+            print(f"⚠️ Falló puerto 587: {e587}. Intentando SSL puerto 465 (IPv4)...")
             # Fallback to SSL on port 465
             try:
-                server = smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=10)
+                ais_465 = socket.getaddrinfo('smtp.gmail.com', 465, socket.AF_INET)
+                smtp_ip_465 = ais_465[0][4][0]
+                
+                # Disable cert validation check for IP address to prevent hostname mismatch error
+                context = ssl.create_default_context()
+                context.check_hostname = False
+                context.verify_mode = ssl.CERT_NONE
+                
+                server = smtplib.SMTP_SSL(smtp_ip_465, 465, context=context, timeout=10)
                 server.login(smtp_user, smtp_password)
                 server.send_message(msg)
                 server.quit()
