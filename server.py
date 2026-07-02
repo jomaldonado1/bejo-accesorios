@@ -5,7 +5,7 @@ import time
 import urllib.parse
 import base64
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pandas as pd
 import gspread
@@ -188,17 +188,20 @@ def cargar_datos_sheets():
         col_precio = "PRECIO DE MERCADO" if "PRECIO DE MERCADO" in df.columns else "Precio Mercado"
         df[col_precio] = df[col_precio].apply(limpiar_precio_mercado)
         
-        if "Imagen_URL" not in df.columns:
-            if "FOTO 1 OPCIONAL" in df.columns:
-                df["Imagen_URL"] = df.apply(
-                    lambda r: ",".join(filter(None, [
-                        str(r.get("FOTO 1 OPCIONAL", "")),
-                        str(r.get("FOTO 2 OPCIONAL", "")),
-                        str(r.get("FOTO 3 OPCIONAL", ""))
-                    ])), axis=1
-                )
-            else:
-                df["Imagen_URL"] = ""
+        # Collect all possible images safely
+        def get_all_images(row):
+            imgs = []
+            if "Imagen_URL" in df.columns:
+                val = str(row.get("Imagen_URL", "")).strip()
+                if val: imgs.append(val)
+            for col in ["FOTO 1 OPCIONAL", "FOTO 2 OPCIONAL", "FOTO 3 OPCIONAL", "FOTO 4 OPCIONAL"]:
+                if col in df.columns:
+                    val = str(row.get(col, "")).strip()
+                    if val: imgs.append(val)
+            return ",".join(imgs)
+            
+        df["Imagen_URL"] = df.apply(get_all_images, axis=1)
+        
         col_oferta = None
         for c in df.columns:
             if "oferta" in str(c).lower():

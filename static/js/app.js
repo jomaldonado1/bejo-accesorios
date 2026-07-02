@@ -15,7 +15,7 @@ function splitImageUrls(imagen_url) {
     if (!imagen_url || imagen_url.trim() === "") {
         return ["https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500"];
     }
-    const parts = imagen_url.split(",");
+    const parts = imagen_url.split(/[\n,]+/);
     const urls = [];
     for (let i = 0; i < parts.length; i++) {
         let part = parts[i].trim();
@@ -473,22 +473,21 @@ function renderCatalog() {
         catalogTitle.textContent = "Encontrá tu accesorio";
         catalogSubtitle.textContent = isFiltered ? "Resultados de búsqueda" : "Catálogo Completo";
         
+        // Show all featured offers unconditionally
+        const offers = productsState.filter(p => p.en_oferta);
+        if (offers.length > 0 && activeMainTab !== "combo") {
+            ofertasSection.classList.remove("hidden");
+            renderOffersGrid(offers);
+        } else {
+            ofertasSection.classList.add("hidden");
+        }
+        
         if (isFiltered) {
             clearFiltersBtn.classList.remove("hidden");
-            ofertasSection.classList.add("hidden");
             resultsCount.textContent = `${filtered.length} artículo(s) encontrado(s)`;
         } else {
             clearFiltersBtn.classList.add("hidden");
             resultsCount.textContent = `Catálogo completo (${baseProducts.length})`;
-            
-            // Show featured offers in separate grid
-            const offers = productsState.filter(p => p.en_oferta);
-            if (offers.length > 0 && activeMainTab !== "combo") {
-                ofertasSection.classList.remove("hidden");
-                renderOffersGrid(offers.slice(0, 3));
-            } else {
-                ofertasSection.classList.add("hidden");
-            }
         }
     }
     
