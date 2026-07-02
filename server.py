@@ -699,11 +699,11 @@ def post_checkout():
     except Exception as e:
         print(f"⚠️ Error appending row to Pedidos worksheet: {e}")
         
-    # Send email notification synchronously (thread can be killed on Heroku before completing)
+    # Send email in background thread (non-blocking so it never crashes checkout)
     try:
-        enviar_email_confirmacion_sync(id_pedido, nombre_cliente, le, lp, direccion, total_pedido, resumen_productos)
+        enviar_email_confirmacion(id_pedido, nombre_cliente, le, lp, direccion, total_pedido, resumen_productos)
     except Exception as e:
-        print(f"⚠️ Error inesperado enviando email: {e}")
+        print(f"⚠️ Error lanzando thread de email: {e}")
 
     # Decrement stock in sheet
     ok_stock = descontar_stock(stock_to_deduct, df_stock)

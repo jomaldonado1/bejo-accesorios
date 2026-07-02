@@ -451,13 +451,10 @@
                     </div>
                     <div class="col-span-2 sm:col-span-1">
                         <label class="block text-xs font-bold text-textMuted mb-1">Teléfono de contacto *</label>
-                        <div class="flex items-center gap-0 w-full text-sm bg-white border border-black/[0.08] focus-within:border-accentBlue rounded-xl overflow-hidden">
-                            <span class="px-3 py-2.5 bg-bgLight text-textMuted font-bold text-sm border-r border-black/[0.08] shrink-0 select-none">0381-15-</span>
-                            <input type="tel" id="devTelefono" placeholder="6582851" maxlength="7" inputmode="numeric"
-                                class="flex-1 min-w-0 text-sm bg-white px-3 py-2.5 focus:outline-none"
-                                oninput="this.value=this.value.replace(/\D/g,'').slice(0,7)">
-                        </div>
-                        <p id="telefonoError" class="hidden text-[11px] text-offerRed font-semibold mt-1">⚠️ Ingresá los 7 dígitos restantes (ej: 6582851)</p>
+                        <input type="tel" id="devTelefono" placeholder="Ej: 3814123456" inputmode="numeric"
+                            class="w-full text-sm bg-white border border-black/[0.08] focus:border-accentBlue focus:ring-accentBlue rounded-xl px-3 py-2.5"
+                            oninput="this.value=this.value.replace(/\D/g,'')">
+                        <p id="telefonoError" class="hidden text-[11px] text-offerRed font-semibold mt-1">⚠️ Ingresá un número válido (mín. 10 dígitos, sin espacios ni guiones)</p>
                     </div>
                 </div>
 

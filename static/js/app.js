@@ -983,17 +983,15 @@ async function submitOrder() {
         showToast("⚠️ Ingresá tu Nombre y Apellido.", "warning");
         return;
     }
-    if (telSuffix.length !== 7) {
-        if (telefonoError) {
-            telefonoError.classList.remove("hidden");
-        }
-        showToast("⚠️ El teléfono debe tener 7 dígitos después de 0381-15.", "warning");
+    if (telSuffix.length < 10) {
+        if (telefonoError) telefonoError.classList.remove("hidden");
+        showToast("⚠️ El teléfono debe tener al menos 10 dígitos.", "warning");
         devTelefono.focus();
         return;
     }
     if (telefonoError) telefonoError.classList.add("hidden");
     
-    const tel = `0381-15-${telSuffix}`;
+    const tel = telSuffix;
     
     if (devMethod.value === "Envío a domicilio") {
         const calle = devCalle.value.trim();
