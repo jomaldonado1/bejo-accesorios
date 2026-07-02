@@ -593,7 +593,27 @@ function renderPaginationControls(totalItems) {
 function renderOffersGrid(offers) {
     ofertasGrid.innerHTML = "";
     offers.forEach(p => {
-        ofertasGrid.appendChild(createProductCard(p, true));
+        const imgUrls = splitImageUrls(p.imagen_url);
+        const imgUrl = normalizeImageUrl(imgUrls[0]);
+        const isAgotado = p.cantidad <= 0;
+        const card = document.createElement("div");
+        card.className = "bg-white border border-black/[0.04] rounded-xl overflow-hidden shadow-sm flex flex-col relative cursor-pointer hover:shadow-md transition-shadow";
+        card.innerHTML = `
+            <div class="relative w-full aspect-square overflow-hidden bg-bgLight">
+                <span class="absolute top-2 left-2 z-30 text-[9px] font-black uppercase bg-offerRed text-white px-1.5 py-0.5 rounded shadow-sm">🔥 Oferta</span>
+                <img src="${imgUrl}" alt="${p.nombre}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=300'">
+            </div>
+            <div class="p-2 flex flex-col gap-1">
+                <span class="text-[9px] font-bold text-accentBlue uppercase tracking-wider">${p.marca}</span>
+                <p class="text-[11px] font-bold text-textDark leading-tight line-clamp-2">${p.nombre} ${p.modelo}</p>
+                <span class="text-sm font-black text-textDark">$${p.precio.toLocaleString('es-AR', {minimumFractionDigits: 0})}</span>
+                ${isAgotado
+                    ? `<button disabled class="mt-1 w-full py-1.5 bg-black/[0.04] text-textMuted text-[10px] font-bold rounded-lg cursor-not-allowed">Sin Stock</button>`
+                    : `<button onclick="addToCart(${p.index})" class="mt-1 w-full py-1.5 bg-accentBlue hover:bg-accentBlueHover text-white text-[10px] font-bold rounded-lg transition-all active:scale-95">🛒 Agregar</button>`
+                }
+            </div>
+        `;
+        ofertasGrid.appendChild(card);
     });
 }
 
