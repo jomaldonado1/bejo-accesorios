@@ -8,6 +8,7 @@ let adminAuthenticated = false;
 let adminToken = "";
 let activeMainTab = "catalog"; // "catalog", "offers", "wholesale"
 let currentPage = 1;
+let currentOffersPage = 1;
 const itemsPerPage = 12;
 
 // Image normalization utilities
@@ -589,10 +590,20 @@ function renderPaginationControls(totalItems) {
     container.appendChild(nextBtn);
 }
 
-// Render the top horizontal list of offers
+const offersPerPage = 5;
+
 function renderOffersGrid(offers) {
+    const totalPages = Math.ceil(offers.length / offersPerPage);
+    if (currentOffersPage > totalPages) {
+        currentOffersPage = totalPages || 1;
+    }
+    
+    const startIndex = (currentOffersPage - 1) * offersPerPage;
+    const endIndex = startIndex + offersPerPage;
+    const paginatedOffers = offers.slice(startIndex, endIndex);
+    
     ofertasGrid.innerHTML = "";
-    offers.forEach(p => {
+    paginatedOffers.forEach(p => {
         const imgUrls = splitImageUrls(p.imagen_url);
         const imgUrl = normalizeImageUrl(imgUrls[0]);
         const isAgotado = p.cantidad <= 0;
@@ -615,7 +626,38 @@ function renderOffersGrid(offers) {
         `;
         ofertasGrid.appendChild(card);
     });
+    
+    // Render pagination controls inside the section header
+    const paginationContainer = document.getElementById("offersPaginationControls");
+    if (paginationContainer) {
+        if (totalPages <= 1) {
+            paginationContainer.innerHTML = "";
+        } else {
+            paginationContainer.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <span class="text-[11px] font-bold text-textMuted">${currentOffersPage} / ${totalPages}</span>
+                    <button onclick="changeOffersPage(-1)" ${currentOffersPage === 1 ? 'disabled' : ''} 
+                        class="p-1 rounded-lg border border-black/[0.08] hover:bg-black/[0.02] text-textDark disabled:opacity-30 disabled:pointer-events-none transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <button onclick="changeOffersPage(1)" ${currentOffersPage === totalPages ? 'disabled' : ''} 
+                        class="p-1 rounded-lg border border-black/[0.08] hover:bg-black/[0.02] text-textDark disabled:opacity-30 disabled:pointer-events-none transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </div>
+            `;
+        }
+    }
 }
+
+window.changeOffersPage = function(delta) {
+    const offers = productsState.filter(p => p.en_oferta);
+    const totalPages = Math.ceil(offers.length / offersPerPage);
+    currentOffersPage += delta;
+    if (currentOffersPage < 1) currentOffersPage = 1;
+    if (currentOffersPage > totalPages) currentOffersPage = totalPages;
+    renderOffersGrid(offers);
+};
 
 // Global function to toggle image inside product card
 window.switchCardImage = function(prodIndex, imgIndex, totalImgs) {
