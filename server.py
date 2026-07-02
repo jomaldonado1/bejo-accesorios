@@ -11,6 +11,8 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import threading
+import socket
+import ssl
 
 import pandas as pd
 import gspread
