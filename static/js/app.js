@@ -3,6 +3,7 @@
 let productsState = [];
 let compatState = [];
 let cartState = {}; // { index: qty }
+let comboDetailsObj = JSON.parse(localStorage.getItem("bejo_comboDetails") || "{}");
 let adminAuthenticated = false;
 let adminToken = "";
 let activeMainTab = "catalog"; // "catalog", "offers", "wholesale"
@@ -147,13 +148,126 @@ const productEditCancelBtn = document.getElementById("productEditCancelBtn");
 // Toast Container
 const toastContainer = document.getElementById("toastContainer");
 
-// ── INITIALIZATION ──
-document.addEventListener("DOMContentLoaded", () => {
+// ── INITIALIZATION
+document.addEventListener("DOMContentLoaded", init);
+
+// ── COMBO LOGIC ─────────────────────────────────────────────────────────────
+
+let comboConfig = { precio: 0, cantidad: 10 };
+let comboProducts = [];
+let comboSelections = {};
+let comboTotalSelected = 0;
+
+async function fetchComboData() {
+    try {
+        const confRes = await fetch("/api/combo-config");
+        comboConfig = await confRes.json();
+        document.getElementById("comboSubtitle").innerText = `Elige ${comboConfig.cantidad} productos por $${comboConfig.precio.toLocaleString('es-AR')}`;
+        document.getElementById("comboCounter").innerText = `0 / ${comboConfig.cantidad}`;
+        
+        const prodRes = await fetch("/api/productos-combo");
+        comboProducts = await prodRes.json();
+        
+        renderCatalog();
+    } catch (e) {
+        console.error("Error fetching combo data:", e);
+        document.getElementById("comboSubtitle").innerText = "Error cargando combo. Intenta más tarde.";
+    }
+}
+
+
+
+window.changeComboQty = function(index, offset) {
+    const currentQty = comboSelections[index] || 0;
+    const newQty = currentQty + offset;
+    
+    if (newQty < 0) return;
+    
+    const prod = comboProducts.find(p => p.index === index);
+    if (!prod) return;
+    
+    if (offset > 0) {
+        if (comboTotalSelected >= comboConfig.cantidad) {
+            showToast(`⚠️ Ya elegiste los ${comboConfig.cantidad} productos`, "warning");
+            return;
+        }
+        if (newQty > prod.cantidad) {
+            showToast(`⚠️ Solo hay ${prod.cantidad} en stock`, "warning");
+            return;
+        }
+    }
+    
+    comboSelections[index] = newQty;
+    comboTotalSelected += offset;
+    
+    document.getElementById(`combo-qty-${index}`).innerText = newQty;
+    document.getElementById("comboCounter").innerText = `${comboTotalSelected} / ${comboConfig.cantidad}`;
+    
+    const btn = document.getElementById("addComboBtn");
+    if (comboTotalSelected === comboConfig.cantidad) {
+        btn.classList.remove("bg-black/[0.06]", "text-textMuted", "cursor-not-allowed");
+        btn.classList.add("bg-accentBlue", "text-white", "hover:bg-accentBlueHover", "shadow-md");
+    } else {
+        btn.classList.add("bg-black/[0.06]", "text-textMuted");
+        btn.classList.remove("bg-accentBlue", "text-white", "hover:bg-accentBlueHover", "shadow-md");
+    }
+};
+
+const addComboBtnEl = document.getElementById("addComboBtn");
+if(addComboBtnEl) {
+    addComboBtnEl.addEventListener("click", () => {
+        if (comboTotalSelected !== comboConfig.cantidad) {
+            const faltan = comboConfig.cantidad - comboTotalSelected;
+            showToast(`⚠️ Faltan elegir ${faltan} producto${faltan > 1 ? 's' : ''} para completar el combo.`, "warning");
+            return;
+        }
+        
+        const comboId = "combo_" + Date.now();
+        let items = [];
+        let itemNames = [];
+        
+        for (let k in comboSelections) {
+            let qty = comboSelections[k];
+            let p = comboProducts.find(x => x.index == parseInt(k));
+            for (let i = 0; i < qty; i++) {
+                items.push(p.index);
+                itemNames.push(`${p.nombre} ${p.marca} ${p.modelo} (${p.color || 'Estándar'})`);
+            }
+        }
+        
+        comboDetailsObj[comboId] = {
+            precio: comboConfig.precio,
+            items: items,
+            itemNames: itemNames
+        };
+        
+        localStorage.setItem("bejo_comboDetails", JSON.stringify(comboDetailsObj));
+        
+        cartState[comboId] = 1;
+        saveCart();
+        updateCartUI();
+        
+        // Reset combo state
+        comboSelections = {};
+        comboTotalSelected = 0;
+        renderCatalog(); // Reset all to 0 visually
+        document.getElementById("comboCounter").innerText = `0 / ${comboConfig.cantidad}`;
+        const btn = document.getElementById("addComboBtn");
+        btn.classList.add("bg-black/[0.06]", "text-textMuted");
+        btn.classList.remove("bg-accentBlue", "text-white", "hover:bg-accentBlueHover", "shadow-md");
+        
+        showToast("✅ ¡Combo agregado al carrito!", "success");
+        setTimeout(() => {
+            openCartDrawer();
+        }, 50);
+    });
+}
+
+function init() {
     loadCartFromLocalStorage();
     fetchData();
     setupEventListeners();
-});
-
+}
 // ── DATA FETCHING ──
 async function fetchData() {
     try {
@@ -314,10 +428,14 @@ function renderCatalog() {
     // Check if any filters are active
     const isFiltered = query !== "" || selTipo !== "Todos" || selMarca !== "Todas" || selModelo !== "Todos" || selColor !== "Todos";
     
+    let baseProducts = activeMainTab === "combo" ? comboProducts : productsState;
+    
     // Filter product state
-    let filtered = productsState.filter(p => {
+    let filtered = baseProducts.filter(p => {
         // Active Tab filter
-        if (activeMainTab === "offers") return p.en_oferta;
+        if (activeMainTab === "offers") {
+            if(!p.en_oferta) return false;
+        }
         
         // Search text matching
         if (query !== "") {
@@ -361,11 +479,11 @@ function renderCatalog() {
             resultsCount.textContent = `${filtered.length} artículo(s) encontrado(s)`;
         } else {
             clearFiltersBtn.classList.add("hidden");
-            resultsCount.textContent = `Catálogo completo (${productsState.length})`;
+            resultsCount.textContent = `Catálogo completo (${baseProducts.length})`;
             
             // Show featured offers in separate grid
             const offers = productsState.filter(p => p.en_oferta);
-            if (offers.length > 0) {
+            if (offers.length > 0 && activeMainTab !== "combo") {
                 ofertasSection.classList.remove("hidden");
                 renderOffersGrid(offers.slice(0, 3));
             } else {
@@ -393,7 +511,31 @@ function renderCatalog() {
         
         // Render item cards
         paginated.forEach(p => {
-            productosGrid.appendChild(createProductCard(p, false));
+            if (activeMainTab === "combo") {
+                const imgUrls = splitImageUrls(p.imagen_url);
+                const imgUrl = normalizeImageUrl(imgUrls[0]);
+                
+                const card = document.createElement("div");
+                card.className = "bg-white border border-black/[0.06] rounded-2xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow";
+                card.innerHTML = `
+                    <div class="aspect-square bg-bgLight rounded-xl overflow-hidden relative">
+                        <img src="${imgUrl}" alt="${p.nombre}" class="w-full h-full object-cover">
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-sm text-textDark leading-tight">${p.nombre} ${p.modelo}</h4>
+                        <p class="text-[10px] text-textMuted mt-1">🎨 ${p.color || 'Estándar'}</p>
+                        <p class="text-[10px] font-bold mt-1 ${p.cantidad > 0 ? 'text-successGreen' : 'text-offerRed'}">Stock: ${p.cantidad}</p>
+                    </div>
+                    <div class="mt-auto flex items-center justify-between border border-black/[0.08] rounded-xl p-1 bg-bgLight">
+                        <button onclick="changeComboQty(${p.index}, -1)" class="w-8 h-8 flex items-center justify-center font-bold text-lg bg-white rounded-lg shadow-sm hover:bg-black/[0.02]">-</button>
+                        <span id="combo-qty-${p.index}" class="font-bold text-sm">${comboSelections[p.index] || 0}</span>
+                        <button onclick="changeComboQty(${p.index}, 1)" class="w-8 h-8 flex items-center justify-center font-bold text-lg bg-white rounded-lg shadow-sm hover:bg-black/[0.02]">+</button>
+                    </div>
+                `;
+                productosGrid.appendChild(card);
+            } else {
+                productosGrid.appendChild(createProductCard(p, false));
+            }
         });
         
         // Render pagination controls
@@ -641,6 +783,40 @@ function renderCartItems() {
     let sumTotal = 0;
     
     cartIndices.forEach(idxStr => {
+        if (idxStr.startsWith("combo_")) {
+            const qty = cartState[idxStr];
+            let cDetail = comboDetailsObj[idxStr];
+            if (!cDetail) return;
+            
+            const sub = cDetail.precio * qty;
+            sumTotal += sub;
+            
+            const cartItem = document.createElement("div");
+            cartItem.className = "flex gap-3 py-3 border-b border-black/[0.04]";
+            cartItem.innerHTML = `
+                <div class="w-16 h-16 rounded-xl bg-bgLight overflow-hidden shrink-0 border border-black/[0.04] flex items-center justify-center text-3xl">
+                    🎁
+                </div>
+                <div class="flex-1 flex flex-col gap-0.5 justify-center min-w-0">
+                    <h5 class="font-bold text-xs leading-tight text-textDark">Combo Personalizado x${cDetail.items.length}</h5>
+                    <span class="text-[10px] text-textMuted overflow-hidden text-ellipsis whitespace-nowrap">${cDetail.itemNames.join(", ")}</span>
+                    <span class="text-xs font-black text-textDark mt-1">$${cDetail.precio.toLocaleString('es-AR')}</span>
+                </div>
+                <div class="flex flex-col items-end justify-between shrink-0">
+                    <button onclick="removeCartItem('${idxStr}')" class="text-textMuted hover:text-offerRed p-1 rounded-full hover:bg-bgLight transition-colors">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                    <div class="flex items-center border border-black/[0.08] rounded-lg overflow-hidden bg-white text-xs">
+                        <button onclick="changeCartItemQty('${idxStr}', -1)" class="px-2 py-1 hover:bg-bgLight font-bold">-</button>
+                        <span class="px-2 font-bold min-w-6 text-center select-none">${qty}</span>
+                        <button onclick="changeCartItemQty('${idxStr}', 1)" class="px-2 py-1 hover:bg-bgLight font-bold">+</button>
+                    </div>
+                </div>
+            `;
+            cartItemsContainer.appendChild(cartItem);
+            return;
+        }
+
         const idx = parseInt(idxStr);
         const qty = cartState[idx];
         const product = productsState.find(p => p.index === idx);
@@ -818,6 +994,7 @@ async function submitOrder() {
     // Prepare payload
     const payload = {
         carrito: cartState,
+        comboDetails: comboDetailsObj,
         entrega: {
             metodo: devMethod.value,
             direccion: address,
@@ -1475,6 +1652,7 @@ function setupEventListeners() {
     // Tabs Navigation switch triggers
     const navCatalogBtn = document.getElementById("navCatalogBtn");
     const navOffersBtn = document.getElementById("navOffersBtn");
+    const navComboBtn = document.getElementById("navComboBtn");
     const navWholesaleBtn = document.getElementById("navWholesaleBtn");
     const catalogContent = document.getElementById("catalogContent");
     const wholesaleContent = document.getElementById("wholesaleContent");
@@ -1482,24 +1660,40 @@ function setupEventListeners() {
     const selectTab = (tab) => {
         activeMainTab = tab;
         
+        const resetTabs = () => {
+            navCatalogBtn.className = "pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all";
+            navOffersBtn.className = "pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all";
+            if(navComboBtn) navComboBtn.className = "pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all";
+            navWholesaleBtn.className = "pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all";
+            
+            catalogContent.classList.add("hidden");
+            wholesaleContent.classList.add("hidden");
+            
+            document.getElementById("catalogHeaderNormal").classList.remove("hidden");
+            document.getElementById("catalogHeaderNormal").classList.add("flex");
+            document.getElementById("comboStickyHeader").classList.add("hidden");
+            document.getElementById("comboStickyHeader").classList.remove("flex");
+        };
+        
+        resetTabs();
+        
         if (tab === "catalog") {
             navCatalogBtn.className = "pb-4 border-b-2 border-accentBlue text-accentBlue flex items-center gap-1.5 transition-all";
-            navOffersBtn.className = "pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all";
-            navWholesaleBtn.className = "pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all";
             catalogContent.classList.remove("hidden");
-            wholesaleContent.classList.add("hidden");
         } else if (tab === "offers") {
             navOffersBtn.className = "pb-4 border-b-2 border-accentBlue text-accentBlue flex items-center gap-1.5 transition-all";
-            navCatalogBtn.className = "pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all";
-            navWholesaleBtn.className = "pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all";
             catalogContent.classList.remove("hidden");
-            wholesaleContent.classList.add("hidden");
         } else if (tab === "wholesale") {
             navWholesaleBtn.className = "pb-4 border-b-2 border-accentBlue text-accentBlue flex items-center gap-1.5 transition-all";
-            navCatalogBtn.className = "pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all";
-            navOffersBtn.className = "pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all";
-            catalogContent.classList.add("hidden");
             wholesaleContent.classList.remove("hidden");
+        } else if (tab === "combo") {
+            if(navComboBtn) navComboBtn.className = "pb-4 border-b-2 border-accentBlue text-accentBlue flex items-center gap-1.5 transition-all";
+            catalogContent.classList.remove("hidden");
+            document.getElementById("catalogHeaderNormal").classList.add("hidden");
+            document.getElementById("catalogHeaderNormal").classList.remove("flex");
+            document.getElementById("comboStickyHeader").classList.remove("hidden");
+            document.getElementById("comboStickyHeader").classList.add("flex");
+            if(comboProducts.length === 0) fetchComboData();
         }
         
         renderCatalog();
@@ -1507,6 +1701,7 @@ function setupEventListeners() {
     
     navCatalogBtn.addEventListener("click", () => selectTab("catalog"));
     navOffersBtn.addEventListener("click", () => selectTab("offers"));
+    if(navComboBtn) navComboBtn.addEventListener("click", () => selectTab("combo"));
     navWholesaleBtn.addEventListener("click", () => selectTab("wholesale"));
 
     // Search input filters

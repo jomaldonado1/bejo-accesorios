@@ -126,6 +126,19 @@ def get_compatibilidad_sheet():
     spreadsheet = client.open("inventario_tienda")
     return spreadsheet.worksheet("Compatibilidad")
 
+def get_combo_config_sheet():
+    creds = get_creds()
+    client = gspread.authorize(creds)
+    spreadsheet = client.open("inventario_tienda")
+    try:
+        return spreadsheet.worksheet("ComboConfig")
+    except Exception:
+        # Fallback create
+        sheet = spreadsheet.add_worksheet(title="ComboConfig", rows=10, cols=2)
+        sheet.append_row(["Precio", "Cantidad"])
+        sheet.append_row([25000, 10])
+        return sheet
+
 # ── LOGIC FUNCTIONS ─────────────────────────────────────────────────────────
 
 def limpiar_precio_mercado(val):
@@ -444,6 +457,42 @@ def get_productos():
         })
     return jsonify(productos)
 
+@app.route('/api/combo-config', methods=['GET'])
+def get_combo_config():
+    try:
+        sheet = get_combo_config_sheet()
+        records = sheet.get_all_records()
+        if records:
+            row = records[0]
+            precio = row.get("Precio", 25000)
+            cantidad = row.get("Cantidad", 10)
+            return jsonify({"precio": precio, "cantidad": cantidad})
+    except Exception as e:
+        print(f"Error fetching combo config: {e}")
+    # Default fallback if sheet doesn't exist or errors out
+    return jsonify({"precio": 25000, "cantidad": 10})
+
+@app.route('/api/productos-combo', methods=['GET'])
+def get_productos_combo():
+    df = cargar_datos_sheets_cached()
+    productos = []
+    for idx, row in df.iterrows():
+        apto = str(row.get("Apto_Combo", "")).strip().upper()
+        cant = int(row.get("CANTIDAD", row.get("Cantidad", 0)))
+        if apto == "SI" and cant > 0:
+            productos.append({
+                "index": int(idx),
+                "nombre": str(row.get("CATEGORIA", row.get("Nombre del Artículo", ""))),
+                "marca": str(row.get("MARCA", row.get("Marca Principal", ""))),
+                "modelo": str(row.get("PRODUCTO / MODELO", row.get("Modelo Exacto", ""))),
+                "color": str(row.get("COLOR", row.get("Color / Diseño (Variación)", ""))),
+                "precio": int(row.get("PRECIO DE MERCADO", row.get("Precio Mercado", 0))),
+                "cantidad": cant,
+                "imagen_url": str(row.get("Imagen_URL", "")),
+                "en_oferta": bool(row.get("En Oferta", False))
+            })
+    return jsonify(productos)
+
 @app.route('/api/compatibilidad', methods=['GET'])
 def get_compatibilidad():
     df = cargar_compatibilidad_sheets_cached()
@@ -466,45 +515,72 @@ def post_checkout():
         return jsonify({"success": False, "error": "Falta información del pedido"}), 400
         
     carrito_raw = data.get("carrito", {})
+    combo_details = data.get("comboDetails", {})
     entrega = data.get("entrega", {})
     pago = data.get("pago", {})
     
     if not carrito_raw:
         return jsonify({"success": False, "error": "El carrito está vacío"}), 400
         
-    # Convert keys to integers since JSON keys are strings
+    # Convert keys to integers since JSON keys are strings (except combos)
     carrito = {}
     for k, v in carrito_raw.items():
-        try:
-            carrito[int(k)] = int(v)
-        except ValueError:
-            return jsonify({"success": False, "error": "Formato de carrito inválido"}), 400
+        if str(k).startswith("combo_"):
+            carrito[str(k)] = int(v)
+        else:
+            try:
+                carrito[int(k)] = int(v)
+            except ValueError:
+                return jsonify({"success": False, "error": "Formato de carrito inválido"}), 400
             
     df_stock = cargar_datos_sheets_cached(force=True)
     
     # Validate stock
     total_pedido = 0
     resumen_productos = []
+    stock_to_deduct = {} # idx -> qty
+    
     for idx, qty in carrito.items():
-        if idx not in df_stock.index:
-            return jsonify({"success": False, "error": f"El producto con índice {idx} no existe en el inventario"}), 400
+        if str(idx).startswith("combo_"):
+            cdetail = combo_details.get(str(idx), {})
+            cprecio = cdetail.get("precio", 0)
+            citems = cdetail.get("items", [])
+            cnames = cdetail.get("itemNames", [])
             
-        row = df_stock.loc[idx]
+            subtotal = cprecio * qty
+            total_pedido += subtotal
+            
+            resumen_productos.append(f"- Combo Personalizado x{len(citems)} (Cantidad: {qty}) (${subtotal:,.0f})")
+            for name in cnames:
+                resumen_productos.append(f"  └ {name}")
+                
+            for item_id in citems:
+                stock_to_deduct[item_id] = stock_to_deduct.get(item_id, 0) + qty
+                if item_id not in df_stock.index:
+                    return jsonify({"success": False, "error": f"El producto de combo con índice {item_id} no existe en el inventario"}), 400
+        else:
+            if idx not in df_stock.index:
+                return jsonify({"success": False, "error": f"El producto con índice {idx} no existe en el inventario"}), 400
+            
+            row = df_stock.loc[idx]
+            stock_to_deduct[idx] = stock_to_deduct.get(idx, 0) + qty
+            
+            nombre_prod = f"{row.get('CATEGORIA', row.get('Nombre del Artículo', ''))} {row.get('PRODUCTO / MODELO', row.get('Modelo Exacto', ''))} ({row.get('COLOR', row.get('Color / Diseño (Variación)', ''))})"
+            precio_unit = row.get("PRECIO DE MERCADO", row.get("Precio Mercado", 0))
+            subtotal = precio_unit * qty
+            total_pedido += subtotal
+            resumen_productos.append(f"- {nombre_prod} x{qty} (${subtotal:,.0f})")
+            
+    # Final stock validation
+    for item_idx, req_qty in stock_to_deduct.items():
+        row = df_stock.loc[item_idx]
         col_cantidad = "CANTIDAD" if "CANTIDAD" in df_stock.columns else "Cantidad"
         stock_actual = int(row[col_cantidad])
-        if qty > stock_actual:
+        if req_qty > stock_actual:
             return jsonify({
                 "success": False, 
-                "error": f"Límite de stock: {stock_actual} unidades disponibles de {row['Nombre del Artículo']}."
+                "error": f"Límite de stock superado: {stock_actual} unidades disponibles de {row.get('Nombre del Artículo', 'producto')}."
             }), 400
-            
-        nombre_prod = f"{row['Nombre del Artículo']} {row['Modelo Exacto']} ({row['Color / Diseño (Variación)']})"
-        precio_unit = row["Precio Mercado"]
-        nombre_prod = f"{row.get('CATEGORIA', row.get('Nombre del Artículo', ''))} {row.get('PRODUCTO / MODELO', row.get('Modelo Exacto', ''))} ({row.get('COLOR', row.get('Color / Diseño (Variación)', ''))})"
-        precio_unit = row.get("PRECIO DE MERCADO", row.get("Precio Mercado", 0))
-        subtotal = precio_unit * qty
-        total_pedido += subtotal
-        resumen_productos.append(f"- {nombre_prod} x{qty} (${subtotal:,.0f})")
         
     # Generate Order ID
     ahora = datetime.utcnow() - timedelta(hours=3)
@@ -564,7 +640,7 @@ def post_checkout():
         print(f"⚠️ Error appending row to Pedidos worksheet: {e}")
         
     # Decrement stock in sheet
-    ok_stock = descontar_stock(carrito, df_stock)
+    ok_stock = descontar_stock(stock_to_deduct, df_stock)
     
     # Clear local cache to force reload on next call
     cargar_datos_sheets_cached(force=True)
