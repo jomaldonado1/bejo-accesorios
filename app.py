@@ -2916,3 +2916,76 @@ with st.expander("⚙️ Panel de Control – Solo Administrador"):
                             st.rerun()
                         except Exception as e:
                             st.error(f"No se pudo eliminar: {e}")
+
+# ── FLOATING BARGAIN BUTTON (REGATEO) ──
+msg_regateo = """¡Hola BEJO! ⚡ Quiero negociar un precio.
+
+👉 ¿Qué buscás?: [Escribir si es Funda, Cargador, Hidrogel, etc.]
+📱 Modelo: [Escribir qué celular, ej: Galaxy S20]
+📦 Cantidad: [Escribir cuántas unidades]
+💰 Mi Oferta es: $ [Poner precio total ofertado]
+
+¿Hacemos trato? 🤝"""
+
+url_regateo = f"https://wa.me/{NUMERO_WS}?text={urllib.parse.quote(msg_regateo)}"
+
+st.markdown(f"""
+<style>
+.floating-bargain-btn {{
+    position: fixed;
+    bottom: 85px;
+    right: 20px;
+    z-index: 9999;
+    background: linear-gradient(135deg, #FF9F0A 0%, #FF3B30 100%);
+    box-shadow: 0 8px 30px rgba(255, 59, 48, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 9999px;
+    padding: 12px 18px;
+    color: white !important;
+    text-decoration: none !important;
+    font-size: 14px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    font-family: sans-serif;
+}}
+
+.floating-bargain-btn:hover {{
+    transform: scale(1.08) translateY(-3px);
+    box-shadow: 0 12px 35px rgba(255, 59, 48, 0.45);
+    background: linear-gradient(135deg, #ffa826 0%, #ff4b40 100%);
+}}
+
+.floating-bargain-btn:active {{
+    transform: scale(0.95) translateY(0);
+}}
+
+@keyframes shakePulse {{
+    0%, 100% {{
+        transform: scale(1);
+    }}
+    5%, 15% {{
+        transform: scale(1.06) rotate(-3deg);
+    }}
+    10%, 20% {{
+        transform: scale(1.06) rotate(3deg);
+    }}
+    25% {{
+        transform: scale(1.06) rotate(0deg);
+    }}
+    30%, 90% {{
+        transform: scale(1);
+    }}
+}}
+
+.shake-pulse-animation {{
+    animation: shakePulse 5s infinite ease-in-out;
+}}
+</style>
+<a href="{url_regateo}" target="_blank" class="floating-bargain-btn shake-pulse-animation">
+    ¡Hacé tu Oferta! 🌟
+</a>
+""", unsafe_allow_html=True)
