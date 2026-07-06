@@ -443,15 +443,18 @@ function renderCatalog() {
     // Toggle hero banner visibility and catalog top padding to prevent content overlapping under fixed header
     const hideHero = isSearching && (activeMainTab === "catalog" || activeMainTab === "combo" || activeMainTab === "offers");
     if (heroSection) {
+        const header = document.querySelector("header");
+        const headerHeight = header ? header.offsetHeight : 160;
         if (hideHero) {
             heroSection.classList.add("hidden");
             if (productosCatalog) {
-                productosCatalog.classList.add("pt-[160px]", "md:pt-[130px]");
+                productosCatalog.style.paddingTop = `${headerHeight + 16}px`;
             }
         } else {
             heroSection.classList.remove("hidden");
+            heroSection.style.paddingTop = `${headerHeight + 16}px`;
             if (productosCatalog) {
-                productosCatalog.classList.remove("pt-[160px]", "md:pt-[130px]");
+                productosCatalog.style.paddingTop = "";
             }
         }
     }
@@ -1979,6 +1982,26 @@ function setupEventListeners() {
     if (adminSearchInput) {
         adminSearchInput.addEventListener("input", renderAdminProductosTable);
     }
+    
+    // Recalculate header spacing dynamically on window resize
+    window.addEventListener("resize", () => {
+        const heroSection = document.getElementById("heroSection");
+        const productosCatalog = document.getElementById("productosCatalog");
+        const header = document.querySelector("header");
+        if (header) {
+            const headerHeight = header.offsetHeight;
+            if (heroSection && heroSection.classList.contains("hidden")) {
+                if (productosCatalog) {
+                    productosCatalog.style.paddingTop = `${headerHeight + 16}px`;
+                }
+            } else if (heroSection) {
+                heroSection.style.paddingTop = `${headerHeight + 16}px`;
+                if (productosCatalog) {
+                    productosCatalog.style.paddingTop = "";
+                }
+            }
+        }
+    });
 }
 
 // ── TOAST MESSAGES HELPER ──
