@@ -1772,6 +1772,16 @@ function setupEventListeners() {
     const wholesaleContent = document.getElementById("wholesaleContent");
     
     const selectTab = (tab) => {
+        // Reset all filters when transitioning from section to section
+        if (searchInput) searchInput.value = "";
+        if (searchInputMobile) searchInputMobile.value = "";
+        if (filterTipo) filterTipo.value = "Todos";
+        if (filterMarca) filterMarca.value = "Todas";
+        updateCascadingFilters();
+        if (filterModelo) filterModelo.value = "Todos";
+        if (filterColor) filterColor.value = "Todos";
+        currentPage = 1;
+
         activeMainTab = tab;
         
         const resetTabs = () => {
