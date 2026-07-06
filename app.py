@@ -2940,10 +2940,10 @@ st.markdown(f"""
     box-shadow: 0 8px 30px rgba(255, 59, 48, 0.35);
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 9999px;
-    padding: 12px 18px;
+    padding: 14px 24px;
     color: white !important;
     text-decoration: none !important;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 900;
     display: flex;
     align-items: center;
@@ -2961,6 +2961,45 @@ st.markdown(f"""
 
 .floating-bargain-btn:active {{
     transform: scale(0.95) translateY(0);
+}}
+
+/* Tooltip styling */
+.bargain-tooltip {{
+    position: absolute;
+    bottom: calc(100% + 12px);
+    right: 0;
+    width: 250px;
+    background: rgba(0, 0, 0, 0.95);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.4;
+    padding: 10px 12px;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    pointer-events: none;
+    text-align: center;
+}}
+
+.bargain-tooltip::after {{
+    content: "";
+    position: absolute;
+    top: 100%;
+    right: 32px;
+    border-width: 6px;
+    border-style: solid;
+    border-color: rgba(0, 0, 0, 0.95) transparent transparent transparent;
+}}
+
+.floating-bargain-btn:hover .bargain-tooltip {{
+    opacity: 1;
+    transform: translateY(0) scale(1);
 }}
 
 @keyframes shakePulse {{
@@ -2987,5 +3026,8 @@ st.markdown(f"""
 </style>
 <a href="{url_regateo}" target="_blank" class="floating-bargain-btn shake-pulse-animation">
     ¡Hacé tu Oferta! 🌟
+    <span class="bargain-tooltip">
+        Envianos tu oferta por WhatsApp y te respondemos. Puede ser por una unidad, un combo o por varios. 💬
+    </span>
 </a>
 """, unsafe_allow_html=True)
