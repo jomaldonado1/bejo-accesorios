@@ -2291,9 +2291,8 @@ _ws_hero = f"https://wa.me/{NUMERO_WS}?text={urllib.parse.quote('Hola BEJO! Teng
 st.markdown(f"""
 <div class="bejo-hero">
   <div class="hero-eyebrow">⚡ San Miguel de Tucumán · Envíos</div>
-  <div class="hero-title">Accesorios Tech<br>de calidad premium</div>
-  <div class="hero-subtitle">Fundas, cargadores, hidrogel y más para tu celular.
-  Stock siempre actualizado, envío rápido.</div>
+  <div class="hero-title">Todo para tu celu: lo nuevo, lo clásico y lo que ya no encontrás.</div>
+  <div class="hero-subtitle">Variedad en fundas, cargadores y accesorios alternativos de calidad para todos los modelos a precios increíbles. ¡Llevá más, pagá menos! Armá tu combo, comprá en un clic y coordiná el envío.</div>
   <div class="hero-cta-group">
     <a href="#catalogo" class="hero-btn hero-btn-primary">🛍️ Ver Catálogo</a>
     <a href="{_ws_hero}" target="_blank" class="hero-btn hero-btn-secondary">💬 Consultar</a>
