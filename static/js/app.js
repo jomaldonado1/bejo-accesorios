@@ -421,14 +421,40 @@ function updateCascadingFilters() {
 // ── CATALOG RENDERING ──
 function renderCatalog() {
     const query = searchInput.value.toLowerCase().trim();
+    const queryMobile = searchInputMobile ? searchInputMobile.value.toLowerCase().trim() : "";
     
     const selTipo = filterTipo.value;
     const selMarca = filterMarca.value;
     const selModelo = filterModelo.value;
     const selColor = filterColor.value;
     
-    // Check if any filters are active
-    const isFiltered = query !== "" || selTipo !== "Todos" || selMarca !== "Todas" || selModelo !== "Todos" || selColor !== "Todos";
+    // Check if any filters are active or search query is entered
+    const isSearching = query !== "" || queryMobile !== "" || selTipo !== "Todos" || selMarca !== "Todas" || selModelo !== "Todos" || selColor !== "Todos";
+    const isFiltered = isSearching; // Maintain backward compatibility
+    
+    // DOM elements for layout reordering
+    const heroSection = document.getElementById("heroSection");
+    const productosCatalog = document.getElementById("productosCatalog");
+    const catalogHeaderDiv = document.getElementById("catalogHeaderDiv");
+    const catalogFilters = document.getElementById("catalogFilters");
+    const catalogGridContainer = document.getElementById("catalogGridContainer");
+    const seccionCompatibilidad = document.getElementById("seccionCompatibilidad");
+    
+    // Toggle hero banner visibility and catalog top padding to prevent content overlapping under fixed header
+    const hideHero = isSearching && (activeMainTab === "catalog" || activeMainTab === "combo" || activeMainTab === "offers");
+    if (heroSection) {
+        if (hideHero) {
+            heroSection.classList.add("hidden");
+            if (productosCatalog) {
+                productosCatalog.classList.add("pt-[160px]", "md:pt-[130px]");
+            }
+        } else {
+            heroSection.classList.remove("hidden");
+            if (productosCatalog) {
+                productosCatalog.classList.remove("pt-[160px]", "md:pt-[130px]");
+            }
+        }
+    }
     
     let baseProducts = activeMainTab === "combo" ? comboProducts : productsState;
     
@@ -471,20 +497,38 @@ function renderCatalog() {
         ofertasSection.classList.add("hidden");
         clearFiltersBtn.classList.add("hidden");
         resultsCount.textContent = `${filtered.length} ofertas disponibles`;
+        
+        // Apply default order when offers tab is active
+        if (catalogHeaderDiv) catalogHeaderDiv.style.order = "1";
+        if (catalogFilters) catalogFilters.style.order = "2";
+        if (catalogGridContainer) catalogGridContainer.style.order = "3";
+        if (seccionCompatibilidad) seccionCompatibilidad.style.order = "4";
     } else {
         catalogTitle.textContent = "Encontrá tu accesorio";
-        catalogSubtitle.textContent = isFiltered ? "Resultados de búsqueda" : "Catálogo Completo";
+        catalogSubtitle.textContent = isSearching ? "Resultados de búsqueda" : "Catálogo Completo";
         
-        // Show all featured offers unconditionally
         const offers = productsState.filter(p => p.en_oferta);
-        if (offers.length > 0 && activeMainTab !== "combo") {
+        if (!isSearching && offers.length > 0 && activeMainTab !== "combo") {
             ofertasSection.classList.remove("hidden");
+            ofertasSection.style.order = "1";
             renderOffersGrid(offers);
+            
+            // Adjust orders for normal layout: Offers -> Title/Clear -> Filters -> Grid -> Compat
+            if (catalogHeaderDiv) catalogHeaderDiv.style.order = "2";
+            if (catalogFilters) catalogFilters.style.order = "3";
+            if (catalogGridContainer) catalogGridContainer.style.order = "4";
+            if (seccionCompatibilidad) seccionCompatibilidad.style.order = "5";
         } else {
             ofertasSection.classList.add("hidden");
+            
+            // Adjust orders for searching state: Title/Clear -> Filters -> Grid -> Compat
+            if (catalogHeaderDiv) catalogHeaderDiv.style.order = "1";
+            if (catalogFilters) catalogFilters.style.order = "2";
+            if (catalogGridContainer) catalogGridContainer.style.order = "3";
+            if (seccionCompatibilidad) seccionCompatibilidad.style.order = "4";
         }
         
-        if (isFiltered) {
+        if (isSearching) {
             clearFiltersBtn.classList.remove("hidden");
             resultsCount.textContent = `${filtered.length} artículo(s) encontrado(s)`;
         } else {
@@ -1776,10 +1820,12 @@ function setupEventListeners() {
 
     // Search input filters
     searchInput.addEventListener("input", () => {
+        if (searchInputMobile) searchInputMobile.value = searchInput.value;
         currentPage = 1;
         renderCatalog();
     });
     searchInputMobile.addEventListener("input", () => {
+        searchInput.value = searchInputMobile.value;
         currentPage = 1;
         renderCatalog();
     });
