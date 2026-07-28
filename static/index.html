@@ -132,6 +132,9 @@
                 <button id="navComboBtn" class="pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all">
                     🎁 Arma tu Combo
                 </button>
+                <button id="navCombosArmadosBtn" class="pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all">
+                    📦 Combos Armados
+                </button>
                 <button id="navWholesaleBtn" class="pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all">
                     💼 Venta por Mayor
                 </button>
@@ -368,6 +371,51 @@
                 </a>
             </div>
         </div>
+
+        <!-- Combos Armados Content Section (Hidden by default) -->
+        <div id="combosArmadosContent" class="hidden max-w-4xl mx-auto premium-gradient-card rounded-3xl p-6 sm:p-10 shadow-md flex flex-col gap-8">
+            <div class="text-center max-w-xl mx-auto mb-4">
+                <span class="text-xs font-bold text-textDark bg-white/50 border border-black/[0.04] px-3 py-1 rounded-full uppercase tracking-wider">📦 Combos listos para llevar</span>
+                <h3 class="text-3xl font-black text-textDark mt-3">Combos Armados</h3>
+                <p class="text-sm text-textDark/85 font-semibold mt-2">Aprovechá nuestros packs cerrados con precios especiales y super descuentos.</p>
+            </div>
+
+            <!-- Carousel Wrapper -->
+            <div class="relative w-full max-w-lg mx-auto aspect-square bg-white border border-black/[0.06] rounded-3xl overflow-hidden group shadow-md combos-carousel-container">
+                <!-- Slides Container -->
+                <div id="combosSlidesContainer" class="w-full h-full relative">
+                    <!-- Images will be rendered dynamically here -->
+                    <div id="combosEmptyState" class="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-white z-10">
+                        <span class="text-4xl mb-2">📦</span>
+                        <h4 class="font-bold text-textDark">Cargando combos...</h4>
+                        <p class="text-xs text-textMuted mt-1">Buscando combos disponibles en el servidor.</p>
+                    </div>
+                </div>
+
+                <!-- Navigation Controls -->
+                <button id="combosPrevBtn" class="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 hover:bg-white text-textDark flex items-center justify-center shadow-md transition-all opacity-0 group-hover:opacity-100 z-20 hover:scale-105 active:scale-95">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                </button>
+                <button id="combosNextBtn" class="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 hover:bg-white text-textDark flex items-center justify-center shadow-md transition-all opacity-0 group-hover:opacity-100 z-20 hover:scale-105 active:scale-95">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </button>
+
+                <!-- Dots pagination indicators -->
+                <div id="combosDotsContainer" class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
+                    <!-- Dynamic dots -->
+                </div>
+            </div>
+
+            <!-- Call to action button -->
+            <div class="text-center mt-2 flex flex-col items-center gap-2">
+                <a id="pedirComboWSBtn" href="#" target="_blank" 
+                   class="inline-flex items-center gap-2 px-8 py-4 bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-sm rounded-2xl transition-all shadow-lg shadow-green-500/10 transform active:scale-95">
+                    📲 PEDIR ESTE COMBO POR WHATSAPP
+                </a>
+                <p class="text-[11px] text-textMuted font-medium">Se enviará un mensaje indicando el combo seleccionado para coordinar el pago y envío.</p>
+            </div>
+        </div>
+
 
 
 

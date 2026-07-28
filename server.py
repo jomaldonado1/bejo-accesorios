@@ -896,7 +896,21 @@ def admin_download_pedidos():
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
+
+@app.route('/api/combos', methods=['GET'])
+def get_combos():
+    combos_dir = os.path.join('static', 'combos')
+    if not os.path.exists(combos_dir):
+        os.makedirs(combos_dir, exist_ok=True)
+    valid_extensions = ('.png', '.jpg', '.jpeg', '.webp', '.gif')
+    try:
+        files = sorted([f for f in os.listdir(combos_dir) if f.lower().endswith(valid_extensions)])
+        return jsonify([f"/static/combos/{f}" for f in files])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # ── STATIC FILE SERVING ──────────────────────────────────────────────────────
+
 
 @app.route('/')
 def index():

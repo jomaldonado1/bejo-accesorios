@@ -1764,15 +1764,193 @@ async function deleteProduct(index) {
     }
 }
 
+// ── COMBOS ARMADOS CAROUSEL LOGIC ───────────────────────────────────────────
+let combosImages = [];
+let currentComboIdx = 0;
+let combosAutoplayInterval = null;
+
+async function initCombosCarousel() {
+    // If already fetched, just reset state and play
+    if (combosImages.length > 0) {
+        currentComboIdx = 0;
+        renderCombosCarousel();
+        startCombosAutoplay();
+        return;
+    }
+
+    try {
+        const res = await fetch("/api/combos");
+        combosImages = await res.json();
+        
+        const emptyState = document.getElementById("combosEmptyState");
+        if (combosImages.length === 0) {
+            if (emptyState) {
+                emptyState.innerHTML = `
+                    <span class="text-4xl mb-2">📦</span>
+                    <h4 class="font-bold text-textDark">No hay combos cargados</h4>
+                    <p class="text-xs text-textMuted mt-1">Colocá imágenes en la carpeta 'static/combos/' para visualizarlos acá.</p>
+                `;
+            }
+            return;
+        }
+
+        if (emptyState) emptyState.classList.add("hidden");
+        
+        currentComboIdx = 0;
+        renderCombosCarousel();
+        setupCombosCarouselControls();
+        startCombosAutoplay();
+    } catch (e) {
+        console.error("Error fetching combos images:", e);
+        const emptyState = document.getElementById("combosEmptyState");
+        if (emptyState) {
+            emptyState.innerHTML = `
+                <span class="text-4xl mb-2">⚠️</span>
+                <h4 class="font-bold text-textDark">Error de conexión</h4>
+                <p class="text-xs text-textMuted mt-1">No se pudieron cargar los combos armados.</p>
+            `;
+        }
+    }
+}
+
+function renderCombosCarousel() {
+    const slidesContainer = document.getElementById("combosSlidesContainer");
+    const dotsContainer = document.getElementById("combosDotsContainer");
+    const wsBtn = document.getElementById("pedirComboWSBtn");
+    
+    if (!slidesContainer || combosImages.length === 0) return;
+
+    // Clear slides container except empty state if any
+    const emptyState = document.getElementById("combosEmptyState");
+    slidesContainer.innerHTML = "";
+    if (emptyState) slidesContainer.appendChild(emptyState);
+
+    // Render slides
+    combosImages.forEach((imgUrl, idx) => {
+        const slide = document.createElement("div");
+        slide.className = `absolute inset-0 w-full h-full transition-opacity duration-500 ease-in-out flex items-center justify-center bg-bgLight ${idx === currentComboIdx ? 'opacity-100 z-10' : 'opacity-0 z-0'}`;
+        
+        const img = document.createElement("img");
+        img.src = imgUrl;
+        img.alt = `Combo ${idx + 1}`;
+        img.className = "w-full h-full object-contain max-h-[500px]"; // object-contain to avoid cropping text
+        img.loading = "lazy";
+        
+        slide.appendChild(img);
+        slidesContainer.appendChild(slide);
+    });
+
+    // Render dots
+    if (dotsContainer) {
+        dotsContainer.innerHTML = "";
+        combosImages.forEach((_, idx) => {
+            const dot = document.createElement("span");
+            dot.className = `w-2 h-2 rounded-full cursor-pointer transition-all duration-300 ${idx === currentComboIdx ? 'bg-accentBlue w-4' : 'bg-black/20 hover:bg-black/40'}`;
+            dot.addEventListener("click", () => {
+                goToCombo(idx);
+                startCombosAutoplay(); // Reset timer on interaction
+            });
+            dotsContainer.appendChild(dot);
+        });
+    }
+
+    // Update WhatsApp link for active combo
+    if (wsBtn) {
+        // Extract filename without path and extension to name the combo
+        const filename = combosImages[currentComboIdx].split("/").pop();
+        const comboName = filename.split(".")[0].toUpperCase().replace(/_/g, " ").replace(/-/g, " ");
+        
+        // Formulate a beautiful WhatsApp text
+        const wsText = `¡Hola BEJO! ⚡ Me interesó el Combo que vi en la web:\n👉 *${comboName}*\n\n¿Tienen stock disponible?`;
+        const encodedText = encodeURIComponent(wsText);
+        wsBtn.href = `https://wa.me/5493816582851?text=${encodedText}`;
+    }
+}
+
+function goToCombo(idx) {
+    if (idx < 0) {
+        currentComboIdx = combosImages.length - 1;
+    } else if (idx >= combosImages.length) {
+        currentComboIdx = 0;
+    } else {
+        currentComboIdx = idx;
+    }
+    renderCombosCarousel();
+}
+
+function setupCombosCarouselControls() {
+    const prevBtn = document.getElementById("combosPrevBtn");
+    const nextBtn = document.getElementById("combosNextBtn");
+    const container = document.querySelector(".combos-carousel-container");
+
+    if (prevBtn) {
+        prevBtn.replaceWith(prevBtn.cloneNode(true)); // remove old listeners if any
+        document.getElementById("combosPrevBtn").addEventListener("click", (e) => {
+            e.stopPropagation();
+            goToCombo(currentComboIdx - 1);
+            startCombosAutoplay(); // Reset timer
+        });
+    }
+
+    if (nextBtn) {
+        nextBtn.replaceWith(nextBtn.cloneNode(true));
+        document.getElementById("combosNextBtn").addEventListener("click", (e) => {
+            e.stopPropagation();
+            goToCombo(currentComboIdx + 1);
+            startCombosAutoplay(); // Reset timer
+        });
+    }
+
+    if (container) {
+        // Pause autoplay on mouse enter, resume on leave
+        container.addEventListener("mouseenter", () => {
+            if (combosAutoplayInterval) clearInterval(combosAutoplayInterval);
+        });
+        container.addEventListener("mouseleave", () => {
+            startCombosAutoplay();
+        });
+
+        // Simple touch swipe support for mobile
+        let startX = 0;
+        container.addEventListener("touchstart", (e) => {
+            startX = e.touches[0].clientX;
+            if (combosAutoplayInterval) clearInterval(combosAutoplayInterval);
+        }, { passive: true });
+
+        container.addEventListener("touchend", (e) => {
+            const endX = e.changedTouches[0].clientX;
+            const diffX = startX - endX;
+            if (Math.abs(diffX) > 50) {
+                if (diffX > 0) {
+                    goToCombo(currentComboIdx + 1); // Swipe left, next
+                } else {
+                    goToCombo(currentComboIdx - 1); // Swipe right, prev
+                }
+            }
+            startCombosAutoplay();
+        }, { passive: true });
+    }
+}
+
+function startCombosAutoplay() {
+    if (combosAutoplayInterval) clearInterval(combosAutoplayInterval);
+    if (combosImages.length <= 1) return; // No need to autoplay single image
+    combosAutoplayInterval = setInterval(() => {
+        goToCombo(currentComboIdx + 1);
+    }, 4000);
+}
+
 // ── AUXILIARY: EVENT LISTENERS SETUP ──
 function setupEventListeners() {
     // Tabs Navigation switch triggers
     const navCatalogBtn = document.getElementById("navCatalogBtn");
     const navOffersBtn = document.getElementById("navOffersBtn");
     const navComboBtn = document.getElementById("navComboBtn");
+    const navCombosArmadosBtn = document.getElementById("navCombosArmadosBtn");
     const navWholesaleBtn = document.getElementById("navWholesaleBtn");
     const catalogContent = document.getElementById("catalogContent");
     const wholesaleContent = document.getElementById("wholesaleContent");
+    const combosArmadosContent = document.getElementById("combosArmadosContent");
     
     const selectTab = (tab) => {
         // Reset all filters when transitioning from section to section
@@ -1791,15 +1969,22 @@ function setupEventListeners() {
             navCatalogBtn.className = "pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all";
             navOffersBtn.className = "pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all";
             if(navComboBtn) navComboBtn.className = "pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all";
+            if(navCombosArmadosBtn) navCombosArmadosBtn.className = "pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all";
             navWholesaleBtn.className = "pb-4 border-b-2 border-transparent text-textMuted hover:text-textDark flex items-center gap-1.5 transition-all";
             
             catalogContent.classList.add("hidden");
             wholesaleContent.classList.add("hidden");
+            if(combosArmadosContent) combosArmadosContent.classList.add("hidden");
             
             document.getElementById("catalogHeaderNormal").classList.remove("hidden");
             document.getElementById("catalogHeaderNormal").classList.add("flex");
             document.getElementById("comboStickyHeader").classList.add("hidden");
             document.getElementById("comboStickyHeader").classList.remove("flex");
+
+            if (combosAutoplayInterval) {
+                clearInterval(combosAutoplayInterval);
+                combosAutoplayInterval = null;
+            }
         };
         
         resetTabs();
@@ -1821,6 +2006,10 @@ function setupEventListeners() {
             document.getElementById("comboStickyHeader").classList.remove("hidden");
             document.getElementById("comboStickyHeader").classList.add("flex");
             if(comboProducts.length === 0) fetchComboData();
+        } else if (tab === "combos_armados") {
+            if(navCombosArmadosBtn) navCombosArmadosBtn.className = "pb-4 border-b-2 border-accentBlue text-accentBlue flex items-center gap-1.5 transition-all";
+            if(combosArmadosContent) combosArmadosContent.classList.remove("hidden");
+            initCombosCarousel();
         }
         
         renderCatalog();
@@ -1829,6 +2018,7 @@ function setupEventListeners() {
     navCatalogBtn.addEventListener("click", () => selectTab("catalog"));
     navOffersBtn.addEventListener("click", () => selectTab("offers"));
     if(navComboBtn) navComboBtn.addEventListener("click", () => selectTab("combo"));
+    if(navCombosArmadosBtn) navCombosArmadosBtn.addEventListener("click", () => selectTab("combos_armados"));
     navWholesaleBtn.addEventListener("click", () => selectTab("wholesale"));
 
     // Search input filters
