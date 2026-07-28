@@ -381,7 +381,9 @@
             </div>
 
             <!-- Carousel Wrapper -->
-            <div class="relative w-full max-w-lg mx-auto aspect-square bg-white border border-black/[0.06] rounded-3xl overflow-hidden group shadow-md combos-carousel-container">
+            <div onclick="openImageZoom(this)" class="relative w-full max-w-2xl mx-auto aspect-square bg-white border border-black/[0.06] rounded-3xl overflow-hidden group shadow-md combos-carousel-container cursor-pointer">
+                <!-- Zoom overlay (magnifying glass) -->
+                <div class="zoom-overlay" style="z-index: 25;">🔍</div>
                 <!-- Slides Container -->
                 <div id="combosSlidesContainer" class="w-full h-full relative">
                     <!-- Images will be rendered dynamically here -->

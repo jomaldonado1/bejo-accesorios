@@ -1833,7 +1833,7 @@ function renderCombosCarousel() {
         const img = document.createElement("img");
         img.src = imgUrl;
         img.alt = `Combo ${idx + 1}`;
-        img.className = "w-full h-full object-contain max-h-[500px]"; // object-contain to avoid cropping text
+        img.className = "w-full h-full object-contain max-h-[650px]"; // object-contain to avoid cropping text
         img.loading = "lazy";
         
         slide.appendChild(img);
@@ -2223,7 +2223,13 @@ function showToast(message, type = "success") {
 
 // Image Zoom Modal Functions
 window.openImageZoom = function(container) {
-    const activeImg = container.querySelector('img.opacity-100');
+    let activeImg = container.querySelector('img.opacity-100');
+    if (!activeImg) {
+        const activeSlide = container.querySelector('.opacity-100');
+        if (activeSlide) {
+            activeImg = activeSlide.querySelector('img');
+        }
+    }
     if (activeImg) {
         document.getElementById("imageZoomContent").src = activeImg.src;
         const modal = document.getElementById("imageZoomModal");
