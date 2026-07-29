@@ -108,6 +108,9 @@
                     <a href="#seccionCompatibilidad" class="px-5 py-2.5 bg-white hover:bg-bgLight text-textDark border border-black/[0.08] text-xs font-semibold rounded-full transition-all duration-300 transform active:scale-95">
                         📱 Compatibilidad
                     </a>
+                    <button onclick="openCajasModal()" class="cajas-hero-btn px-5 py-2.5 text-xs font-black rounded-full transition-all duration-300 transform active:scale-95 select-none">
+                        🎁 Cajas Sorpresas
+                    </button>
                 </div>
             </div>
             <!-- Visual Hero Side -->
@@ -877,5 +880,235 @@
             Envianos tu oferta por WhatsApp y te respondemos. Puede ser por una unidad, un combo o por varios. 💬
         </span>
     </a>
+
+    <!-- ============================================================ -->
+    <!-- MODAL: CAJAS SORPRESAS                                       -->
+    <!-- ============================================================ -->
+    <style>
+    .cajas-modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(0,0,0,0.7);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        overflow-y: auto;
+    }
+    body.cajas-open .cajas-modal-overlay { display: flex; }
+
+    .cajas-modal {
+        background: linear-gradient(145deg, #1a1a2e 0%, #16213e 45%, #0f3460 100%);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 28px;
+        width: 100%;
+        max-width: 900px;
+        max-height: 92vh;
+        overflow-y: auto;
+        box-shadow: 0 32px 80px rgba(0,0,0,0.55);
+        position: relative;
+        animation: cajasSlideIn 0.35s cubic-bezier(0.175,0.885,0.32,1.275);
+        font-family: 'Inter', sans-serif;
+    }
+    @keyframes cajasSlideIn {
+        from { opacity:0; transform: translateY(40px) scale(0.95); }
+        to   { opacity:1; transform: translateY(0) scale(1); }
+    }
+
+    /* GRID */
+    .cajas-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; padding: 1rem 1.5rem 0; }
+    @media (max-width: 640px) { .cajas-grid { grid-template-columns: 1fr; } }
+
+    /* CARDS */
+    .caja-card {
+        border-radius: 20px;
+        padding: 1.4rem;
+        border: 1.5px solid rgba(255,255,255,0.1);
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.25s ease;
+        color: white;
+    }
+    .caja-card:hover { transform: translateY(-4px); }
+
+    .caja-card-mini  { background: linear-gradient(145deg,rgba(0,102,204,0.30),rgba(0,66,130,0.18)); border-color: rgba(100,180,255,0.28); box-shadow: 0 8px 30px rgba(0,102,204,0.22); }
+    .caja-card-combo { background: linear-gradient(145deg,rgba(200,120,0,0.32),rgba(180,80,0,0.20)); border-color: rgba(255,185,50,0.38); box-shadow: 0 8px 30px rgba(255,159,10,0.28); }
+    .caja-card-rev   { background: linear-gradient(145deg,rgba(0,140,60,0.28),rgba(0,100,40,0.18)); border-color: rgba(80,220,130,0.28); box-shadow: 0 8px 30px rgba(52,199,89,0.22); }
+
+    .caja-price-mini  { color: #7dd3fc; }
+    .caja-price-combo { color: #fde68a; }
+    .caja-price-rev   { color: #86efac; }
+
+    .caja-icon-wrap {
+        width: 42px; height: 42px;
+        border-radius: 12px;
+        border: 1.5px solid rgba(255,255,255,0.25);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.35rem;
+        background: rgba(255,255,255,0.1);
+    }
+    .caja-badge {
+        font-size: 0.62rem; font-weight: 800; letter-spacing: 1px;
+        text-transform: uppercase; padding: 3px 10px;
+        border-radius: 20px; background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.8);
+    }
+    .caja-name  { font-size: 1rem; font-weight: 900; margin: 0.7rem 0 0.2rem; }
+    .caja-price { font-size: 1.7rem; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 0.6rem; line-height: 1; }
+    .caja-qty   { font-size: 0.8rem; color: rgba(255,255,255,0.75); font-weight: 600; margin-bottom: 0.4rem; }
+    .caja-desc  { font-size: 0.78rem; color: rgba(255,255,255,0.58); line-height: 1.5; font-style: italic; }
+
+    /* Ribbon favorita */
+    .caja-ribbon {
+        position: absolute; top: 13px; right: -26px;
+        background: linear-gradient(135deg,#FFD700,#FF9F0A);
+        color: #1a1100; font-size: 0.58rem; font-weight: 900;
+        padding: 4px 30px; transform: rotate(35deg);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        text-transform: uppercase; white-space: nowrap;
+    }
+
+    /* Contenido interior */
+    .cajas-inner {
+        margin: 1.25rem 1.5rem 0;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 16px; padding: 1.1rem 1.4rem;
+    }
+    .cajas-inner-grid {
+        display: grid; grid-template-columns: repeat(2,1fr); gap: 0.55rem; margin-top: 0.6rem;
+    }
+    @media (max-width: 480px) { .cajas-inner-grid { grid-template-columns: 1fr; } }
+    .cajas-inner-item { display: flex; align-items: flex-start; gap: 8px; font-size: 0.8rem; color: rgba(255,255,255,0.72); line-height: 1.4; }
+    .cajas-inner-item b { color: rgba(255,255,255,0.9); }
+
+    /* Aviso */
+    .cajas-aviso { margin: 0.9rem 1.5rem 0; background: rgba(255,159,10,0.1); border: 1px solid rgba(255,159,10,0.25); border-radius: 12px; padding: 0.65rem 1rem; font-size: 0.76rem; color: rgba(255,200,80,0.88); line-height: 1.5; }
+
+    /* Botón Hero */
+    .cajas-hero-btn {
+        background: linear-gradient(135deg, #FFD700 0%, #FF9F0A 60%, #FF6000 100%);
+        color: #1a0800;
+        box-shadow: 0 4px 18px rgba(255,159,10,0.5);
+        animation: cajasGlow 3s ease-in-out infinite;
+        border: none; cursor: pointer;
+    }
+    .cajas-hero-btn:hover {
+        background: linear-gradient(135deg,#FFE033 0%,#FFB020 55%,#FF7A00 100%);
+        box-shadow: 0 6px 26px rgba(255,159,10,0.65);
+        transform: translateY(-2px) scale(1.04);
+    }
+    @keyframes cajasGlow {
+        0%,100% { box-shadow: 0 4px 18px rgba(255,159,10,0.5); }
+        50%      { box-shadow: 0 4px 28px rgba(255,210,0,0.75), 0 0 0 4px rgba(255,210,0,0.15); }
+    }
+
+    /* Botón cierre */
+    .cajas-close {
+        position: absolute; top: 14px; right: 14px;
+        width: 34px; height: 34px; border-radius: 50%;
+        background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18);
+        color: white; font-size: 1rem; font-weight: 700;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; transition: background 0.2s; z-index: 10;
+    }
+    .cajas-close:hover { background: rgba(255,59,48,0.45); }
+    </style>
+
+    <div class="cajas-modal-overlay" id="cajasOverlay">
+      <div class="cajas-modal" id="cajasModal">
+
+        <!-- Cerrar -->
+        <button class="cajas-close" onclick="closeCajasModal()">&#x2715;</button>
+
+        <!-- Header -->
+        <div style="text-align:center;padding:2rem 2rem 0.75rem;">
+          <div style="font-size:0.72rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(255,215,0,0.85);margin-bottom:0.4rem;">&#10024; BEJO Accesorios &middot; Exclusivo</div>
+          <div style="font-size:clamp(1.5rem,4vw,2.1rem);font-weight:900;color:white;margin-bottom:0.3rem;letter-spacing:-0.5px;">&#127873; Cajas M&aacute;gicas Sorpresa</div>
+          <div style="font-size:0.88rem;color:rgba(255,255,255,0.62);max-width:480px;margin:0 auto;line-height:1.6;">Eleg&iacute; tu caja y recib&iacute; un mix de accesorios al mejor precio. &iexcl;Aparecen en el cat&aacute;logo como <b style="color:rgba(255,215,0,0.85);">Cajas M&aacute;gicas</b>!</div>
+        </div>
+
+        <!-- 3 columnas -->
+        <div class="cajas-grid">
+
+          <!-- MINI -->
+          <div class="caja-card caja-card-mini">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0.5rem;">
+              <div class="caja-icon-wrap">&#9889;</div>
+              <span class="caja-badge">Mini</span>
+            </div>
+            <div class="caja-name">CAJA MINI</div>
+            <div class="caja-price caja-price-mini">$8.900</div>
+            <div class="caja-qty">&#128230; 6 a 7 productos sorpresa</div>
+            <div class="caja-desc">&iexcl;Ideal para sacarse las ganas y gastar monedas! Perfecta para estrenar.</div>
+          </div>
+
+          <!-- COMBO -->
+          <div class="caja-card caja-card-combo">
+            <div class="caja-ribbon">&#11088; Favorita</div>
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0.5rem;">
+              <div class="caja-icon-wrap">&#11088;</div>
+              <span class="caja-badge" style="background:rgba(255,180,0,0.25);color:#fde68a;">M&aacute;s Vendida</span>
+            </div>
+            <div class="caja-name">CAJA COMBO</div>
+            <div class="caja-price caja-price-combo">$14.500</div>
+            <div class="caja-qty">&#128230; 11 a 12 productos sorpresa</div>
+            <div class="caja-desc">Incluye cargador completo o cable especial. &iexcl;La mejor relaci&oacute;n precio-calidad!</div>
+          </div>
+
+          <!-- REVENDEDOR -->
+          <div class="caja-card caja-card-rev">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0.5rem;">
+              <div class="caja-icon-wrap">&#128640;</div>
+              <span class="caja-badge" style="background:rgba(0,180,80,0.25);color:#86efac;">Revendedor</span>
+            </div>
+            <div class="caja-name">CAJA REVENDEDOR</div>
+            <div class="caja-price caja-price-rev">$24.900</div>
+            <div class="caja-qty">&#128230; 19 a 21 productos sorpresa</div>
+            <div class="caja-desc">Lote gigante pensado para revender, hacer regalos o multiplicar tu inversi&oacute;n.</div>
+          </div>
+
+        </div>
+
+        <!-- Contenido interior -->
+        <div class="cajas-inner">
+          <div style="font-size:0.92rem;font-weight:800;color:white;display:flex;align-items:center;gap:8px;">&#128230; &iquest;Qu&eacute; vas a encontrar adentro?</div>
+          <div style="font-size:0.78rem;color:rgba(255,255,255,0.58);margin:4px 0 8px;">Un mix variado y s&uacute;per &uacute;til:</div>
+          <div class="cajas-inner-grid">
+            <div class="cajas-inner-item"><span>&#128241;</span><span><b>Fundas:</b> Mix de modelos cl&aacute;sicos + gama media/alta populares.</span></div>
+            <div class="cajas-inner-item"><span>&#128737;&#65039;</span><span><b>Vidrios Templados:</b> Para celular y universales para Tablet (8&quot;, 9&quot; y 9.7&quot;).</span></div>
+            <div class="cajas-inner-item"><span>&#9889;</span><span><b>Cargadores y Cables:</b> Carga r&aacute;pida USB-C / iPhone y cargadores completos.</span></div>
+            <div class="cajas-inner-item"><span>&#127919;</span><span><b>Gadgets y Accesorios:</b> Bumpers, sujetadores y sorpresas &uacute;nicas.</span></div>
+          </div>
+        </div>
+
+        <!-- Aviso -->
+        <div class="cajas-aviso">
+          &#9888;&#65039; <b>Aviso:</b> Las fundas/vidrios espec&iacute;ficos se env&iacute;an 100% al azar de nuestro stock disponible. No incluye lanzamientos ultramodernos de este a&ntilde;o.
+        </div>
+
+        <!-- Footer WA -->
+        <div style="padding:1.25rem 1.5rem 1.75rem;text-align:center;">
+          <a href="https://wa.me/5493816582851?text=Hola%20BEJO!%20%F0%9F%8E%81%20Me%20interesa%20una%20Caja%20Sorpresa.%0A%0A%C2%BFCu%C3%A1l%20te%20interesa%3F%0A%E2%9A%A1%20CAJA%20MINI%20%E2%80%94%20%248.900%20(6-7%20productos)%0A%E2%AD%90%20CAJA%20COMBO%20%E2%80%94%20%2414.500%20(11-12%20productos)%0A%F0%9F%9A%80%20CAJA%20REVENDEDOR%20%E2%80%94%20%2424.900%20(19-21%20productos)" 
+             target="_blank"
+             style="display:inline-flex;align-items:center;justify-content:center;gap:10px;background:#25D366;color:white;font-weight:800;font-size:0.92rem;padding:13px 30px;border-radius:24px;text-decoration:none;box-shadow:0 4px 20px rgba(37,211,102,0.4);letter-spacing:0.3px;transition:all 0.25s;">
+            &#128172; CONSULTAR / PEDIR MI CAJA POR WHATSAPP
+          </a>
+        </div>
+
+      </div>
+    </div>
+
+    <script>
+    function openCajasModal() { document.body.classList.add('cajas-open'); }
+    function closeCajasModal() { document.body.classList.remove('cajas-open'); }
+    document.getElementById('cajasOverlay').addEventListener('click', function(e) {
+      if (e.target === this) closeCajasModal();
+    });
+    document.addEventListener('keydown', function(e) { if (e.key==='Escape') closeCajasModal(); });
+    </script>
+
 </body>
 </html>
