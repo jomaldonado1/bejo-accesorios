@@ -1129,6 +1129,312 @@ div[data-testid="stFileUploader"] label { color: var(--text2) !important; }
 /* ── SEPARATOR ── */
 hr { border-color: var(--border) !important; margin: 1.5rem 0 !important; }
 
+/* ── CAJAS SORPRESAS MODAL ── */
+.cajas-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 20000;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    overflow-y: auto;
+}
+body.cajas-open .cajas-modal-overlay { display: flex; }
+
+.cajas-modal {
+    background: linear-gradient(145deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 28px;
+    width: 100%;
+    max-width: 900px;
+    max-height: 92vh;
+    overflow-y: auto;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06);
+    position: relative;
+    animation: modalSlideIn 0.35s cubic-bezier(0.175,0.885,0.32,1.275);
+}
+@keyframes modalSlideIn {
+    from { opacity:0; transform: translateY(40px) scale(0.95); }
+    to   { opacity:1; transform: translateY(0) scale(1); }
+}
+
+.cajas-modal-close {
+    position: absolute;
+    top: 16px; right: 16px;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    font-size: 1.1rem;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 10;
+    text-decoration: none;
+    font-weight: 700;
+    line-height: 1;
+}
+.cajas-modal-close:hover { background: rgba(255,59,48,0.5); border-color: rgba(255,59,48,0.6); }
+
+.cajas-modal-header {
+    text-align: center;
+    padding: 2rem 2rem 1rem;
+}
+.cajas-modal-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: rgba(255,215,0,0.8);
+    margin-bottom: 0.5rem;
+}
+.cajas-modal-title {
+    font-size: clamp(1.5rem, 4vw, 2.2rem);
+    font-weight: 900;
+    color: white;
+    margin-bottom: 0.4rem;
+    letter-spacing: -0.5px;
+}
+.cajas-modal-sub {
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.65);
+    max-width: 500px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+.cajas-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    padding: 1rem 1.5rem 0;
+}
+@media (max-width: 650px) {
+    .cajas-grid { grid-template-columns: 1fr; }
+}
+
+.caja-card {
+    border-radius: 20px;
+    padding: 1.5rem;
+    border: 1.5px solid rgba(255,255,255,0.1);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.caja-card:hover { transform: translateY(-4px); }
+.caja-card::before {
+    content: '';
+    position: absolute;
+    top: -40%; left: -20%;
+    width: 120%; height: 120%;
+    border-radius: 50%;
+    opacity: 0.08;
+    pointer-events: none;
+}
+
+/* MINI — azul */
+.caja-card-mini {
+    background: linear-gradient(145deg, rgba(0,102,204,0.25), rgba(0,66,130,0.15));
+    border-color: rgba(100,180,255,0.25);
+    box-shadow: 0 8px 30px rgba(0,102,204,0.2);
+}
+.caja-card-mini::before { background: radial-gradient(circle, #4db8ff, transparent); }
+.caja-card-mini .caja-icon-wrap { background: rgba(0,102,204,0.3); border-color: rgba(100,180,255,0.4); }
+.caja-card-mini .caja-price { color: #7dd3fc; }
+.caja-card-mini .caja-badge-label { background: rgba(0,102,204,0.5); color: #bfdbfe; }
+
+/* COMBO — naranja/dorado */
+.caja-card-combo {
+    background: linear-gradient(145deg, rgba(200,120,0,0.3), rgba(180,80,0,0.2));
+    border-color: rgba(255,185,50,0.35);
+    box-shadow: 0 8px 30px rgba(255,159,10,0.25);
+}
+.caja-card-combo::before { background: radial-gradient(circle, #FFD700, transparent); }
+.caja-card-combo .caja-icon-wrap { background: rgba(255,159,10,0.3); border-color: rgba(255,200,50,0.5); }
+.caja-card-combo .caja-price { color: #fde68a; }
+.caja-card-combo .caja-badge-label { background: rgba(220,120,0,0.5); color: #fde68a; }
+
+/* REVENDEDOR — verde */
+.caja-card-rev {
+    background: linear-gradient(145deg, rgba(0,140,60,0.25), rgba(0,100,40,0.15));
+    border-color: rgba(80,220,130,0.25);
+    box-shadow: 0 8px 30px rgba(52,199,89,0.2);
+}
+.caja-card-rev::before { background: radial-gradient(circle, #4ade80, transparent); }
+.caja-card-rev .caja-icon-wrap { background: rgba(52,199,89,0.3); border-color: rgba(80,220,130,0.4); }
+.caja-card-rev .caja-price { color: #86efac; }
+.caja-card-rev .caja-badge-label { background: rgba(0,140,60,0.5); color: #bbf7d0; }
+
+.caja-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+.caja-icon-wrap {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    border: 1.5px solid;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+}
+.caja-badge-label {
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 20px;
+}
+.caja-name {
+    font-size: 1rem;
+    font-weight: 900;
+    color: white;
+    margin-bottom: 0.25rem;
+    letter-spacing: 0.2px;
+}
+.caja-price {
+    font-size: 1.6rem;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    margin-bottom: 0.75rem;
+    line-height: 1;
+}
+.caja-qty {
+    font-size: 0.82rem;
+    color: rgba(255,255,255,0.75);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.caja-desc {
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.6);
+    line-height: 1.5;
+    font-style: italic;
+}
+
+/* FAVORITA badge en combo */
+.caja-favorita-ribbon {
+    position: absolute;
+    top: 14px; right: -24px;
+    background: linear-gradient(135deg, #FFD700, #FF9F0A);
+    color: #1a1a00;
+    font-size: 0.6rem;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    padding: 4px 28px;
+    transform: rotate(35deg);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+/* CONTENIDO INTERIOR */
+.cajas-content-section {
+    margin: 1.5rem 1.5rem 0;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 1.25rem 1.5rem;
+}
+.cajas-content-title {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: white;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.cajas-content-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem;
+}
+@media (max-width: 500px) { .cajas-content-grid { grid-template-columns: 1fr; } }
+
+.cajas-content-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 0.82rem;
+    color: rgba(255,255,255,0.75);
+    line-height: 1.4;
+}
+.cajas-content-item-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+.cajas-content-item b { color: rgba(255,255,255,0.92); }
+
+/* AVISO */
+.cajas-aviso {
+    margin: 1rem 1.5rem 0;
+    background: rgba(255,159,10,0.1);
+    border: 1px solid rgba(255,159,10,0.25);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    font-size: 0.78rem;
+    color: rgba(255,200,80,0.85);
+    line-height: 1.5;
+}
+
+/* FOOTER DEL MODAL */
+.cajas-modal-footer {
+    padding: 1.25rem 1.5rem 1.75rem;
+    text-align: center;
+}
+.btn-cajas-ws {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: #25D366;
+    color: white !important;
+    font-weight: 800;
+    font-size: 0.95rem;
+    padding: 14px 32px;
+    border-radius: 24px;
+    text-decoration: none;
+    transition: all 0.25s ease;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(37,211,102,0.4);
+    letter-spacing: 0.3px;
+}
+.btn-cajas-ws:hover { background: #1aab50; box-shadow: 0 6px 28px rgba(37,211,102,0.55); transform: translateY(-2px); }
+
+/* BOTÓN HERO */
+.hero-btn-cajas {
+    background: linear-gradient(135deg, #FFD700 0%, #FF9F0A 60%, #FF6B00 100%);
+    color: #1a0a00 !important;
+    box-shadow: 0 4px 20px rgba(255,159,10,0.45);
+    font-weight: 900;
+    border: none;
+    cursor: pointer;
+    animation: cajasGlow 3s ease-in-out infinite;
+}
+.hero-btn-cajas:hover {
+    transform: translateY(-3px) scale(1.04);
+    box-shadow: 0 8px 28px rgba(255,159,10,0.6);
+    background: linear-gradient(135deg, #FFE033 0%, #FFB020 60%, #FF7A00 100%);
+    color: #1a0a00 !important;
+}
+@keyframes cajasGlow {
+    0%, 100% { box-shadow: 0 4px 20px rgba(255,159,10,0.45); }
+    50% { box-shadow: 0 4px 30px rgba(255,200,0,0.7), 0 0 0 4px rgba(255,200,0,0.15); }
+}
+
 /* ── INVISIBLE ADMIN EXPANDER for non-admin ── */
 .admin-hidden div[data-testid="stExpander"] {
     opacity: 0.01 !important;
@@ -2296,8 +2602,133 @@ st.markdown(f"""
   <div class="hero-cta-group">
     <a href="#catalogo" class="hero-btn hero-btn-primary">🛍️ Ver Catálogo</a>
     <a href="{_ws_hero}" target="_blank" class="hero-btn hero-btn-secondary">💬 Consultar</a>
+    <button onclick="openCajasModal()" class="hero-btn hero-btn-cajas">🎁 Cajas Sorpresas</button>
   </div>
 </div>""", unsafe_allow_html=True)
+
+# ── CAJAS SORPRESAS MODAL ────────────────────────────────────────────────────
+_ws_cajas_msg = urllib.parse.quote(
+    "Hola BEJO! 🎁 Me interesa una Caja Sorpresa.\n\n"
+    "¿Cuál te interesa?\n"
+    "⚡ CAJA MINI — $8.900 (6-7 productos)\n"
+    "⭐ CAJA COMBO — $14.500 (11-12 productos)\n"
+    "🚀 CAJA REVENDEDOR — $24.900 (19-21 productos)\n\n"
+    "(Aclarales cuál te interesa y si es para uso personal o reventa 😊)"
+)
+_ws_cajas_url = f"https://wa.me/{NUMERO_WS}?text={_ws_cajas_msg}"
+st.markdown(f"""
+<!-- CAJAS SORPRESAS MODAL -->
+<div class="cajas-modal-overlay" id="cajasOverlay" onclick="handleCajasOverlayClick(event)">
+  <div class="cajas-modal" id="cajasModal">
+
+    <!-- Botón cerrar -->
+    <button class="cajas-modal-close" onclick="closeCajasModal()">✕</button>
+
+    <!-- Header -->
+    <div class="cajas-modal-header">
+      <div class="cajas-modal-eyebrow">✨ BEJO Accesorios · Exclusivo</div>
+      <div class="cajas-modal-title">🎁 Cajas Mágicas Sorpresa</div>
+      <div class="cajas-modal-sub">Elegí tu caja y recibí un mix de accesorios al mejor precio. ¡Aparecen en el catálogo como Cajas Mágicas!</div>
+    </div>
+
+    <!-- 3 columnas de combos -->
+    <div class="cajas-grid">
+
+      <!-- CAJA MINI -->
+      <div class="caja-card caja-card-mini">
+        <div class="caja-card-top">
+          <div class="caja-icon-wrap">⚡</div>
+          <span class="caja-badge-label">Mini</span>
+        </div>
+        <div class="caja-name">CAJA MINI</div>
+        <div class="caja-price">$8.900</div>
+        <div class="caja-qty">📦 6 a 7 productos sorpresa</div>
+        <div class="caja-desc">¡Ideal para sacarse las ganas y gastar monedas! Perfecta para estrenar.</div>
+      </div>
+
+      <!-- CAJA COMBO (LA FAVORITA) -->
+      <div class="caja-card caja-card-combo">
+        <div class="caja-favorita-ribbon">⭐ Favorita</div>
+        <div class="caja-card-top">
+          <div class="caja-icon-wrap">⭐</div>
+          <span class="caja-badge-label">Más Vendida</span>
+        </div>
+        <div class="caja-name">CAJA COMBO</div>
+        <div class="caja-price">$14.500</div>
+        <div class="caja-qty">📦 11 a 12 productos sorpresa</div>
+        <div class="caja-desc">Incluye cargador completo o cable especial. ¡La mejor relación precio-calidad!</div>
+      </div>
+
+      <!-- CAJA REVENDEDOR -->
+      <div class="caja-card caja-card-rev">
+        <div class="caja-card-top">
+          <div class="caja-icon-wrap">🚀</div>
+          <span class="caja-badge-label">Revendedor</span>
+        </div>
+        <div class="caja-name">CAJA REVENDEDOR</div>
+        <div class="caja-price">$24.900</div>
+        <div class="caja-qty">📦 19 a 21 productos sorpresa</div>
+        <div class="caja-desc">Lote gigante pensado para revender, hacer regalos o multiplicar tu inversión.</div>
+      </div>
+
+    </div>
+
+    <!-- Contenido interior -->
+    <div class="cajas-content-section">
+      <div class="cajas-content-title">📦 ¿Qué vas a encontrar adentro?</div>
+      <div style="font-size:0.82rem;color:rgba(255,255,255,0.65);margin-bottom:0.75rem;">Un mix variado y súper útil:</div>
+      <div class="cajas-content-grid">
+        <div class="cajas-content-item">
+          <span class="cajas-content-item-icon">📱</span>
+          <span><b>Fundas:</b> Mix de modelos clásicos + gama media/alta populares.</span>
+        </div>
+        <div class="cajas-content-item">
+          <span class="cajas-content-item-icon">🛡️</span>
+          <span><b>Vidrios Templados:</b> Para celular y universales para Tablet (8", 9" y 9.7").</span>
+        </div>
+        <div class="cajas-content-item">
+          <span class="cajas-content-item-icon">⚡</span>
+          <span><b>Cargadores y Cables:</b> Carga rápida USB-C / iPhone y cargadores completos.</span>
+        </div>
+        <div class="cajas-content-item">
+          <span class="cajas-content-item-icon">🎯</span>
+          <span><b>Gadgets y Accesorios:</b> Bumpers, sujetadores y sorpresas únicas.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Aviso -->
+    <div class="cajas-aviso">
+      ⚠️ <b>Aviso:</b> Las fundas/vidrios específicos se envían 100% al azar de nuestro stock disponible. No incluye lanzamientos ultramodernos de este año.
+    </div>
+
+    <!-- Footer con WhatsApp -->
+    <div class="cajas-modal-footer">
+      <a href="{_ws_cajas_url}" target="_blank" class="btn-cajas-ws">
+        💬 CONSULTAR / PEDIR MI CAJA POR WHATSAPP
+      </a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function openCajasModal() {{
+  document.body.classList.add('cajas-open');
+}}
+function closeCajasModal() {{
+  document.body.classList.remove('cajas-open');
+}}
+function handleCajasOverlayClick(e) {{
+  if (e.target === document.getElementById('cajasOverlay')) {{
+    closeCajasModal();
+  }}
+}}
+document.addEventListener('keydown', function(e) {{
+  if (e.key === 'Escape') closeCajasModal();
+}});
+</script>
+""", unsafe_allow_html=True)
 
 # ── FILTERS ───────────────────────────────────────────────────────────────────
 if "filtro_tipo_val" not in st.session_state:
